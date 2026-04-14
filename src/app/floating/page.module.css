@@ -1,0 +1,39 @@
+.wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+}
+
+.form {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  color: var(--color-text-primary);
+  outline: none;
+  caret-color: var(--color-accent);
+}
+
+.input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.indicator {
+  font-size: 18px;
+  flex-shrink: 0;
+}

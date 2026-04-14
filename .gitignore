@@ -1,0 +1,31 @@
+# ── Node / Bun ──────────────────────────────────────────────
+node_modules/
+
+# ── Next.js ─────────────────────────────────────────────────
+.next/
+out/
+
+# ── Tauri / Rust ─────────────────────────────────────────────
+src-tauri/target/
+src-tauri/gen/
+
+# ── Android (Capacitor) ──────────────────────────────────────
+android/
+capacitor-cordova-android-plugins/
+
+# ── 환경 변수 (credentials 포함) ─────────────────────────────
+.env
+.env.local
+.env.production
+.env*.local
+
+# ── OS ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 에디터 ───────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo

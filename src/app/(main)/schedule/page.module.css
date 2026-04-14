@@ -1,0 +1,679 @@
+.container {
+  width: 100%;
+  max-width: 960px;
+}
+
+/* ── Quick Add ── */
+.quickAddForm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.quickAddInput {
+  flex: 1;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 14px;
+  outline: none;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  transition: border-color 0.15s;
+}
+
+.quickAddInput:focus {
+  border-color: var(--color-accent);
+}
+
+.quickAddInput::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.quickAddBtn {
+  padding: 8px 16px;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.quickAddBtn:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.quickAddBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.refreshBtn {
+  padding: 7px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  transition: background 0.15s, color 0.15s;
+}
+
+.refreshBtn:hover:not(:disabled) {
+  background: var(--color-accent-ultra-soft);
+  color: var(--color-accent);
+}
+
+.refreshBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Calendar Header ── */
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.navBtn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  transition: background 0.15s, color 0.15s;
+}
+
+.navBtn:hover {
+  background: var(--color-accent-ultra-soft);
+  color: var(--color-accent);
+}
+
+.monthTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  min-width: 110px;
+}
+
+.loadingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* ── Calendar Grid ── */
+.calendar {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.weekdayHeader {
+  padding: 7px 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.weekdayHeader:not(:last-child) {
+  border-right: 1px solid var(--color-border);
+}
+
+.sundayLabel {
+  color: var(--color-danger);
+}
+
+.dayCells {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.dayCell {
+  min-height: 96px;
+  padding: 5px 6px;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  background: var(--color-surface);
+  transition: background 0.1s;
+  overflow: hidden;
+  position: relative;
+}
+
+.dayCell:nth-child(7n) {
+  border-right: none;
+}
+
+.dayCell:nth-last-child(-n+7) {
+  border-bottom: none;
+}
+
+.dayCell:hover {
+  background: var(--color-accent-ultra-soft);
+}
+
+.otherMonth {
+  background: var(--color-bg);
+}
+
+.otherMonth .dayNumber {
+  opacity: 0.3;
+}
+
+.selectedCell {
+  background: var(--color-accent-soft);
+}
+
+.selectedCell:hover {
+  background: var(--color-accent-soft);
+}
+
+.sundayCell .dayNumber {
+  color: var(--color-danger);
+}
+
+.dayNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  border-radius: 50%;
+  margin-bottom: 3px;
+}
+
+.todayCell .dayNumber {
+  background: var(--color-accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.eventChip {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 1px 5px;
+  margin-bottom: 2px;
+  border-radius: 3px;
+  background: var(--color-accent);
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.6;
+  cursor: grab;
+  transition: opacity 0.15s;
+}
+
+.eventChip:active {
+  cursor: grabbing;
+}
+
+.draggingChip {
+  opacity: 0.4;
+}
+
+.dragOverCell {
+  background: var(--color-accent-soft) !important;
+  outline: 2px dashed var(--color-accent);
+  outline-offset: -2px;
+}
+
+.moreEvents {
+  display: block;
+  font-size: 10.5px;
+  color: var(--color-text-secondary);
+  padding: 0 4px;
+}
+
+/* ── Cell Add Button ── */
+.cellAddBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.dayCell:hover .cellAddBtn {
+  opacity: 1;
+}
+
+.cellAddBtn:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+/* ── Day Detail ── */
+.dayDetail {
+  margin-bottom: 20px;
+}
+
+.dayDetailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.dayDetailTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.dayAddBtn {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-accent);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+
+.dayAddBtn:hover {
+  background: var(--color-accent-ultra-soft);
+}
+
+.eventList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.eventItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 9px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: box-shadow 0.15s;
+}
+
+.eventItem:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.eventTime {
+  flex-shrink: 0;
+  width: 48px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-accent);
+  padding-top: 1px;
+}
+
+.eventBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.eventTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eventMeta {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.editBtn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eventItem:hover .editBtn {
+  opacity: 1;
+}
+
+.editBtn:hover {
+  background: var(--color-accent-ultra-soft);
+  color: var(--color-accent);
+}
+
+.deleteBtn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eventItem:hover .deleteBtn {
+  opacity: 1;
+}
+
+.deleteBtn:hover {
+  background: #fff0ef;
+  color: var(--color-danger);
+}
+
+/* ── Microsoft Todo ── */
+.todoSection {
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.todoTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 10px;
+}
+
+.todoList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.todoItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.todoCheck {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background: transparent;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+}
+
+.todoCheck:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.todoBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.todoText {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.todoMeta {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.todoListName {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.todoDue {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-accent);
+}
+
+.todoDueOverdue {
+  color: var(--color-danger);
+}
+
+/* ── Misc ── */
+.empty {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.error {
+  font-size: 13px;
+  color: var(--color-danger);
+  margin-bottom: 10px;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 0;
+  color: var(--color-text-secondary);
+}
+
+.linkBtn {
+  padding: 9px 18px;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ── Event Creation Modal ── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  padding: 20px 24px 24px;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.modalClose {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.modalClose:hover {
+  background: var(--color-accent-ultra-soft);
+  color: var(--color-danger);
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.formLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.formInput {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.formInput:focus {
+  border-color: var(--color-accent);
+}
+
+/* select 전용: 드롭다운 화살표 */
+select.formInput {
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  cursor: pointer;
+}
+
+.allDayRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.allDayLabel {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.cancelBtn {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  transition: background 0.15s;
+}
+
+.cancelBtn:hover {
+  background: var(--color-bg);
+}
+
+.submitBtn {
+  padding: 8px 18px;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.submitBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
