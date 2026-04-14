@@ -141,8 +141,10 @@ export default function SchedulePage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [eventForm, setEventForm] = useState<EventForm>(EMPTY_FORM);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const dragEventRef = useRef<CalendarEvent | null>(null);
+  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
+  const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 });
+  const dragStateRef = useRef<CalendarEvent | null>(null);
+  const dropHandlerRef = useRef<(ev: CalendarEvent, targetDate: string) => void>(() => {});
 
   // 캘린더 목록 로드
   useEffect(() => {
@@ -347,12 +349,7 @@ export default function SchedulePage() {
     }
   }, [refreshGoogle, fetchEvents, invalidateCache, gridRange]);
 
-  const handleDropEvent = useCallback(async (targetDate: string) => {
-    const ev = dragEventRef.current;
-    setDragOverDate(null);
-    setDraggingId(null);
-    dragEventRef.current = null;
-    if (!ev || targetDate === getEventDateKey(ev)) return;
+  const handleDropEvent = useCallback(async (ev: CalendarEvent, targetDate: string) => {
     try {
       const tokens = await refreshGoogle();
       if (!tokens?.access_token) return;
@@ -365,6 +362,44 @@ export default function SchedulePage() {
       showToast(msg);
     }
   }, [refreshGoogle, fetchEvents, invalidateCache, gridRange]);
+
+  // dropHandlerRef를 항상 최신 handleDropEvent로 유지
+  dropHandlerRef.current = handleDropEvent;
+
+  // 드래그 중 document 레벨 마우스 이벤트 (HTML5 DnD 대신 마우스 이벤트 사용)
+  useEffect(() => {
+    if (!draggingEvent) return;
+
+    const onMove = (e: MouseEvent) => {
+      setGhostPos({ x: e.clientX, y: e.clientY });
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      setDragOverDate(el?.closest<HTMLElement>("[data-date]")?.dataset.date ?? null);
+    };
+
+    const onUp = (e: MouseEvent) => {
+      const ev = dragStateRef.current;
+      dragStateRef.current = null;
+      setDraggingEvent(null);
+      setDragOverDate(null);
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const targetDate = el?.closest<HTMLElement>("[data-date]")?.dataset.date ?? null;
+      if (ev && targetDate && targetDate !== getEventDateKey(ev)) {
+        dropHandlerRef.current(ev, targetDate);
+      }
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "grabbing";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [draggingEvent]); // eslint-disable-line
 
   const handleCompleteTodo = useCallback(async (todo: TodoItem) => {
     const tokens = await refreshMicrosoft();
@@ -442,22 +477,9 @@ export default function SchedulePage() {
                 return (
                   <div
                     key={date}
+                    data-date={date}
                     className={`${cls}${isDragOver ? ` ${styles.dragOverCell}` : ""}`}
-                    onClick={() => setSelectedDate(date)}
-                    onDragOver={(e) => {
-                      if (!dragEventRef.current) return; // 드래그 중이 아니면 무시
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
-                      setDragOverDate(date);
-                    }}
-                    onDragLeave={(e) => {
-                      // relatedTarget이 null인 경우(WebKit 버그) 좌표로 판단
-                      const r = e.currentTarget.getBoundingClientRect();
-                      if (e.clientX < r.left || e.clientX >= r.right || e.clientY < r.top || e.clientY >= r.bottom) {
-                        setDragOverDate(null);
-                      }
-                    }}
-                    onDrop={(e) => { e.preventDefault(); handleDropEvent(date); }}
+                    onClick={() => { if (!draggingEvent) setSelectedDate(date); }}
                   >
                     <span className={styles.dayNumber}>{day}</span>
                     {inMonth && (
@@ -472,19 +494,15 @@ export default function SchedulePage() {
                     {shown.map((ev) => (
                       <span
                         key={ev.id}
-                        className={`${styles.eventChip}${draggingId === ev.id ? ` ${styles.draggingChip}` : ""}`}
+                        className={`${styles.eventChip}${draggingEvent?.id === ev.id ? ` ${styles.draggingChip}` : ""}`}
                         style={ev.calendarColor ? { background: ev.calendarColor, color: "#fff" } : undefined}
-                        draggable
-                        onDragStart={(e) => {
+                        onMouseDown={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
-                          dragEventRef.current = ev;
-                          setDraggingId(ev.id);
-                          e.dataTransfer.effectAllowed = "move";
-                          // WebKit(macOS)은 setData 호출 없으면 drop 이벤트가 발생하지 않음
-                          e.dataTransfer.setData("text/plain", ev.id);
+                          dragStateRef.current = ev;
+                          setDraggingEvent(ev);
+                          setGhostPos({ x: e.clientX, y: e.clientY });
                         }}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDragEnd={() => { setDraggingId(null); setDragOverDate(null); dragEventRef.current = null; }}
                       >
                         {ev.isAllDay ? "" : `${formatTime(ev.startTime)} `}{ev.title}
                       </span>
@@ -555,6 +573,16 @@ export default function SchedulePage() {
             })}
           </ul>
         </section>
+      )}
+
+      {/* 드래그 고스트 */}
+      {draggingEvent && (
+        <div
+          className={styles.dragGhost}
+          style={{ left: ghostPos.x + 14, top: ghostPos.y - 10 }}
+        >
+          {draggingEvent.title}
+        </div>
       )}
 
       {/* 일정 추가 모달 */}

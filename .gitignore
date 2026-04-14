@@ -5,6 +5,9 @@ node_modules/
 .next/
 out/
 
+# ── TypeScript ─────────────────────────────────────────────
+*.tsbuildinfo
+
 # ── Tauri / Rust ─────────────────────────────────────────────
 src-tauri/target/
 src-tauri/gen/
