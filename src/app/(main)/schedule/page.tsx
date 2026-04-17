@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useState, useCallback, useMemo, useRef} from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {useAuthStore} from "@/store/auth";
 import {useEventsStore, CalendarEvent} from "@/store/events";
 import {useTodosStore, TodoItem} from "@/store/todos";
@@ -258,8 +258,8 @@ export default function SchedulePage() {
       const nextM = currentMonth === 11 ? 0 : currentMonth + 1;
       const prevCells = buildCells(prevY, prevM);
       const nextCells = buildCells(nextY, nextM);
-      prefetchEvents(tokens.access_token, new Date(prevCells[0].date + "T00:00:00").toISOString(), new Date(prevCells[prevCells.length - 1].date + "T23:59:59").toISOString());
-      prefetchEvents(tokens.access_token, new Date(nextCells[0].date + "T00:00:00").toISOString(), new Date(nextCells[nextCells.length - 1].date + "T23:59:59").toISOString());
+      void prefetchEvents(tokens.access_token, new Date(prevCells[0].date + "T00:00:00").toISOString(), new Date(prevCells[prevCells.length - 1].date + "T23:59:59").toISOString());
+      void prefetchEvents(tokens.access_token, new Date(nextCells[0].date + "T00:00:00").toISOString(), new Date(nextCells[nextCells.length - 1].date + "T23:59:59").toISOString());
     })();
   }, [googleTokens?.access_token, currentYear, currentMonth]); // eslint-disable-line
 
@@ -380,7 +380,7 @@ export default function SchedulePage() {
     await Promise.all(p);
   }, [refreshGoogle, refreshMicrosoft, fetchEvents, fetchTodos, gridRange]);
 
-  const handleQuickAdd = useCallback(async (e: React.FormEvent) => {
+  const handleQuickAdd = useCallback(async (e: { preventDefault(): void }) => {
     e.preventDefault();
     const text = quickInput.trim();
     if (!text || quickStatus === "loading") return;
@@ -423,7 +423,7 @@ export default function SchedulePage() {
     }
   }, [quickInput, quickStatus, refreshGoogle, fetchEvents, gridRange, calendars, primaryCalendarId]);
 
-  const handleEventFormSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleEventFormSubmit = useCallback(async (e: { preventDefault(): void }) => {
     e.preventDefault();
     if (!eventForm.title.trim() || eventForm.submitting) return;
     setEventForm((f) => ({...f, submitting: true}));
@@ -625,7 +625,7 @@ export default function SchedulePage() {
                 <div key={wd} className={`${styles.weekdayHeader}${i === 6 ? ` ${styles.sundayLabel}` : ""}`}>{wd}</div>
               ))}
             </div>
-            <div className={styles.dayCells}>
+            <div className={styles.dayCells} key={`${currentYear}-${currentMonth}`}>
               {cells.map(({date, day, inMonth, isSunday}) => {
                 const isToday = date === todayStr;
                 const isSelected = date === selectedDate;
@@ -670,7 +670,7 @@ export default function SchedulePage() {
                     {shown.map((ev) => (
                       <span
                         key={ev.id}
-                        className={`${styles.eventChip}${draggingEvent?.id === ev.id ? ` ${styles.draggingChip}` : ""}`}
+                        className={`${styles.eventChip} ${draggingEvent?.id === ev.id ? ` ${styles.draggingChip}` : ""}`}
                         style={ev.calendarColor ? {background: ev.calendarColor, color: "#fff"} : undefined}
                         onClick={(e) => { e.stopPropagation(); setSelectedDate(date); setDetailEvent(ev); }}
                         onMouseDown={(e) => {

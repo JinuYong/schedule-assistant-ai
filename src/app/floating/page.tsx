@@ -7,7 +7,6 @@ import { hideFloatingWindow } from "@/lib/floating-window";
 import { parseScheduleText } from "@/lib/claude";
 import { createEvent, getCalendarList, type CalendarListItem } from "@/lib/google-calendar";
 import { useAuthStore } from "@/store/auth";
-import { useEventsStore } from "@/store/events";
 import styles from "./page.module.css";
 
 export default function FloatingPage() {
@@ -29,7 +28,7 @@ export default function FloatingPage() {
     return () => window.removeEventListener("blur", onWindowBlur);
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     if (!input.trim() || status === "loading") return;
     setStatus("loading");
