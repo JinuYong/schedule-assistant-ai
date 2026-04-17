@@ -1,6 +1,5 @@
 .container {
   width: 100%;
-  max-width: 960px;
 }
 
 /* ── Quick Add ── */
@@ -51,8 +50,19 @@
   cursor: not-allowed;
 }
 
+.refreshGroup {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .refreshBtn {
-  padding: 7px 11px;
+  padding: 4px;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-size: 18px;
@@ -98,11 +108,30 @@
   color: var(--color-accent);
 }
 
+.todayBtn {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.todayBtn:hover {
+  background: var(--color-accent-ultra-soft);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
 .monthTitle {
   font-size: 17px;
   font-weight: 700;
   color: var(--color-text-primary);
   min-width: 110px;
+  text-align: center;
+  line-height: 1;
 }
 
 .loadingDot {
@@ -220,7 +249,7 @@
 
 .eventChip {
   display: block;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
   padding: 1px 5px;
   margin-bottom: 2px;
@@ -339,7 +368,7 @@
 
 .eventItem {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding: 9px 14px;
   background: var(--color-surface);
@@ -347,6 +376,7 @@
   border-left: 3px solid var(--color-border);
   border-radius: var(--radius-md);
   transition: box-shadow 0.15s;
+  cursor: pointer;
 }
 
 .eventItem:hover {
@@ -692,3 +722,53 @@ select.formInput {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* ── Event Detail Modal ── */
+.detailDot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.detailBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0 18px;
+}
+
+.detailRow {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.detailDesc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+}
+
+.dangerOutlineBtn {
+  padding: 8px 16px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--color-danger);
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.dangerOutlineBtn:hover:not(:disabled) {
+  background: #fff0ef;
+}
+
+.dangerOutlineBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+

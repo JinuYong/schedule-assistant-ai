@@ -17,7 +17,7 @@ export default function Sidebar() {
     <aside className={styles.sidebar}>
       <div className={styles.logo}>
         <span className={styles.logoIcon}>🗓</span>
-        <span className={styles.logoText}>Schedule AI</span>
+        <span className={styles.logoText}>Cali</span>
       </div>
       <nav className={styles.nav}>
         {NAV_ITEMS.map((item) => {

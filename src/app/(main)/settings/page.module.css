@@ -1,5 +1,5 @@
 .container {
-  max-width: 640px;
+  width: 100%;
 }
 
 .title {
@@ -163,6 +163,12 @@
 
 .shortcutInput:focus {
   border-color: var(--color-accent);
+}
+
+.shortcutRecording {
+  border-color: var(--color-accent);
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 
 .saveBtn {

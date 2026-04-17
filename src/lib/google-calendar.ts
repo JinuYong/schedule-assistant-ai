@@ -45,11 +45,11 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
-/** 캘린더 목록 캐시 (5분 TTL) */
+/** 캘린더 목록 캐시 (1시간 TTL, 새로고침 버튼으로 수동 초기화 가능) */
 let _calListCache: { data: CalendarListItem[]; ts: number } | null = null;
-const CAL_LIST_TTL = 5 * 60 * 1000;
+const CAL_LIST_TTL = 60 * 60 * 1000; // 1시간 (수동 새로고침 버튼으로 언제든 초기화 가능)
 
-/** 사용자가 선택(표시)한 캘린더 목록 조회 (5분간 캐시) */
+/** 사용자가 선택(표시)한 캘린더 목록 조회 (1시간 캐시) */
 export async function getCalendarList(accessToken: string): Promise<CalendarListItem[]> {
   if (_calListCache && Date.now() - _calListCache.ts < CAL_LIST_TTL) {
     return _calListCache.data;
@@ -63,7 +63,7 @@ export async function getCalendarList(accessToken: string): Promise<CalendarList
   return result;
 }
 
-/** 캘린더 목록 캐시 강제 초기화 (계정 변경 시 호출) */
+/** 캘린더 목록 캐시 강제 초기화 (계정 변경 또는 새로고침 버튼 클릭 시 호출) */
 export function clearCalendarListCache() {
   _calListCache = null;
 }

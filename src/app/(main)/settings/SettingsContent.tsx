@@ -1,21 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { useThemeStore, THEME_COLORS } from "@/store/theme";
 import { storeGet, storeSet, isTauri } from "@/lib/tauri-store";
 import { startGoogleOAuth, startMicrosoftOAuth } from "@/lib/oauth";
-import { DEFAULT_SHORTCUT } from "@/lib/hotkey";
+import { DEFAULT_SHORTCUT, registerHotkey, unregisterHotkeys } from "@/lib/hotkey";
 import styles from "./page.module.css";
+import { toggleFloatingWindow } from '@/lib/floating-window'
 
 export default function SettingsContent() {
   const { googleTokens, setGoogleTokens, microsoftTokens, setMicrosoftTokens } = useAuthStore();
   const { accentColor, setTheme } = useThemeStore();
 
   const [anthropicKey, setAnthropicKey] = useState("");
-  const [microsoftClientId, setMicrosoftClientId] = useState("");
-  const [microsoftClientSecret, setMicrosoftClientSecret] = useState("");
   const [shortcut, setShortcut] = useState(DEFAULT_SHORTCUT);
+  const [ isRecording, setIsRecording ] = useState(false);
+  const [ shortcutError, setShortcutError ] = useState("");
+  const isRecordingRef = useRef(false);
 
   const [mounted, setMounted] = useState(false);
   const [savedKeys, setSavedKeys] = useState(false);
@@ -29,16 +31,12 @@ export default function SettingsContent() {
     setMounted(true);
     (async () => {
       setAnthropicKey((await storeGet<string>("anthropic.apiKey")) ?? "");
-      setMicrosoftClientId((await storeGet<string>("microsoft.clientId")) ?? "");
-      setMicrosoftClientSecret((await storeGet<string>("microsoft.clientSecret")) ?? "");
       setShortcut((await storeGet<string>("hotkey")) ?? DEFAULT_SHORTCUT);
     })();
   }, []);
 
   const saveKeys = async () => {
     await storeSet("anthropic.apiKey", anthropicKey);
-    await storeSet("microsoft.clientId", microsoftClientId);
-    await storeSet("microsoft.clientSecret", microsoftClientSecret);
     setSavedKeys(true);
     setTimeout(() => setSavedKeys(false), 2000);
   };
@@ -83,7 +81,47 @@ export default function SettingsContent() {
     );
   };
 
+  useEffect(() => {
+    const handleNativeKeyDown = (e: KeyboardEvent)=> {
+      if (!isRecordingRef.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const ignoreKeys = ["Control", "Shift", "Alt", "Meta"];
+      if (ignoreKeys.includes(e.key)) return;
+
+      const modifiers: string[] = [];
+      if (e.metaKey) modifiers.push("Command");
+      if (e.ctrlKey) modifiers.push("Control");
+      if (e.altKey) modifiers.push("Option");
+      if (e.shiftKey) modifiers.push("Shift");
+      if (modifiers.length === 0) return;
+
+      let key = e.code;
+      if (key.startsWith("Key")) key = key.slice(3);
+      else if (key.startsWith("Digit")) key = key.slice(5);
+
+      setShortcut([...modifiers, key].join(" + "));
+      isRecordingRef.current = false;
+      setIsRecording(false);
+    };
+
+    window.addEventListener("keydown", handleNativeKeyDown, true);
+    return () => window.removeEventListener("keydown", handleNativeKeyDown, true);
+  }, []);
+
   const saveShortcut = async () => {
+    setShortcutError("");
+    await unregisterHotkeys();
+
+    const ok = await registerHotkey(shortcut, toggleFloatingWindow);
+    if (!ok) {
+      // 실패 시 기존 단축키 복원
+      const prev = (await storeGet<string>("hotkey")) ?? DEFAULT_SHORTCUT;
+      await registerHotkey(prev, toggleFloatingWindow);
+      setShortcutError("단축키 등록에 실패했습니다. 다른 단축키를 사용해주세요.");
+      return;
+    }
     await storeSet("hotkey", shortcut);
     setShortcutSaved(true);
     setTimeout(() => setShortcutSaved(false), 2000);
@@ -129,22 +167,6 @@ export default function SettingsContent() {
             onChange={(e) => setAnthropicKey(e.target.value)}
             placeholder="sk-ant-..."
           />
-          <label className={styles.label} style={{ marginTop: 12 }}>Microsoft Client ID</label>
-          <input
-            className={styles.shortcutInput}
-            type="password"
-            value={microsoftClientId}
-            onChange={(e) => setMicrosoftClientId(e.target.value)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          />
-          <label className={styles.label}>Microsoft Client Secret</label>
-          <input
-            className={styles.shortcutInput}
-            type="password"
-            value={microsoftClientSecret}
-            onChange={(e) => setMicrosoftClientSecret(e.target.value)}
-            placeholder="Microsoft App Secret"
-          />
         </div>
         <button className={styles.saveBtn} onClick={saveKeys} style={{ marginTop: 12 }}>
           {savedKeys ? "저장됨 ✓" : "저장"}
@@ -186,7 +208,7 @@ export default function SettingsContent() {
           {microsoftTokens && <span className={styles.badge}>연결됨</span>}
         </div>
         <p className={styles.description}>
-          Microsoft 계정을 연동하여 할일을 동기화합니다. (Client ID/Secret 먼저 저장 필요)
+          Microsoft 계정으로 로그인하여 할일을 동기화합니다.
         </p>
         {msOAuthError && <p className={styles.errorText}>{msOAuthError}</p>}
         {microsoftTokens ? (
@@ -199,7 +221,7 @@ export default function SettingsContent() {
             onClick={connectMicrosoft}
             disabled={msOAuthStatus === "waiting"}
           >
-            {msOAuthStatus === "waiting" ? "브라우저에서 인증 중..." : "Microsoft 계정 연결"}
+            {msOAuthStatus === "waiting" ? "브라우저에서 인증 중..." : "Microsoft로 로그인"}
           </button>
         )}
       </section>
@@ -212,16 +234,25 @@ export default function SettingsContent() {
         <p className={styles.description}>플로팅 입력창을 열기 위한 전역 단축키를 설정합니다.</p>
         <div className={styles.shortcutRow}>
           <input
-            className={styles.shortcutInput}
-            value={shortcut}
-            onChange={(e) => setShortcut(e.target.value)}
-            placeholder="예: CommandOrControl+Shift+Space"
+            className={`${styles.shortcutInput} ${isRecording ? styles.shortcutRecording : ""}`}
+            value={isRecording ? "단축키를 입력하세요..." : shortcut}
+            readOnly
+            onFocus={() => {
+              setIsRecording(true);
+              isRecordingRef.current = true;
+            }}
+            onBlur={() => {
+              setIsRecording(false);
+              isRecordingRef.current = false;
+            }}
+            placeholder="클릭 후 단축키 입력 (예: Option + Space)"
           />
           <button className={styles.saveBtn} onClick={saveShortcut}>
             {shortcutSaved ? "저장됨 ✓" : "저장"}
           </button>
         </div>
-        <p className={styles.hint}>변경 시 앱을 재시작해야 적용됩니다.</p>
+        {shortcutError && <p className={styles.errorText}>{shortcutError}</p>}
+        <p className={styles.hint}>입력창 클릭 후 원하는 키 조합을 누르세요. 변경 시 앱을 재시작해야 적용됩니다.</p>
       </section>
     </>
   );

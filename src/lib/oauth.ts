@@ -1,9 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import { isTauri, storeGet } from "./tauri-store";
+import { isTauri } from "./tauri-store";
 
-// 빌드 시 번들된 Google OAuth credentials (개발자가 .env.local에 설정)
+// 빌드 시 번들된 OAuth credentials (개발자가 .env.local에 설정)
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 const GOOGLE_CLIENT_SECRET = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET ?? "";
+const MICROSOFT_CLIENT_ID = process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID ?? "";
+const MICROSOFT_CLIENT_SECRET = process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET ?? "";
 
 interface GoogleTokens {
   access_token: string;
@@ -89,11 +91,8 @@ export async function startMicrosoftOAuth(
     return;
   }
 
-  const clientId = await storeGet<string>("microsoft.clientId");
-  const clientSecret = await storeGet<string>("microsoft.clientSecret");
-
-  if (!clientId || !clientSecret) {
-    onError("Microsoft Client ID / Secret이 설정되지 않았습니다.");
+  if (!MICROSOFT_CLIENT_ID) {
+    onError("Microsoft Client ID가 설정되지 않았습니다. 개발자에게 문의하세요.");
     return;
   }
 
@@ -119,8 +118,8 @@ export async function startMicrosoftOAuth(
       try {
         const tokens = await invoke<MicrosoftTokens>("exchange_microsoft_token", {
           code,
-          clientId,
-          clientSecret,
+          clientId: MICROSOFT_CLIENT_ID,
+          clientSecret: MICROSOFT_CLIENT_SECRET,
           redirectUri: `http://localhost:${port}`,
           tenant: "common",
         });
@@ -133,7 +132,7 @@ export async function startMicrosoftOAuth(
     const scopes = "Tasks.ReadWrite offline_access User.Read";
     const authUrl =
       `https://login.microsoftonline.com/common/oauth2/v2.0/authorize` +
-      `?client_id=${encodeURIComponent(clientId)}` +
+      `?client_id=${encodeURIComponent(MICROSOFT_CLIENT_ID)}` +
       `&redirect_uri=${encodeURIComponent(`http://localhost:${port}`)}` +
       `&response_type=code` +
       `&scope=${encodeURIComponent(scopes)}` +
@@ -174,16 +173,14 @@ export async function refreshMicrosoftTokenIfNeeded(tokens: {
   if (!tokens.refresh_token) return tokens;
   if ((tokens.expiresAt ?? 0) - Date.now() > 5 * 60 * 1000) return tokens;
 
-  const clientId = await storeGet<string>("microsoft.clientId");
-  const clientSecret = await storeGet<string>("microsoft.clientSecret");
-  if (!clientId || !clientSecret) return tokens;
+  if (!MICROSOFT_CLIENT_ID) return tokens;
 
   const refreshed = await invoke<{ access_token: string; expires_in?: number }>(
     "refresh_microsoft_token",
     {
       refreshToken: tokens.refresh_token,
-      clientId,
-      clientSecret,
+      clientId: MICROSOFT_CLIENT_ID,
+      clientSecret: MICROSOFT_CLIENT_SECRET,
       tenant: "common",
     }
   );

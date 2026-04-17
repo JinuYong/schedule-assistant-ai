@@ -280,10 +280,79 @@ bun run build:tauri
 
 ## 환경 변수
 
-API 키는 앱 설정 화면에서 입력하여 `tauri-plugin-store`에 저장됨 (`.env` 파일 불필요).
-개발 중 테스트용으로 사용하려면:
+OAuth credentials는 `.env.local`에 설정하며 `bun run build` 시 정적 번들에 포함됩니다.
+`.env.example`을 복사해서 `.env.local`을 만들고 실제 값을 입력하세요.
 
 ```env
-# .env.local (Next.js 개발 서버 전용, Tauri 앱에서는 무시됨)
-NEXT_PUBLIC_DEV_ANTHROPIC_KEY=sk-ant-...
+# Google OAuth (GCP Console → 데스크톱 앱 타입)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
+
+# Microsoft OAuth (Azure Portal → 앱 등록)
+NEXT_PUBLIC_MICROSOFT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+---
+
+## Azure Portal 앱 등록 가이드 (Microsoft OAuth)
+
+> Microsoft To-Do 연동을 위한 OAuth 앱 설정 방법.
+> Azure Portal은 개인 Microsoft 계정으로도 접속 가능하며, Microsoft OAuth의 유일한 설정 창구입니다.
+
+### 1단계: 앱 등록
+
+1. [portal.azure.com](https://portal.azure.com) 접속 → Microsoft 계정 로그인
+2. 상단 검색창에 **"앱 등록"** 검색 → 클릭
+3. **"+ 새 등록"** 클릭
+4. 양식 입력:
+   - **이름**: `Cali`
+   - **지원되는 계정 유형**: **"모든 Microsoft Entra ID 테넌트의 계정 및 개인 Microsoft 계정(예: Skype, Xbox)"** 선택
+   - **리디렉션 URI**: 비워두기
+5. **"등록"** 클릭
+
+### 2단계: Application ID 복사
+
+등록 완료 후 개요 페이지에서:
+- **애플리케이션(클라이언트) ID** 복사 → `.env.local`의 `NEXT_PUBLIC_MICROSOFT_CLIENT_ID`에 입력
+
+### 3단계: 공용 클라이언트 허용
+
+왼쪽 메뉴 → **"인증"** 클릭
+
+1. **"+ 플랫폼 추가"** → **"모바일 및 데스크톱 애플리케이션"** 선택
+2. 리디렉션 URI 목록에서 아무것도 선택 안 하고 **"구성"** 클릭
+3. **고급 설정** → **"공용 클라이언트 흐름 허용"** → **"예"**
+4. 상단 **"저장"** 클릭
+
+### 4단계: API 권한 추가
+
+왼쪽 메뉴 → **"API 권한"** → **"+ 권한 추가"** → **"Microsoft Graph"** → **"위임된 권한"**
+
+아래 권한 검색 후 체크:
+
+| 권한 | 용도 |
+|------|------|
+| `Tasks.ReadWrite` | To-Do 읽기/쓰기 |
+| `User.Read` | 사용자 정보 조회 |
+| `offline_access` | 토큰 자동 갱신 |
+
+**"권한 추가"** 클릭
+
+### 5단계: 클라이언트 암호 생성
+
+왼쪽 메뉴 → **"인증서 및 암호"** → **"클라이언트 암호"** 탭 → **"+ 새 클라이언트 암호"**
+
+1. **설명**: `schedule-assistant-ai`
+2. **만료**: 24개월 권장
+3. **"추가"** 클릭
+
+> ⚠️ 생성 직후에만 **"값"** 열에서 확인 가능. 페이지를 벗어나면 다시 볼 수 없으니 즉시 복사.
+
+복사한 **값** → `.env.local`의 `NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET`에 입력
+
+### 6단계: 빌드
+
+```bash
+bun run build:tauri
 ```

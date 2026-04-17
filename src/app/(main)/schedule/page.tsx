@@ -1,49 +1,125 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useAuthStore } from "@/store/auth";
-import { useEventsStore, CalendarEvent } from "@/store/events";
-import { useTodosStore, TodoItem } from "@/store/todos";
-import { parseScheduleText } from "@/lib/claude";
-import { createEvent, updateEvent, deleteEvent, getCalendarList, CalendarListItem } from "@/lib/google-calendar";
-import { showToast } from "@/store/toast";
+import {useEffect, useState, useCallback, useMemo, useRef} from "react";
+import {useAuthStore} from "@/store/auth";
+import {useEventsStore, CalendarEvent} from "@/store/events";
+import {useTodosStore, TodoItem} from "@/store/todos";
+import {parseScheduleText} from "@/lib/claude";
+import {
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  getCalendarList,
+  clearCalendarListCache,
+  CalendarListItem
+} from "@/lib/google-calendar";
+import {listen} from "@tauri-apps/api/event";
+import {isTauri} from "@/lib/tauri-store";
+import {showToast} from "@/store/toast";
 import styles from "./page.module.css";
 
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
+function IconChevronLeft() {
+  return (
+    <svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 1L1 7l6 6"/>
+    </svg>
+  );
+}
+
+function IconChevronRight() {
+  return (
+    <svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 1l6 6-6 6"/>
+    </svg>
+  );
+}
+
+function IconRefresh() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+         strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 2v6h-6"/>
+      <path d="M21 13a9 9 0 1 1-3-7.7L21 8"/>
+    </svg>
+  );
+}
+
+function IconPlus() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8"
+         strokeLinecap="round">
+      <path d="M5 1v8M1 5h8"/>
+    </svg>
+  );
+}
+
+function IconPencil() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5"
+         strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.5 1.5l2 2L4 11H2V9l7.5-7.5z"/>
+    </svg>
+  );
+}
+
+function IconClose() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.8"
+         strokeLinecap="round">
+      <path d="M1 1l9 9M10 1L1 10"/>
+    </svg>
+  );
+}
+
 function firstWeekday(year: number, month: number): number {
   return (new Date(year, month, 1).getDay() + 6) % 7;
 }
+
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
+
 function isoDate(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
+
 function formatMonthYear(y: number, m: number): string {
-  return new Date(y, m, 1).toLocaleDateString("ko-KR", { year: "numeric", month: "long" });
+  return new Date(y, m, 1).toLocaleDateString("ko-KR", {year: "numeric", month: "long"});
 }
+
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit"});
 }
+
 function formatDateLabel(dateStr: string): string {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("ko-KR", {
     month: "long", day: "numeric", weekday: "short",
   });
 }
+
 function formatDue(dateTime: string) {
   const d = new Date(dateTime);
   const today = new Date();
   const isPast = d < today && d.toDateString() !== today.toDateString();
   const isToday = d.toDateString() === today.toDateString();
-  const label = isToday ? "오늘" : d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
-  return { label, isPast };
+  const label = isToday ? "오늘" : d.toLocaleDateString("ko-KR", {month: "short", day: "numeric"});
+  return {label, isPast};
 }
+
 function getEventDateKey(ev: CalendarEvent): string {
   return ev.startTime.split("T")[0] ?? ev.startTime.slice(0, 10);
 }
 
-interface CalCell { date: string; day: number; inMonth: boolean; isSunday: boolean; }
+interface CalCell {
+  date: string;
+  day: number;
+  inMonth: boolean;
+  isSunday: boolean;
+}
 
 function buildCells(year: number, month: number): CalCell[] {
   const firstWd = firstWeekday(year, month);
@@ -55,18 +131,18 @@ function buildCells(year: number, month: number): CalCell[] {
   for (let i = firstWd - 1; i >= 0; i--) {
     const d = prevDim - i;
     const dt = isoDate(prevY, prevM, d);
-    cells.push({ date: dt, day: d, inMonth: false, isSunday: new Date(dt + "T00:00:00").getDay() === 0 });
+    cells.push({date: dt, day: d, inMonth: false, isSunday: new Date(dt + "T00:00:00").getDay() === 0});
   }
   for (let d = 1; d <= dim; d++) {
     const dt = isoDate(year, month, d);
-    cells.push({ date: dt, day: d, inMonth: true, isSunday: new Date(dt + "T00:00:00").getDay() === 0 });
+    cells.push({date: dt, day: d, inMonth: true, isSunday: new Date(dt + "T00:00:00").getDay() === 0});
   }
   const nextY = month === 11 ? year + 1 : year;
   const nextM = month === 11 ? 0 : month + 1;
   let nextD = 1;
   while (cells.length < 42) {
     const dt = isoDate(nextY, nextM, nextD);
-    cells.push({ date: dt, day: nextD, inMonth: false, isSunday: new Date(dt + "T00:00:00").getDay() === 0 });
+    cells.push({date: dt, day: nextD, inMonth: false, isSunday: new Date(dt + "T00:00:00").getDay() === 0});
     nextD++;
   }
   return cells;
@@ -75,16 +151,16 @@ function buildCells(year: number, month: number): CalCell[] {
 /** 이벤트를 다른 날짜로 이동할 때 시간 보존 */
 function buildMovedTimeFields(ev: CalendarEvent, newDate: string) {
   if (ev.isAllDay) {
-    return { start: { date: newDate }, end: { date: newDate } };
+    return {start: {date: newDate}, end: {date: newDate}};
   }
   const origStart = new Date(ev.startTime);
   const durationMs = new Date(ev.endTime).getTime() - origStart.getTime();
   const [y, m, d] = newDate.split("-").map(Number);
   const newStart = new Date(y, m - 1, d, origStart.getHours(), origStart.getMinutes(), origStart.getSeconds());
-  const newEnd   = new Date(newStart.getTime() + durationMs);
+  const newEnd = new Date(newStart.getTime() + durationMs);
   return {
-    start: { dateTime: newStart.toISOString(), timeZone: "Asia/Seoul" },
-    end:   { dateTime: newEnd.toISOString(),   timeZone: "Asia/Seoul" },
+    start: {dateTime: newStart.toISOString(), timeZone: "Asia/Seoul"},
+    end: {dateTime: newEnd.toISOString(), timeZone: "Asia/Seoul"},
   };
 }
 
@@ -125,9 +201,9 @@ const EMPTY_FORM: EventForm = {
 };
 
 export default function SchedulePage() {
-  const { googleTokens, microsoftTokens, refreshGoogle, refreshMicrosoft } = useAuthStore();
-  const { events, isLoading, error, fetchEvents, prefetchEvents, invalidateCache } = useEventsStore();
-  const { todos, isLoading: todosLoading, error: todosError, fetchTodos, completeTodo } = useTodosStore();
+  const {googleTokens, microsoftTokens, refreshGoogle, refreshMicrosoft} = useAuthStore();
+  const {events, isLoading, error, fetchEvents, prefetchEvents, invalidateCache} = useEventsStore();
+  const {todos, isLoading: todosLoading, error: todosError, fetchTodos, completeTodo} = useTodosStore();
 
   const today = new Date();
   const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
@@ -142,9 +218,17 @@ export default function SchedulePage() {
   const [eventForm, setEventForm] = useState<EventForm>(EMPTY_FORM);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
-  const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 });
+  const [ghostPos, setGhostPos] = useState({x: 0, y: 0});
+  const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
   const dragStateRef = useRef<CalendarEvent | null>(null);
-  const dropHandlerRef = useRef<(ev: CalendarEvent, targetDate: string) => void>(() => {});
+  const dropHandlerRef = useRef<(ev: CalendarEvent, targetDate: string) => void>(() => {
+  });
+  const dragStartPosRef = useRef({x: 0, y: 0});
+  const hasDragMovedRef = useRef(false);
+  const wheelCooldownRef = useRef(false);
+  const wheelJustReleasedRef = useRef(false);
+  const lastAbsDeltaRef = useRef(0);
+  const cooldownStartRef = useRef(0);
 
   // 캘린더 목록 로드
   useEffect(() => {
@@ -216,24 +300,66 @@ export default function SchedulePage() {
     timeMax: new Date(cells[cells.length - 1].date + "T23:59:59").toISOString(),
   }), [cells]);
 
+  // gridRange stale closure 방지용 ref
+  const gridRangeRef = useRef(gridRange);
+  useEffect(() => {
+    gridRangeRef.current = gridRange;
+  }, [gridRange]);
+
+  // 플로팅 창 등 외부에서 일정 추가 시 → 캐시 초기화 후 현재 달 재조회
+  useEffect(() => {
+    if (!isTauri() || !googleTokens) return;
+    let unlisten: (() => void) | undefined;
+    listen("calendar-mutated", async () => {
+      invalidateCache();
+      const tokens = await refreshGoogle();
+      if (tokens?.access_token) {
+        await fetchEvents(tokens.access_token, gridRangeRef.current.timeMin, gridRangeRef.current.timeMax);
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, [googleTokens?.access_token]); // eslint-disable-line
+
   const prevMonth = useCallback(() => {
-    if (currentMonth === 0) { setCurrentYear((y) => y - 1); setCurrentMonth(11); }
-    else setCurrentMonth((m) => m - 1);
-  }, [currentMonth]);
+    const newYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    const newMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const currentDay = Number(selectedDate.split("-")[2]);
+    const day = Math.min(currentDay, daysInMonth(newYear, newMonth));
+
+    setCurrentYear(newYear);
+    setCurrentMonth(newMonth);
+    setSelectedDate(isoDate(newYear, newMonth, day));
+  }, [currentMonth, currentYear, selectedDate]);
 
   const nextMonth = useCallback(() => {
-    if (currentMonth === 11) { setCurrentYear((y) => y + 1); setCurrentMonth(0); }
-    else setCurrentMonth((m) => m + 1);
-  }, [currentMonth]);
+    const newYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+    const newMonth = currentMonth === 11 ? 0 : currentMonth + 1;
+    const currentDay = Number(selectedDate.split("-")[2]);
+    const day = Math.min(currentDay, daysInMonth(newYear, newMonth));
+
+    setCurrentYear(newYear);
+    setCurrentMonth(newMonth);
+    setSelectedDate(isoDate(newYear, newMonth, day));
+  }, [currentMonth, currentYear, selectedDate]);
 
   const openEventForm = useCallback((date: string) => {
-    setEventForm({ ...EMPTY_FORM, open: true, date, calendarId: primaryCalendarId });
+    setEventForm({...EMPTY_FORM, open: true, date, calendarId: primaryCalendarId});
   }, [primaryCalendarId]);
 
   const openEditForm = useCallback((ev: CalendarEvent) => {
     const dateStr = ev.startTime.split("T")[0];
-    const startT = ev.isAllDay ? "09:00" : new Date(ev.startTime).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
-    const endT   = ev.isAllDay ? "10:00" : new Date(ev.endTime).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+    const startT = ev.isAllDay ? "09:00" : new Date(ev.startTime).toLocaleTimeString("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+    const endT = ev.isAllDay ? "10:00" : new Date(ev.endTime).toLocaleTimeString("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
     const calId = ev.calendarId ?? primaryCalendarId;
     setEventForm({
       open: true, editEventId: ev.id, editCalendarId: calId,
@@ -246,6 +372,7 @@ export default function SchedulePage() {
   const closeEventForm = useCallback(() => setEventForm(EMPTY_FORM), []);
 
   const handleRefreshAll = useCallback(async () => {
+    clearCalendarListCache();
     const [g, m] = await Promise.all([refreshGoogle(), refreshMicrosoft()]);
     const p: Promise<void>[] = [];
     if (g?.access_token) p.push(fetchEvents(g.access_token, gridRange.timeMin, gridRange.timeMax));
@@ -261,7 +388,7 @@ export default function SchedulePage() {
     try {
       const tokens = await refreshGoogle();
       if (!tokens?.access_token) throw new Error("Google 계정 연결이 필요합니다.");
-      const now = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+      const now = new Date().toLocaleString("ko-KR", {timeZone: "Asia/Seoul"});
       const calendarNames = calendars.map((c) => c.summary);
       const parsed = await parseScheduleText(text, now, calendarNames);
       if (!parsed) throw new Error("파싱 실패");
@@ -276,8 +403,11 @@ export default function SchedulePage() {
         description: parsed.description,
         location: parsed.location,
         ...(parsed.isAllDay
-          ? { start: { date: parsed.startTime.split("T")[0] }, end: { date: parsed.endTime.split("T")[0] } }
-          : { start: { dateTime: parsed.startTime, timeZone: "Asia/Seoul" }, end: { dateTime: parsed.endTime, timeZone: "Asia/Seoul" } }),
+          ? {start: {date: parsed.startTime.split("T")[0]}, end: {date: parsed.endTime.split("T")[0]}}
+          : {
+            start: {dateTime: parsed.startTime, timeZone: "Asia/Seoul"},
+            end: {dateTime: parsed.endTime, timeZone: "Asia/Seoul"}
+          }),
       }, calendarId);
 
       setQuickInput("");
@@ -296,16 +426,16 @@ export default function SchedulePage() {
   const handleEventFormSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventForm.title.trim() || eventForm.submitting) return;
-    setEventForm((f) => ({ ...f, submitting: true }));
+    setEventForm((f) => ({...f, submitting: true}));
     try {
       const tokens = await refreshGoogle();
       if (!tokens?.access_token) throw new Error("Google 계정 연결이 필요합니다.");
       const timeFields = eventForm.isAllDay
-        ? { start: { date: eventForm.date }, end: { date: eventForm.date } }
+        ? {start: {date: eventForm.date}, end: {date: eventForm.date}}
         : {
-            start: { dateTime: `${eventForm.date}T${eventForm.startTime}:00`, timeZone: "Asia/Seoul" },
-            end:   { dateTime: `${eventForm.date}T${eventForm.endTime}:00`,   timeZone: "Asia/Seoul" },
-          };
+          start: {dateTime: `${eventForm.date}T${eventForm.startTime}:00`, timeZone: "Asia/Seoul"},
+          end: {dateTime: `${eventForm.date}T${eventForm.endTime}:00`, timeZone: "Asia/Seoul"},
+        };
 
       if (eventForm.editEventId) {
         // 수정
@@ -329,7 +459,7 @@ export default function SchedulePage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "일정 저장에 실패했습니다.";
       showToast(msg);
-      setEventForm((f) => ({ ...f, submitting: false }));
+      setEventForm((f) => ({...f, submitting: false}));
     }
   }, [eventForm, refreshGoogle, fetchEvents, invalidateCache, gridRange, closeEventForm]);
 
@@ -363,7 +493,7 @@ export default function SchedulePage() {
     }
   }, [refreshGoogle, fetchEvents, invalidateCache, gridRange]);
 
-  // dropHandlerRef를 항상 최신 handleDropEvent로 유지
+  // ref를 항상 최신 함수로 유지 (useEffect 내 stale closure 방지)
   dropHandlerRef.current = handleDropEvent;
 
   // 드래그 중 document 레벨 마우스 이벤트 (HTML5 DnD 대신 마우스 이벤트 사용)
@@ -371,7 +501,12 @@ export default function SchedulePage() {
     if (!draggingEvent) return;
 
     const onMove = (e: MouseEvent) => {
-      setGhostPos({ x: e.clientX, y: e.clientY });
+      const dx = e.clientX - dragStartPosRef.current.x;
+      const dy = e.clientY - dragStartPosRef.current.y;
+      if (!hasDragMovedRef.current && Math.sqrt(dx * dx + dy * dy) > 6) {
+        hasDragMovedRef.current = true;
+      }
+      setGhostPos({x: e.clientX, y: e.clientY});
       const el = document.elementFromPoint(e.clientX, e.clientY);
       setDragOverDate(el?.closest<HTMLElement>("[data-date]")?.dataset.date ?? null);
     };
@@ -381,6 +516,13 @@ export default function SchedulePage() {
       dragStateRef.current = null;
       setDraggingEvent(null);
       setDragOverDate(null);
+
+      if (!hasDragMovedRef.current) {
+        // 클릭(드래그 없음) → 상세 모달 표시
+        if (ev) setDetailEvent(ev);
+        return;
+      }
+
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const targetDate = el?.closest<HTMLElement>("[data-date]")?.dataset.date ?? null;
       if (ev && targetDate && targetDate !== getEventDateKey(ev)) {
@@ -429,13 +571,13 @@ export default function SchedulePage() {
             className={styles.quickAddInput}
             value={quickInput}
             onChange={(e) => setQuickInput(e.target.value)}
-            placeholder="자연어로 일정 추가 (예: 내일 오후 3시 팀 미팅 해진 캘린더에)"
+            placeholder="자연어로 일정 추가 (예: 내일 오후 3시 팀 미팅 회사 캘린더에)"
             disabled={quickStatus === "loading"}
           />
-          <button className={styles.quickAddBtn} type="submit" disabled={!quickInput.trim() || quickStatus === "loading"}>
+          <button className={styles.quickAddBtn} type="submit"
+                  disabled={!quickInput.trim() || quickStatus === "loading"}>
             {quickStatus === "loading" ? "분석 중..." : quickStatus === "done" ? "완료 ✓" : quickStatus === "error" ? "오류 ✗" : "추가"}
           </button>
-          <button type="button" className={styles.refreshBtn} onClick={handleRefreshAll} disabled={isLoading || todosLoading} title="새로고침">↻</button>
         </form>
       )}
 
@@ -443,22 +585,48 @@ export default function SchedulePage() {
       {googleTokens && (
         <>
           <div className={styles.calendarHeader}>
-            <button className={styles.navBtn} onClick={prevMonth}>‹</button>
+            <button className={styles.navBtn} onClick={prevMonth}><IconChevronLeft/></button>
             <h2 className={styles.monthTitle}>{formatMonthYear(currentYear, currentMonth)}</h2>
-            <button className={styles.navBtn} onClick={nextMonth}>›</button>
-            {isLoading && <span className={styles.loadingDot} />}
+            <button className={styles.navBtn} onClick={nextMonth}><IconChevronRight/></button>
+            <button className={styles.todayBtn} onClick={() => { setCurrentYear(today.getFullYear()); setCurrentMonth(today.getMonth()); setSelectedDate(todayStr); }}>오늘</button>
+            <div className={styles.refreshGroup}>
+              {isLoading && <span className={styles.loadingDot}/>}
+              <button type="button" className={styles.refreshBtn} onClick={handleRefreshAll} disabled={isLoading || todosLoading} title="새로고침"><IconRefresh/></button>
+            </div>
           </div>
 
           {error && <p className={styles.error}>{error}</p>}
 
-          <div className={styles.calendar}>
+          <div
+            className={styles.calendar}
+            onWheel={(e) => {
+              e.preventDefault();
+              const delta = e.deltaX;
+              const absDelta = Math.abs(delta);
+              // 감속 감지: delta가 이전의 70% 미만 + 최소 100ms 경과 → 스와이프 끝으로 판단, 쿨다운 해제
+              if (wheelCooldownRef.current && lastAbsDeltaRef.current > 0 && absDelta < lastAbsDeltaRef.current * 0.7 && Date.now() - cooldownStartRef.current > 100) {
+                wheelCooldownRef.current = false;
+                wheelJustReleasedRef.current = true;
+                lastAbsDeltaRef.current = 0;
+                setTimeout(() => { wheelJustReleasedRef.current = false; }, 50);
+                return;
+              }
+              lastAbsDeltaRef.current = absDelta;
+              if (absDelta < 30) return;
+              if (wheelCooldownRef.current || wheelJustReleasedRef.current) return;
+              wheelCooldownRef.current = true;
+              cooldownStartRef.current = Date.now();
+              lastAbsDeltaRef.current = absDelta;
+              if (delta > 0) nextMonth(); else prevMonth();
+            }}
+          >
             <div className={styles.weekdays}>
               {WEEKDAYS.map((wd, i) => (
                 <div key={wd} className={`${styles.weekdayHeader}${i === 6 ? ` ${styles.sundayLabel}` : ""}`}>{wd}</div>
               ))}
             </div>
             <div className={styles.dayCells}>
-              {cells.map(({ date, day, inMonth, isSunday }) => {
+              {cells.map(({date, day, inMonth, isSunday}) => {
                 const isToday = date === todayStr;
                 const isSelected = date === selectedDate;
                 const dayEvs = eventsByDate.get(date) ?? [];
@@ -479,29 +647,40 @@ export default function SchedulePage() {
                     key={date}
                     data-date={date}
                     className={`${cls}${isDragOver ? ` ${styles.dragOverCell}` : ""}`}
-                    onClick={() => { if (!draggingEvent) setSelectedDate(date); }}
+                    onClick={() => {
+                      if (!draggingEvent) {
+                        setSelectedDate(date);
+                        openEventForm(date);
+                      }
+                    }}
                   >
                     <span className={styles.dayNumber}>{day}</span>
                     {inMonth && (
                       <button
                         className={styles.cellAddBtn}
-                        onClick={(e) => { e.stopPropagation(); openEventForm(date); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEventForm(date);
+                        }}
                         title="일정 추가"
                       >
-                        +
+                        <IconPlus/>
                       </button>
                     )}
                     {shown.map((ev) => (
                       <span
                         key={ev.id}
                         className={`${styles.eventChip}${draggingEvent?.id === ev.id ? ` ${styles.draggingChip}` : ""}`}
-                        style={ev.calendarColor ? { background: ev.calendarColor, color: "#fff" } : undefined}
+                        style={ev.calendarColor ? {background: ev.calendarColor, color: "#fff"} : undefined}
+                        onClick={(e) => { e.stopPropagation(); setSelectedDate(date); setDetailEvent(ev); }}
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           dragStateRef.current = ev;
+                          dragStartPosRef.current = {x: e.clientX, y: e.clientY};
+                          hasDragMovedRef.current = false;
                           setDraggingEvent(ev);
-                          setGhostPos({ x: e.clientX, y: e.clientY });
+                          setGhostPos({x: e.clientX, y: e.clientY});
                         }}
                       >
                         {ev.isAllDay ? "" : `${formatTime(ev.startTime)} `}{ev.title}
@@ -518,29 +697,36 @@ export default function SchedulePage() {
           <section className={styles.dayDetail}>
             <div className={styles.dayDetailHeader}>
               <h3 className={styles.dayDetailTitle}>{formatDateLabel(selectedDate)}</h3>
-              <button className={styles.dayAddBtn} onClick={() => openEventForm(selectedDate)}>+ 추가</button>
+              <button className={styles.dayAddBtn} onClick={() => openEventForm(selectedDate)}><IconPlus/> 추가</button>
             </div>
-            {!isLoading && selectedEvents.length === 0 && <p className={styles.empty}>일정이 없습니다.</p>}
             <ul className={styles.eventList}>
-              {selectedEvents.map((ev) => (
-                <li
-                  key={ev.id}
-                  className={styles.eventItem}
-                  style={ev.calendarColor ? { borderLeftColor: ev.calendarColor } : undefined}
-                >
-                  <span className={styles.eventTime} style={ev.calendarColor ? { color: ev.calendarColor } : undefined}>
+              {isLoading ? (<p className={styles.empty}>loading...</p>) :
+                selectedEvents.length === 0 ? (<p className={styles.empty}>일정이 없습니다.</p>) : selectedEvents.map((ev) => (
+                  <li
+                    key={ev.id}
+                    className={styles.eventItem}
+                    style={ev.calendarColor ? {borderLeftColor: ev.calendarColor} : undefined}
+                    onClick={() => setDetailEvent(ev)}
+                  >
+                  <span className={styles.eventTime} style={ev.calendarColor ? {color: ev.calendarColor} : undefined}>
                     {ev.isAllDay ? "종일" : formatTime(ev.startTime)}
                   </span>
-                  <div className={styles.eventBody}>
-                    <p className={styles.eventTitle}>{ev.title}</p>
-                    {ev.location && <p className={styles.eventMeta}>📍 {ev.location}</p>}
-                  </div>
-                  <button className={styles.editBtn} onClick={() => openEditForm(ev)} title="일정 수정">✎</button>
-                  <button className={styles.deleteBtn} onClick={() => handleDeleteEvent(ev)} disabled={deletingId === ev.id} title="일정 삭제">
-                    {deletingId === ev.id ? "..." : "✕"}
-                  </button>
-                </li>
-              ))}
+                    <div className={styles.eventBody}>
+                      <p className={styles.eventTitle}>{ev.title}</p>
+                      {ev.location && <p className={styles.eventMeta}>📍 {ev.location}</p>}
+                    </div>
+                    <button className={styles.editBtn} onClick={(e) => {
+                      e.stopPropagation();
+                      openEditForm(ev);
+                    }} title="일정 수정"><IconPencil/></button>
+                    <button className={styles.deleteBtn} onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteEvent(ev);
+                    }} disabled={deletingId === ev.id} title="일정 삭제">
+                      {deletingId === ev.id ? "..." : <IconClose/>}
+                    </button>
+                  </li>
+                ))}
             </ul>
           </section>
         </>
@@ -558,13 +744,14 @@ export default function SchedulePage() {
               const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime) : null;
               return (
                 <li key={todo.id} className={styles.todoItem}>
-                  <button className={styles.todoCheck} onClick={() => handleCompleteTodo(todo)} title="완료 처리" />
+                  <button className={styles.todoCheck} onClick={() => handleCompleteTodo(todo)} title="완료 처리"/>
                   <div className={styles.todoBody}>
                     <p className={styles.todoText}>{todo.title}</p>
                     <div className={styles.todoMeta}>
                       <span className={styles.todoListName}>{todo.listName}</span>
                       {due && (
-                        <span className={`${styles.todoDue}${due.isPast ? ` ${styles.todoDueOverdue}` : ""}`}>{due.label}</span>
+                        <span
+                          className={`${styles.todoDue}${due.isPast ? ` ${styles.todoDueOverdue}` : ""}`}>{due.label}</span>
                       )}
                     </div>
                   </div>
@@ -579,19 +766,88 @@ export default function SchedulePage() {
       {draggingEvent && (
         <div
           className={styles.dragGhost}
-          style={{ left: ghostPos.x + 14, top: ghostPos.y - 10 }}
+          style={{left: ghostPos.x + 14, top: ghostPos.y - 10}}
         >
           {draggingEvent.title}
         </div>
       )}
 
-      {/* 일정 추가 모달 */}
+      {/* 일정 상세 모달 */}
+      {detailEvent && (
+        <div className={styles.modalOverlay} onClick={() => setDetailEvent(null)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <span
+                className={styles.detailDot}
+                style={detailEvent.calendarColor ? {background: detailEvent.calendarColor} : undefined}
+              />
+              <h2 className={styles.modalTitle}>{detailEvent.title}</h2>
+              <button className={styles.modalClose} onClick={() => setDetailEvent(null)}><IconClose/></button>
+            </div>
+            <div className={styles.detailBody}>
+              <p className={styles.detailRow}>
+                🕐 {detailEvent.isAllDay
+                ? new Date(detailEvent.startTime + "T00:00:00").toLocaleDateString("ko-KR", {
+                month: "long",
+                day: "numeric",
+                weekday: "short"
+              }) + " (종일)"
+                : (() => {
+                  const s = new Date(detailEvent.startTime);
+                  const e2 = new Date(detailEvent.endTime);
+                  return `${s.toLocaleDateString("ko-KR", {
+                    month: "long",
+                    day: "numeric",
+                    weekday: "short"
+                  })} ${s.toLocaleTimeString("ko-KR", {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })} – ${e2.toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit"})}`;
+                })()
+              }
+              </p>
+              {detailEvent.location && (
+                <p className={styles.detailRow}>📍 {detailEvent.location}</p>
+              )}
+              <p className={styles.detailRow}>
+                🗂 {calendars.find((c) => c.id === detailEvent.calendarId)?.summary ?? "기본 캘린더"}
+              </p>
+              {detailEvent.description && (
+                <p className={styles.detailDesc}>{detailEvent.description}</p>
+              )}
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                className={styles.dangerOutlineBtn}
+                onClick={() => {
+                  setDetailEvent(null);
+                  handleDeleteEvent(detailEvent);
+                }}
+                disabled={deletingId === detailEvent.id}
+              >
+                {deletingId === detailEvent.id ? "삭제 중..." : "삭제"}
+              </button>
+              <button
+                className={styles.submitBtn}
+                onClick={() => {
+                  setDetailEvent(null);
+                  openEditForm(detailEvent);
+                }}
+              >
+                수정
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 일정 추가/수정 모달 */}
       {eventForm.open && (
         <div className={styles.modalOverlay} onClick={closeEventForm}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>{eventForm.editEventId ? "일정 수정" : "새 일정"}</h2>
-              <button className={styles.modalClose} onClick={closeEventForm}>✕</button>
+              <button className={styles.modalClose} onClick={closeEventForm}><IconClose/></button>
             </div>
             <form onSubmit={handleEventFormSubmit}>
               <div className={styles.formGroup}>
@@ -599,7 +855,7 @@ export default function SchedulePage() {
                 <input
                   className={styles.formInput}
                   value={eventForm.title}
-                  onChange={(e) => setEventForm((f) => ({ ...f, title: e.target.value }))}
+                  onChange={(e) => setEventForm((f) => ({...f, title: e.target.value}))}
                   placeholder="일정 제목"
                   autoFocus
                 />
@@ -612,7 +868,7 @@ export default function SchedulePage() {
                     className={styles.formInput}
                     type="date"
                     value={eventForm.date}
-                    onChange={(e) => setEventForm((f) => ({ ...f, date: e.target.value }))}
+                    onChange={(e) => setEventForm((f) => ({...f, date: e.target.value}))}
                   />
                 </div>
                 <div className={styles.formGroup}>
@@ -620,12 +876,12 @@ export default function SchedulePage() {
                   <select
                     className={styles.formInput}
                     value={eventForm.calendarId}
-                    onChange={(e) => setEventForm((f) => ({ ...f, calendarId: e.target.value }))}
+                    onChange={(e) => setEventForm((f) => ({...f, calendarId: e.target.value}))}
                   >
                     {calendars.length > 0
                       ? calendars.map((cal) => (
-                          <option key={cal.id} value={cal.id}>{cal.summary}</option>
-                        ))
+                        <option key={cal.id} value={cal.id}>{cal.summary}</option>
+                      ))
                       : <option value="primary">기본 캘린더</option>
                     }
                   </select>
@@ -637,7 +893,7 @@ export default function SchedulePage() {
                   type="checkbox"
                   id="formIsAllDay"
                   checked={eventForm.isAllDay}
-                  onChange={(e) => setEventForm((f) => ({ ...f, isAllDay: e.target.checked }))}
+                  onChange={(e) => setEventForm((f) => ({...f, isAllDay: e.target.checked}))}
                 />
                 <label htmlFor="formIsAllDay" className={styles.allDayLabel}>종일</label>
               </div>
@@ -650,7 +906,7 @@ export default function SchedulePage() {
                       className={styles.formInput}
                       type="time"
                       value={eventForm.startTime}
-                      onChange={(e) => setEventForm((f) => ({ ...f, startTime: e.target.value }))}
+                      onChange={(e) => setEventForm((f) => ({...f, startTime: e.target.value}))}
                     />
                   </div>
                   <div className={styles.formGroup}>
@@ -659,7 +915,7 @@ export default function SchedulePage() {
                       className={styles.formInput}
                       type="time"
                       value={eventForm.endTime}
-                      onChange={(e) => setEventForm((f) => ({ ...f, endTime: e.target.value }))}
+                      onChange={(e) => setEventForm((f) => ({...f, endTime: e.target.value}))}
                     />
                   </div>
                 </div>
@@ -670,14 +926,15 @@ export default function SchedulePage() {
                 <input
                   className={styles.formInput}
                   value={eventForm.location}
-                  onChange={(e) => setEventForm((f) => ({ ...f, location: e.target.value }))}
+                  onChange={(e) => setEventForm((f) => ({...f, location: e.target.value}))}
                   placeholder="장소"
                 />
               </div>
 
               <div className={styles.modalFooter}>
                 <button type="button" className={styles.cancelBtn} onClick={closeEventForm}>취소</button>
-                <button type="submit" className={styles.submitBtn} disabled={!eventForm.title.trim() || !eventForm.date || eventForm.submitting}>
+                <button type="submit" className={styles.submitBtn}
+                        disabled={!eventForm.title.trim() || !eventForm.date || eventForm.submitting}>
                   {eventForm.submitting ? "저장 중..." : eventForm.editEventId ? "수정 저장" : "일정 추가"}
                 </button>
               </div>

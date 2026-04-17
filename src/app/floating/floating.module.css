@@ -1,3 +1,9 @@
+/* 플로팅 창: html/body 배경 투명하게 */
+:global(html),
+:global(body) {
+  background: transparent !important;
+}
+
 .root {
   width: 100vw;
   height: 100vh;

@@ -12,6 +12,9 @@ export const THEME_COLORS: ThemeColor[] = [
   { label: "로즈",   color: "#e788b7", hover: "#d468a0" },
   { label: "골드",   color: "#eeb423", hover: "#d49c0d" },
   { label: "시안",   color: "#08aac5", hover: "#0692a8" },
+  { label: "블루",   color: "#010d96", hover: "#0c19c0" },
+  { label: "그레이",   color: "#7c7c7c", hover: "#676767" },
+  { label: "블랙",   color: "#090909", hover: "#313131" },
 ];
 
 interface ThemeStore {

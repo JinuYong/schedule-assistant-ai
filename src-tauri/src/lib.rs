@@ -1,4 +1,4 @@
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 /// Claude API 비스트리밍 호출 (일정 파싱용)
 #[tauri::command]
@@ -235,6 +235,37 @@ pub fn run() {
             exchange_microsoft_token,
             refresh_microsoft_token,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app_handle, event| {
+            match event {
+                // main 창 닫기 버튼 → 창만 숨기고 백그라운드 상주, dock 아이콘 제거
+                tauri::RunEvent::WindowEvent { label, event, .. } => {
+                    if label == "main" {
+                        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                            api.prevent_close();
+                            if let Some(win) = app_handle.get_webview_window("main") {
+                                win.hide().ok();
+                            }
+                            #[cfg(target_os = "macos")]
+                            let _ = app_handle
+                                .set_activation_policy(tauri::ActivationPolicy::Accessory);
+                        }
+                    }
+                }
+                // 앱 재실행(Finder 더블클릭) → main 창 복원 + dock 아이콘 복원 (macOS 전용)
+                #[cfg(target_os = "macos")]
+                tauri::RunEvent::Reopen { has_visible_windows, .. } => {
+                    if !has_visible_windows {
+                        let _ = app_handle
+                            .set_activation_policy(tauri::ActivationPolicy::Regular);
+                        if let Some(win) = app_handle.get_webview_window("main") {
+                            win.show().ok();
+                            win.set_focus().ok();
+                        }
+                    }
+                }
+                _ => {}
+            }
+        });
 }
