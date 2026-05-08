@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import {useEffect, useState, useCallback, useMemo, useRef} from "react";
 import {useAuthStore} from "@/store/auth";
 import {useEventsStore, CalendarEvent} from "@/store/events";
 import {useTodosStore, TodoItem} from "@/store/todos";
@@ -19,6 +19,10 @@ import {showToast} from "@/store/toast";
 import styles from "./page.module.css";
 
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
+
+const DEFAULT_SIDE_WIDTH = 280;
+const MIN_SIDE_WIDTH = 200;
+const MAX_SIDE_WIDTH = 500;
 
 function IconChevronLeft() {
   return (
@@ -230,6 +234,38 @@ export default function SchedulePage() {
   const lastAbsDeltaRef = useRef(0);
   const cooldownStartRef = useRef(0);
 
+  // 우측 패널 너비 (드래그 리사이즈)
+  const [sidePanelWidth, setSidePanelWidth] = useState(DEFAULT_SIDE_WIDTH);
+  const sideDragRef = useRef({ x: 0, width: DEFAULT_SIDE_WIDTH });
+
+  // 우측 패널 너비 localStorage 복원
+  useEffect(() => {
+    const saved = localStorage.getItem("schedule-side-width");
+    if (saved) setSidePanelWidth(Math.max(MIN_SIDE_WIDTH, Math.min(MAX_SIDE_WIDTH, Number(saved))));
+  }, []);
+
+  const handleSidePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    sideDragRef.current = { x: e.clientX, width: sidePanelWidth };
+  }, [sidePanelWidth]);
+
+  const handleSidePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    const { x: startX, width: startWidth } = sideDragRef.current;
+    // 왼쪽으로 드래그 → 패널 넓어짐 (delta 반전)
+    const newWidth = Math.min(MAX_SIDE_WIDTH, Math.max(MIN_SIDE_WIDTH, startWidth - (e.clientX - startX)));
+    setSidePanelWidth(newWidth);
+  }, []);
+
+  const handleSidePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setSidePanelWidth((w) => {
+      localStorage.setItem("schedule-side-width", String(w));
+      return w;
+    });
+  }, []);
+
   // 캘린더 목록 로드
   useEffect(() => {
     if (!googleTokens) return;
@@ -327,7 +363,6 @@ export default function SchedulePage() {
     const newMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const currentDay = Number(selectedDate.split("-")[2]);
     const day = Math.min(currentDay, daysInMonth(newYear, newMonth));
-
     setCurrentYear(newYear);
     setCurrentMonth(newMonth);
     setSelectedDate(isoDate(newYear, newMonth, day));
@@ -338,7 +373,6 @@ export default function SchedulePage() {
     const newMonth = currentMonth === 11 ? 0 : currentMonth + 1;
     const currentDay = Number(selectedDate.split("-")[2]);
     const day = Math.min(currentDay, daysInMonth(newYear, newMonth));
-
     setCurrentYear(newYear);
     setCurrentMonth(newMonth);
     setSelectedDate(isoDate(newYear, newMonth, day));
@@ -581,185 +615,226 @@ export default function SchedulePage() {
         </form>
       )}
 
-      {/* 달력 */}
-      {googleTokens && (
-        <>
-          <div className={styles.calendarHeader}>
-            <button className={styles.navBtn} onClick={prevMonth}><IconChevronLeft/></button>
-            <h2 className={styles.monthTitle}>{formatMonthYear(currentYear, currentMonth)}</h2>
-            <button className={styles.navBtn} onClick={nextMonth}><IconChevronRight/></button>
-            <button className={styles.todayBtn} onClick={() => { setCurrentYear(today.getFullYear()); setCurrentMonth(today.getMonth()); setSelectedDate(todayStr); }}>오늘</button>
-            <div className={styles.refreshGroup}>
-              {isLoading && <span className={styles.loadingDot}/>}
-              <button type="button" className={styles.refreshBtn} onClick={handleRefreshAll} disabled={isLoading || todosLoading} title="새로고침"><IconRefresh/></button>
+      {/* 달력(좌) + 일정·할일(우) 2컬럼 레이아웃 */}
+      {googleTokens ? (
+        <div className={styles.mainLayout} style={{ gridTemplateColumns: `1fr ${sidePanelWidth}px` }}>
+          {/* ── 좌측: 달력 ── */}
+          <div className={styles.calendarColumn}>
+            <div className={styles.calendarHeader}>
+              <button className={styles.navBtn} onClick={prevMonth}><IconChevronLeft/></button>
+              <h2 className={styles.monthTitle}>{formatMonthYear(currentYear, currentMonth)}</h2>
+              <button className={styles.navBtn} onClick={nextMonth}><IconChevronRight/></button>
+              <button className={styles.todayBtn} onClick={() => { setCurrentYear(today.getFullYear()); setCurrentMonth(today.getMonth()); setSelectedDate(todayStr); }}>오늘</button>
+              <div className={styles.refreshGroup}>
+                {isLoading && <span className={styles.loadingDot}/>}
+                <button type="button" className={styles.refreshBtn} onClick={handleRefreshAll} disabled={isLoading || todosLoading} title="새로고침"><IconRefresh/></button>
+              </div>
             </div>
-          </div>
 
-          {error && <p className={styles.error}>{error}</p>}
+            {error && <p className={styles.error}>{error}</p>}
 
-          <div
-            className={styles.calendar}
-            onWheel={(e) => {
-              e.preventDefault();
-              const delta = e.deltaX;
-              const absDelta = Math.abs(delta);
-              // 감속 감지: delta가 이전의 70% 미만 + 최소 100ms 경과 → 스와이프 끝으로 판단, 쿨다운 해제
-              if (wheelCooldownRef.current && lastAbsDeltaRef.current > 0 && absDelta < lastAbsDeltaRef.current * 0.7 && Date.now() - cooldownStartRef.current > 100) {
-                wheelCooldownRef.current = false;
-                wheelJustReleasedRef.current = true;
-                lastAbsDeltaRef.current = 0;
-                setTimeout(() => { wheelJustReleasedRef.current = false; }, 50);
-                return;
-              }
-              lastAbsDeltaRef.current = absDelta;
-              if (absDelta < 30) return;
-              if (wheelCooldownRef.current || wheelJustReleasedRef.current) return;
-              wheelCooldownRef.current = true;
-              cooldownStartRef.current = Date.now();
-              lastAbsDeltaRef.current = absDelta;
-              if (delta > 0) nextMonth(); else prevMonth();
-            }}
-          >
-            <div className={styles.weekdays}>
-              {WEEKDAYS.map((wd, i) => (
-                <div key={wd} className={`${styles.weekdayHeader}${i === 6 ? ` ${styles.sundayLabel}` : ""}`}>{wd}</div>
-              ))}
-            </div>
-            <div className={styles.dayCells} key={`${currentYear}-${currentMonth}`}>
-              {cells.map(({date, day, inMonth, isSunday}) => {
-                const isToday = date === todayStr;
-                const isSelected = date === selectedDate;
-                const dayEvs = eventsByDate.get(date) ?? [];
-                const shown = dayEvs.slice(0, 3);
-                const extra = dayEvs.length - shown.length;
-                const cls = [
-                  styles.dayCell,
-                  !inMonth ? styles.otherMonth : "",
-                  isToday ? styles.todayCell : "",
-                  isSelected ? styles.selectedCell : "",
-                  isSunday ? styles.sundayCell : "",
-                ].filter(Boolean).join(" ");
+            <div
+              className={styles.calendar}
+              onWheel={(e) => {
+                e.preventDefault();
+                const delta = e.deltaX;
+                const absDelta = Math.abs(delta);
+                // 감속 감지: delta가 이전의 70% 미만 + 최소 100ms 경과 → 스와이프 끝으로 판단, 쿨다운 해제
+                if (wheelCooldownRef.current && lastAbsDeltaRef.current > 0 && absDelta < lastAbsDeltaRef.current * 0.7 && Date.now() - cooldownStartRef.current > 100) {
+                  wheelCooldownRef.current = false;
+                  wheelJustReleasedRef.current = true;
+                  lastAbsDeltaRef.current = 0;
+                  setTimeout(() => { wheelJustReleasedRef.current = false; }, 50);
+                  return;
+                }
+                lastAbsDeltaRef.current = absDelta;
+                if (absDelta < 30) return;
+                if (wheelCooldownRef.current || wheelJustReleasedRef.current) return;
+                wheelCooldownRef.current = true;
+                cooldownStartRef.current = Date.now();
+                lastAbsDeltaRef.current = absDelta;
+                if (delta > 0) nextMonth(); else prevMonth();
+              }}
+            >
+              <div className={styles.weekdays}>
+                {WEEKDAYS.map((wd, i) => (
+                  <div key={wd} className={`${styles.weekdayHeader}${i === 6 ? ` ${styles.sundayLabel}` : ""}`}>{wd}</div>
+                ))}
+              </div>
+              <div className={styles.dayCells}>
+                {cells.map(({date, day, inMonth, isSunday}) => {
+                  const isToday = date === todayStr;
+                  const isSelected = date === selectedDate;
+                  const dayEvs = eventsByDate.get(date) ?? [];
+                  const shown = dayEvs.slice(0, 3);
+                  const extra = dayEvs.length - shown.length;
+                  const cls = [
+                    styles.dayCell,
+                    !inMonth ? styles.otherMonth : "",
+                    isToday ? styles.todayCell : "",
+                    isSelected ? styles.selectedCell : "",
+                    isSunday ? styles.sundayCell : "",
+                  ].filter(Boolean).join(" ");
 
-                const isDragOver = dragOverDate === date;
+                  const isDragOver = dragOverDate === date;
 
-                return (
-                  <div
-                    key={date}
-                    data-date={date}
-                    className={`${cls}${isDragOver ? ` ${styles.dragOverCell}` : ""}`}
-                    onClick={() => {
-                      if (!draggingEvent) {
-                        setSelectedDate(date);
-                        openEventForm(date);
-                      }
-                    }}
-                  >
-                    <span className={styles.dayNumber}>{day}</span>
-                    {inMonth && (
-                      <button
-                        className={styles.cellAddBtn}
-                        onClick={(e) => {
-                          e.stopPropagation();
+                  return (
+                    <div
+                      key={date}
+                      data-date={date}
+                      className={`${cls}${isDragOver ? ` ${styles.dragOverCell}` : ""}`}
+                      onClick={() => {
+                        if (!draggingEvent) {
+                          setSelectedDate(date);
                           openEventForm(date);
-                        }}
-                        title="일정 추가"
-                      >
-                        <IconPlus/>
-                      </button>
-                    )}
-                    {shown.map((ev) => (
-                      <span
-                        key={ev.id}
-                        className={`${styles.eventChip} ${draggingEvent?.id === ev.id ? ` ${styles.draggingChip}` : ""}`}
-                        style={ev.calendarColor ? {background: ev.calendarColor, color: "#fff"} : undefined}
-                        onClick={(e) => { e.stopPropagation(); setSelectedDate(date); setDetailEvent(ev); }}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          dragStateRef.current = ev;
-                          dragStartPosRef.current = {x: e.clientX, y: e.clientY};
-                          hasDragMovedRef.current = false;
-                          setDraggingEvent(ev);
-                          setGhostPos({x: e.clientX, y: e.clientY});
-                        }}
-                      >
+                        }
+                      }}
+                    >
+                      <span className={styles.dayNumber}>{day}</span>
+                      {inMonth && (
+                        <button
+                          className={styles.cellAddBtn}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEventForm(date);
+                          }}
+                          title="일정 추가"
+                        >
+                          <IconPlus/>
+                        </button>
+                      )}
+                      {shown.map((ev) => (
+                        <span
+                          key={ev.id}
+                          className={`${styles.eventChip}${draggingEvent?.id === ev.id ? ` ${styles.draggingChip}` : ""}`}
+                          style={ev.calendarColor ? {background: ev.calendarColor, color: "#fff"} : undefined}
+                          onClick={(e) => { e.stopPropagation(); setSelectedDate(date); setDetailEvent(ev); }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            dragStateRef.current = ev;
+                            dragStartPosRef.current = {x: e.clientX, y: e.clientY};
+                            hasDragMovedRef.current = false;
+                            setDraggingEvent(ev);
+                            setGhostPos({x: e.clientX, y: e.clientY});
+                          }}
+                        >
                         {ev.isAllDay ? "" : `${formatTime(ev.startTime)} `}{ev.title}
                       </span>
-                    ))}
-                    {extra > 0 && <span className={styles.moreEvents}>+{extra}</span>}
-                  </div>
+                      ))}
+                      {extra > 0 && <span className={styles.moreEvents}>+{extra}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>{/* calendarColumn end */}
+
+          {/* ── 우측: 선택된 날 일정 + 할일 ── */}
+          <div className={styles.sidePanel}>
+            <div
+              className={styles.sidePanelHandle}
+              onPointerDown={handleSidePointerDown}
+              onPointerMove={handleSidePointerMove}
+              onPointerUp={handleSidePointerUp}
+            />
+            <section className={styles.dayDetail}>
+              <div className={styles.dayDetailHeader}>
+                <h3 className={styles.dayDetailTitle}>{formatDateLabel(selectedDate)}</h3>
+                <button className={styles.dayAddBtn} onClick={() => openEventForm(selectedDate)}><IconPlus/> 추가</button>
+              </div>
+              <ul className={styles.eventList}>
+                {isLoading ? (<p className={styles.empty}>loading...</p>) :
+                  selectedEvents.length === 0 ? (<p className={styles.empty}>일정이 없습니다.</p>) : selectedEvents.map((ev) => (
+                    <li
+                      key={ev.id}
+                      className={styles.eventItem}
+                      style={ev.calendarColor ? {borderLeftColor: ev.calendarColor} : undefined}
+                      onClick={() => setDetailEvent(ev)}
+                    >
+                    <span className={styles.eventTime} style={ev.calendarColor ? {color: ev.calendarColor} : undefined}>
+                      {ev.isAllDay ? "종일" : formatTime(ev.startTime)}
+                    </span>
+                      <div className={styles.eventBody}>
+                        <p className={styles.eventTitle}>{ev.title}</p>
+                        {ev.location && <p className={styles.eventMeta}>📍 {ev.location}</p>}
+                      </div>
+                      <button className={styles.editBtn} onClick={(e) => {
+                        e.stopPropagation();
+                        openEditForm(ev);
+                      }} title="일정 수정"><IconPencil/></button>
+                      <button className={styles.deleteBtn} onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteEvent(ev);
+                      }} disabled={deletingId === ev.id} title="일정 삭제">
+                        {deletingId === ev.id ? "..." : <IconClose/>}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </section>
+
+            {microsoftTokens && (
+              <section className={styles.todoSection}>
+                <h2 className={styles.todoTitle}>할일</h2>
+                {todosError && <p className={styles.error}>{todosError}</p>}
+                {todosLoading && <p className={styles.empty}>불러오는 중...</p>}
+                {!todosLoading && todos.length === 0 && <p className={styles.empty}>미완료 할일이 없습니다.</p>}
+                <ul className={styles.todoList}>
+                  {todos.map((todo) => {
+                    const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime) : null;
+                    return (
+                      <li key={todo.id} className={styles.todoItem}>
+                        <button className={styles.todoCheck} onClick={() => handleCompleteTodo(todo)} title="완료 처리"/>
+                        <div className={styles.todoBody}>
+                          <p className={styles.todoText}>{todo.title}</p>
+                          <div className={styles.todoMeta}>
+                            <span className={styles.todoListName}>{todo.listName}</span>
+                            {due && (
+                              <span
+                                className={`${styles.todoDue}${due.isPast ? ` ${styles.todoDueOverdue}` : ""}`}>{due.label}</span>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Google 미연동, Microsoft만 연동된 경우 */
+        microsoftTokens && (
+          <section className={styles.todoSection}>
+            <h2 className={styles.todoTitle}>할일</h2>
+            {todosError && <p className={styles.error}>{todosError}</p>}
+            {todosLoading && <p className={styles.empty}>불러오는 중...</p>}
+            {!todosLoading && todos.length === 0 && <p className={styles.empty}>미완료 할일이 없습니다.</p>}
+            <ul className={styles.todoList}>
+              {todos.map((todo) => {
+                const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime) : null;
+                return (
+                  <li key={todo.id} className={styles.todoItem}>
+                    <button className={styles.todoCheck} onClick={() => handleCompleteTodo(todo)} title="완료 처리"/>
+                    <div className={styles.todoBody}>
+                      <p className={styles.todoText}>{todo.title}</p>
+                      <div className={styles.todoMeta}>
+                        <span className={styles.todoListName}>{todo.listName}</span>
+                        {due && (
+                          <span
+                            className={`${styles.todoDue}${due.isPast ? ` ${styles.todoDueOverdue}` : ""}`}>{due.label}</span>
+                        )}
+                      </div>
+                    </div>
+                  </li>
                 );
               })}
-            </div>
-          </div>
-
-          {/* 선택된 날의 일정 */}
-          <section className={styles.dayDetail}>
-            <div className={styles.dayDetailHeader}>
-              <h3 className={styles.dayDetailTitle}>{formatDateLabel(selectedDate)}</h3>
-              <button className={styles.dayAddBtn} onClick={() => openEventForm(selectedDate)}><IconPlus/> 추가</button>
-            </div>
-            <ul className={styles.eventList}>
-              {isLoading ? (<p className={styles.empty}>loading...</p>) :
-                selectedEvents.length === 0 ? (<p className={styles.empty}>일정이 없습니다.</p>) : selectedEvents.map((ev) => (
-                  <li
-                    key={ev.id}
-                    className={styles.eventItem}
-                    style={ev.calendarColor ? {borderLeftColor: ev.calendarColor} : undefined}
-                    onClick={() => setDetailEvent(ev)}
-                  >
-                  <span className={styles.eventTime} style={ev.calendarColor ? {color: ev.calendarColor} : undefined}>
-                    {ev.isAllDay ? "종일" : formatTime(ev.startTime)}
-                  </span>
-                    <div className={styles.eventBody}>
-                      <p className={styles.eventTitle}>{ev.title}</p>
-                      {ev.location && <p className={styles.eventMeta}>📍 {ev.location}</p>}
-                    </div>
-                    <button className={styles.editBtn} onClick={(e) => {
-                      e.stopPropagation();
-                      openEditForm(ev);
-                    }} title="일정 수정"><IconPencil/></button>
-                    <button className={styles.deleteBtn} onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteEvent(ev);
-                    }} disabled={deletingId === ev.id} title="일정 삭제">
-                      {deletingId === ev.id ? "..." : <IconClose/>}
-                    </button>
-                  </li>
-                ))}
             </ul>
           </section>
-        </>
-      )}
-
-      {/* Microsoft Todo */}
-      {microsoftTokens && (
-        <section className={styles.todoSection}>
-          <h2 className={styles.todoTitle}>할일</h2>
-          {todosError && <p className={styles.error}>{todosError}</p>}
-          {todosLoading && <p className={styles.empty}>불러오는 중...</p>}
-          {!todosLoading && todos.length === 0 && <p className={styles.empty}>미완료 할일이 없습니다.</p>}
-          <ul className={styles.todoList}>
-            {todos.map((todo) => {
-              const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime) : null;
-              return (
-                <li key={todo.id} className={styles.todoItem}>
-                  <button className={styles.todoCheck} onClick={() => handleCompleteTodo(todo)} title="완료 처리"/>
-                  <div className={styles.todoBody}>
-                    <p className={styles.todoText}>{todo.title}</p>
-                    <div className={styles.todoMeta}>
-                      <span className={styles.todoListName}>{todo.listName}</span>
-                      {due && (
-                        <span
-                          className={`${styles.todoDue}${due.isPast ? ` ${styles.todoDueOverdue}` : ""}`}>{due.label}</span>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        )
       )}
 
       {/* 드래그 고스트 */}

@@ -1,5 +1,5 @@
 .sidebar {
-  width: 150px;
+  position: relative;
   flex-shrink: 0;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
@@ -64,8 +64,45 @@
   font-size: 16px;
   width: 20px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .navLabel {
   flex: 1;
+}
+
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  transition: background 0.15s;
+}
+
+.resizeHandle:hover {
+  background: var(--color-accent);
+}
+
+.iconOnly {
+  padding: 20px 8px;
+}
+
+.iconOnly .logo {
+  justify-content: center;
+  padding: 8px 4px;
+}
+
+.iconOnly .logoText {
+  display: none;
+}
+
+.iconOnly .navItem {
+  justify-content: center;
+  padding: 10px;
+}
+
+.iconOnly .navLabel {
+  display: none;
 }

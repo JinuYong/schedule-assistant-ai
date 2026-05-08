@@ -1,5 +1,55 @@
 .container {
   width: 100%;
+  max-width: 1200px;
+}
+
+/* ── Two-column main layout ── */
+.mainLayout {
+  display: grid;
+  /* grid-template-columns은 인라인 스타일로 동적 설정 */
+  gap: 10px;
+  align-items: start;
+}
+
+.calendarColumn {
+  min-width: 0;
+}
+
+.sidePanel {
+  min-width: 0;
+  position: sticky;
+  top: 0;
+  height: 100%;
+  padding-left: 10px;
+}
+
+/* 우측 패널 너비 조절 핸들 */
+.sidePanelHandle {
+  position: absolute;
+  top: 0;
+  left: -10px;    /* gap(20px)의 중앙 */
+  width: 20px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sidePanelHandle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 9px;
+  width: 2px;
+  height: 100%;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.sidePanelHandle:hover::after,
+.sidePanelHandle:active::after {
+  background: var(--color-accent);
 }
 
 /* ── Quick Add ── */
@@ -152,7 +202,6 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
-  margin-bottom: 20px;
 }
 
 .weekdays {
@@ -261,12 +310,6 @@
   text-overflow: ellipsis;
   line-height: 1.6;
   cursor: grab;
-  animation: chipFadeIn 0.2s ease;
-}
-
-@keyframes chipFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .eventChip:active {
@@ -335,7 +378,7 @@
 
 /* ── Day Detail ── */
 .dayDetail {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .dayDetailHeader {
@@ -374,8 +417,8 @@
 .eventItem {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 9px 14px;
+  /*gap: 12px;*/
+  padding: 9px 0 9px 9px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-left: 3px solid var(--color-border);
@@ -465,7 +508,7 @@
 
 /* ── Microsoft Todo ── */
 .todoSection {
-  padding-top: 20px;
+  padding-top: 16px;
   border-top: 1px solid var(--color-border);
 }
 
@@ -776,4 +819,3 @@ select.formInput {
   opacity: 0.55;
   cursor: not-allowed;
 }
-

@@ -1,9 +1,10 @@
 import { create } from "zustand";
-import { storeGet, storeSet } from "@/lib/tauri-store";
+import { storeDelete, storeGet, storeSet } from "@/lib/tauri-store";
 import {
   refreshGoogleTokenIfNeeded,
   refreshMicrosoftTokenIfNeeded,
 } from "@/lib/oauth";
+import { showToast } from '@/store/toast'
 
 export interface GoogleTokens {
   access_token: string;
@@ -62,8 +63,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set({ googleTokens: updated });
         storeSet("google.tokens", updated);
       }
-    } catch {
-      // 갱신 실패 시 기존 토큰으로 계속 시도
+    } catch (e) {
+      // 토큰 초기화, 재연결 안내
+      if (String(e).startsWith("auth_error:")) {
+        set({ googleTokens: null });
+        storeDelete("google.tokens");
+        showToast("Google 연결이 만료되었습니다. 설정에서 다시 연결해주세요.");
+        return null;
+      }
     }
     return get().googleTokens;
   },
@@ -78,8 +85,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set({ microsoftTokens: updated });
         storeSet("microsoft.tokens", updated);
       }
-    } catch {
-      // 갱신 실패 시 기존 토큰으로 계속 시도
+    } catch (e) {
+      // 갱신 실패
+      if (String(e).startsWith("auth_error:")) {
+        set({ googleTokens: null });
+        storeDelete("google.tokens");
+        showToast("Google 연결이 만료되었습니다. 설정에서 다시 연결해주세요.");
+        return null;
+      }
     }
     return get().microsoftTokens;
   },

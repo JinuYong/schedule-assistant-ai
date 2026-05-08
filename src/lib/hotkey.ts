@@ -1,4 +1,4 @@
-import { register, unregisterAll, type ShortcutEvent } from "@tauri-apps/plugin-global-shortcut";
+import { register, unregister, unregisterAll, type ShortcutEvent } from "@tauri-apps/plugin-global-shortcut";
 import { isTauri } from "./tauri-store";
 
 export const DEFAULT_SHORTCUT = "Option+Space";
@@ -16,6 +16,15 @@ export async function registerHotkey(shortcut: string, handler: () => void): Pro
   } catch (e) {
     console.warn("[hotkey] 등록 실패:", e);
     return false;
+  }
+}
+
+export async function unregisterHotkey(shortcut: string): Promise<void> {
+  if (!isTauri()) return;
+  try {
+    await unregister(shortcut);
+  } catch (e) {
+    console.warn("[hotkey] 개별 해제 실패:", e);
   }
 }
 

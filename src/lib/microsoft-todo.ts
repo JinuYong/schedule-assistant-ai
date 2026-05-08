@@ -43,12 +43,11 @@ export async function getTasks(
   accessToken: string,
   listId: string
 ): Promise<TodoTask[]> {
-  const encoded = encodeURIComponent("status ne 'completed'");
   const data = await graphFetch<{ value: TodoTask[] }>(
-    `/me/todo/lists/${listId}/tasks?$filter=${encoded}`,
+    `/me/todo/lists/${listId}/tasks`,
     accessToken
   );
-  return data.value;
+  return data.value.filter((t) => t.status !== "completed");
 }
 
 export async function createTask(

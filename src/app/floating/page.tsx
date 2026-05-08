@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { isTauri } from "@/lib/tauri-store";
 import { emit } from "@tauri-apps/api/event";
 import { hideFloatingWindow } from "@/lib/floating-window";
+import { registerHotkey, unregisterHotkey } from "@/lib/hotkey";
 import { parseScheduleText } from "@/lib/claude";
 import { createEvent, getCalendarList, type CalendarListItem } from "@/lib/google-calendar";
 import { useAuthStore } from "@/store/auth";
@@ -15,17 +16,52 @@ export default function FloatingPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const googleTokens = useAuthStore((s) => s.googleTokens);
 
+  // makeKeyWindow → windowDidBecomeKey → window.focus 발화 시 input 포커스
   useEffect(() => {
+    const onFocus = () => { inputRef.current?.focus(); };
+    window.addEventListener("focus", onFocus);
     inputRef.current?.focus();
+    return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  // 창이 포커스를 잃으면 바로 숨기기
+  // floating-shown / floating-should-hide → ESC 글로벌 단축키 등록/해제 + 창 닫기
+  // nonactivatingPanel은 키 윈도우가 될 수 없으므로 keydown 이벤트 대신 글로벌 단축키 사용
   useEffect(() => {
-    const onWindowBlur = async () => {
-      if (isTauri()) await hideFloatingWindow();
+    if (!isTauri()) return;
+    let unlisten: (() => void) | undefined;
+    let unlistenShown: (() => void) | undefined;
+    let escRegistered = false;
+
+    const registerEsc = async () => {
+      if (escRegistered) return;
+      const ok = await registerHotkey("Escape", async () => {
+        await unregisterHotkey("Escape");
+        escRegistered = false;
+        await hideFloatingWindow();
+      });
+      if (ok) escRegistered = true;
     };
-    window.addEventListener("blur", onWindowBlur);
-    return () => window.removeEventListener("blur", onWindowBlur);
+
+    const unregisterEsc = async () => {
+      if (!escRegistered) return;
+      await unregisterHotkey("Escape");
+      escRegistered = false;
+    };
+
+    (async () => {
+      const { listen } = await import("@tauri-apps/api/event");
+      unlistenShown = await listen("floating-shown", () => { registerEsc(); });
+      unlisten = await listen("floating-should-hide", async () => {
+        await unregisterEsc();
+        await hideFloatingWindow();
+      });
+    })();
+
+    return () => {
+      unlisten?.();
+      unlistenShown?.();
+      unregisterEsc();
+    };
   }, []);
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
@@ -64,13 +100,13 @@ export default function FloatingPage() {
           location: parsed.location,
           ...(parsed.isAllDay
             ? {
-                start: { date: parsed.startTime.split("T")[0] },
-                end: { date: parsed.endTime.split("T")[0] },
-              }
+              start: { date: parsed.startTime.split("T")[0] },
+              end: { date: parsed.endTime.split("T")[0] },
+            }
             : {
-                start: { dateTime: parsed.startTime, timeZone: "Asia/Seoul" },
-                end: { dateTime: parsed.endTime, timeZone: "Asia/Seoul" },
-              }),
+              start: { dateTime: parsed.startTime, timeZone: "Asia/Seoul" },
+              end: { dateTime: parsed.endTime, timeZone: "Asia/Seoul" },
+            }),
         }, calendarId);
         // 메인 창에 일정 변경 알림 (Tauri 이벤트로 창 간 통신)
         await emit("calendar-mutated");
@@ -81,16 +117,10 @@ export default function FloatingPage() {
         if (isTauri()) await hideFloatingWindow();
         setInput("");
         setStatus("idle");
-      }, 700);
+      }, 1500);
     } catch {
       setStatus("error");
       setTimeout(() => setStatus("idle"), 2000);
-    }
-  };
-
-  const handleKeyDown = async (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      if (isTauri()) await hideFloatingWindow();
     }
   };
 
@@ -103,14 +133,13 @@ export default function FloatingPage() {
           className={styles.input}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
           placeholder="일정을 자연어로 입력하세요 (예: 내일 오후 3시 팀 미팅)"
           disabled={status === "loading"}
           autoComplete="off"
         />
-        {status === "loading" && <span className={`${styles.indicator} ${styles.loading}`}>⏳</span>}
-        {status === "done" && <span className={`${styles.indicator} ${styles.done}`}>✓</span>}
-        {status === "error" && <span className={`${styles.indicator} ${styles.error}`}>✗</span>}
+        {status === "loading" && <span className={styles.spinning}>⏳</span>}
+        {status === "done" && <span className={`${styles.indicator} ${styles.done}`}>✓ 등록 완료</span>}
+        {status === "error" && <span className={`${styles.indicator} ${styles.error}`}>✗ 등록 실패</span>}
       </form>
     </div>
   );
