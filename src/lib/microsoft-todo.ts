@@ -5,11 +5,12 @@ async function graphFetch<T>(
   accessToken: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const isWrite = options.method && options.method !== "GET";
   const res = await fetch(`${GRAPH_BASE}${path}`, {
     ...options,
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
+      ...(isWrite ? { "Content-Type": "application/json" } : {}),
       ...(options.headers ?? {}),
     },
   });

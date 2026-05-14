@@ -9,21 +9,13 @@
 }
 
 .logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  padding: 8px 12px 0 12px;
   margin-bottom: 24px;
+  width: fit-content;
 }
 
 .logoIcon {
-  font-size: 22px;
-}
-
-.logoText {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-primary);
+  max-height: 36px;
 }
 
 .nav {
@@ -94,8 +86,8 @@
   padding: 8px 4px;
 }
 
-.iconOnly .logoText {
-  display: none;
+.iconOnly .logoIcon {
+  width: 100%;
 }
 
 .iconOnly .navItem {

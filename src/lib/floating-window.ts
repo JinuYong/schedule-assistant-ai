@@ -30,11 +30,11 @@ export async function showFloatingWindow(): Promise<void> {
   await showWindow(win);
 }
 
-export async function hideFloatingWindow(): Promise<void> {
+export async function hideFloatingWindow(restore = false): Promise<void> {
   if (isTauri()) {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
-      await invoke("hide_floating");
+      await invoke("hide_floating", { restore });
       return;
     } catch (e) {
       console.error("[floating-window] hide_floating 실패:", e);

@@ -68,8 +68,7 @@ export default function Sidebar() {
   return (
     <aside className={`${styles.sidebar} ${isIconOnly ? styles.iconOnly : ""}`} style={{ width }}>
       <div className={styles.logo}>
-        <span className={styles.logoIcon}>🗓</span>
-        <span className={styles.logoText}>Cali</span>
+        <img className={styles.logoIcon} src="/cali-logo.svg" alt="Cali Logo" />
       </div>
       <nav className={styles.nav}>
         {NAV_ITEMS.map((item) => {

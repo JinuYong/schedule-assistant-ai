@@ -156,10 +156,10 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 ### 6. 테마 시스템
 - `THEME_COLORS` 배열에 5가지 색상 정의 (핑크, 퍼플, 로즈, 골드, 시안)
 - `ThemeApplier.tsx`가 `document.documentElement.style.setProperty`로 CSS 변수 동적 설정:
-  - `--color-accent` (메인 색상)
-  - `--color-accent-hover` (호버 색상)
-  - `--color-accent-soft` (rgba 15% — 사이드바 active 배경)
-  - `--color-accent-ultra-soft` (rgba 8% — 사이드바 hover 배경)
+    - `--color-accent` (메인 색상)
+    - `--color-accent-hover` (호버 색상)
+    - `--color-accent-soft` (rgba 15% — 사이드바 active 배경)
+    - `--color-accent-ultra-soft` (rgba 8% — 사이드바 hover 배경)
 - localStorage + tauri-store 양쪽에 저장
 
 ### 7. 알림 시스템
@@ -197,6 +197,57 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 | `hotkey` | 플로팅 창 단축키 문자열 |
 | `theme.accent` | 저장된 테마 색상 |
 | `events.cache` | 마지막으로 fetch한 이벤트 캐시 |
+
+---
+
+## 컴패니언 윈도우 (floating) — macOS NSPanel 구현 핵심 지식
+
+> 수많은 시행착오 끝에 확립된 규칙들. 변경 시 반드시 이 섹션 숙지.
+
+### ✅ 최종 작동 구조 (`show_floating`)
+
+```
+orderFrontRegardless       → 전체화면 포함 모든 Space에 창 표시
+makeKeyAndOrderFront:nil   → 앱 활성화 + IMK 초기화 + key window 설정
+```
+
+### ❌ 절대 하면 안 되는 것
+
+| 금지 | 이유 |
+|------|------|
+| `activateIgnoringOtherApps:YES` | 같은 Space의 다른 앱(Calendar 등)을 강제로 앞으로 끌어내는 부작용 발생. `makeKeyAndOrderFront:`가 내부적으로 앱 활성화를 처리하므로 불필요 |
+| `makeKeyWindow` 단독 사용 | IMK(Input Method Kit)를 초기화하지 않아 키보드 입력 불가 |
+| `object_setClass(ns_win, NSPanel)` 단독 사용 | `canBecomeKeyWindow`가 NO를 반환 → `makeKeyAndOrderFront:`가 무시됨 |
+| NSTextField를 `contentView`에 `addSubview:` | `contentView` = WKWebView → 이벤트 모두 차단됨 |
+
+### NSPanel 서브클래스 (KeyablePanel)
+
+`canBecomeKeyWindow`를 YES로 오버라이드해야 `makeKeyAndOrderFront:`가 실제로 동작한다.
+
+```rust
+extern "C" fn panel_can_become_key(_: *const c_void, _: *const c_void) -> bool { true }
+
+// setup에서:
+let kp_cls = objc_allocateClassPair(ns_panel_cls, b"KeyablePanel\0".as_ptr(), 0);
+class_addMethod(kp_cls, sel_cbkw, panel_can_become_key as *const c_void, b"B@:\0".as_ptr());
+objc_registerClassPair(kp_cls);
+object_setClass(ns_win, kp_cls);  // NSPanel 대신 KeyablePanel 사용
+```
+
+### 텍스트 입력: HTML `<input>` 방식
+
+NSTextField native overlay는 WKWebView가 이벤트를 가로채서 불가. HTML `<input>` + JS `focus()` + `window.addEventListener("focus", ...)` 조합을 사용한다.
+
+### ESC 닫기 시 Space 전환 방지
+
+창을 열 때 이전 frontmost 앱을 `retain`해서 `PREV_APP`에 저장, ESC 닫기 시 `activateWithOptions:0`으로 복원.
+
+- `hide_floating(restore: true)` → ESC: 이전 앱 활성화 후 숨김
+- `hide_floating(restore: false)` → 클릭아웃: 그냥 숨김 (이미 다른 앱이 포커스를 받았음)
+
+### 포커스 타이밍
+
+`Focused(true)` Tauri 이벤트 = 창이 실제 key window가 된 시점 → 이때 `eval("input.focus()")` 호출이 가장 신뢰할 수 있는 방법.
 
 ---
 
@@ -306,9 +357,9 @@ NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 2. 상단 검색창에 **"앱 등록"** 검색 → 클릭
 3. **"+ 새 등록"** 클릭
 4. 양식 입력:
-   - **이름**: `Cali`
-   - **지원되는 계정 유형**: **"모든 Microsoft Entra ID 테넌트의 계정 및 개인 Microsoft 계정(예: Skype, Xbox)"** 선택
-   - **리디렉션 URI**: 비워두기
+    - **이름**: `Schedule Assistant AI`
+    - **지원되는 계정 유형**: **"모든 Microsoft Entra ID 테넌트의 계정 및 개인 Microsoft 계정(예: Skype, Xbox)"** 선택
+    - **리디렉션 URI**: 비워두기
 5. **"등록"** 클릭
 
 ### 2단계: Application ID 복사

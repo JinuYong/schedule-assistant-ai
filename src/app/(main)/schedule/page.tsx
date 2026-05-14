@@ -18,7 +18,7 @@ import {isTauri} from "@/lib/tauri-store";
 import {showToast} from "@/store/toast";
 import styles from "./page.module.css";
 
-const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 const DEFAULT_SIDE_WIDTH = 280;
 const MIN_SIDE_WIDTH = 200;
@@ -80,7 +80,7 @@ function IconClose() {
 }
 
 function firstWeekday(year: number, month: number): number {
-  return (new Date(year, month, 1).getDay() + 6) % 7;
+  return new Date(year, month, 1).getDay();
 }
 
 function daysInMonth(year: number, month: number): number {

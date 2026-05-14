@@ -25,6 +25,18 @@
   opacity: 0.85;
 }
 
+.spinning {
+  display: inline-block;
+  font-size: 16px;
+  flex-shrink: 0;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .input {
   flex: 1;
   border: none;
@@ -41,15 +53,11 @@
 }
 
 .indicator {
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 500;
   flex-shrink: 0;
-}
-
-.loading {
-  font-size: 12px;
+  white-space: nowrap;
   color: var(--color-text-secondary);
-  animation: spin 1.5s linear infinite;
 }
 
 .done {
@@ -58,9 +66,4 @@
 
 .error {
   color: var(--color-danger);
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
