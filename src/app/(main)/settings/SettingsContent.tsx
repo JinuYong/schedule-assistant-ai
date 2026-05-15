@@ -5,9 +5,8 @@ import { useAuthStore } from "@/store/auth";
 import { useThemeStore, THEME_COLORS } from "@/store/theme";
 import { storeGet, storeSet, isTauri } from "@/lib/tauri-store";
 import { startGoogleOAuth, startMicrosoftOAuth } from "@/lib/oauth";
-import { DEFAULT_SHORTCUT, registerHotkey, unregisterHotkeys } from "@/lib/hotkey";
+import { DEFAULT_SHORTCUT } from "@/lib/hotkey";
 import styles from "./page.module.css";
-import { toggleFloatingWindow } from '@/lib/floating-window'
 
 export default function SettingsContent() {
   const { googleTokens, setGoogleTokens, microsoftTokens, setMicrosoftTokens } = useAuthStore();
@@ -15,8 +14,8 @@ export default function SettingsContent() {
 
   const [anthropicKey, setAnthropicKey] = useState("");
   const [shortcut, setShortcut] = useState(DEFAULT_SHORTCUT);
-  const [ isRecording, setIsRecording ] = useState(false);
-  const [ shortcutError, setShortcutError ] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [shortcutError, setShortcutError] = useState("");
   const isRecordingRef = useRef(false);
 
   const [mounted, setMounted] = useState(false);
@@ -82,13 +81,13 @@ export default function SettingsContent() {
   };
 
   useEffect(() => {
-    const handleNativeKeyDown = (e: KeyboardEvent)=> {
+    const handleNativeKeyDown = (e: KeyboardEvent) => {
       if (!isRecordingRef.current) return;
       e.preventDefault();
       e.stopPropagation();
 
-      const ignoreKeys = ["Control", "Shift", "Alt", "Meta"];
-      if (ignoreKeys.includes(e.key)) return;
+      const ignoredKeys = ["Meta", "Control", "Alt", "Shift"];
+      if (ignoredKeys.includes(e.key)) return;
 
       const modifiers: string[] = [];
       if (e.metaKey) modifiers.push("Command");
@@ -101,7 +100,7 @@ export default function SettingsContent() {
       if (key.startsWith("Key")) key = key.slice(3);
       else if (key.startsWith("Digit")) key = key.slice(5);
 
-      setShortcut([...modifiers, key].join(" + "));
+      setShortcut([...modifiers, key].join("+"));
       isRecordingRef.current = false;
       setIsRecording(false);
     };
@@ -112,19 +111,19 @@ export default function SettingsContent() {
 
   const saveShortcut = async () => {
     setShortcutError("");
-    await unregisterHotkeys();
-
-    const ok = await registerHotkey(shortcut, toggleFloatingWindow);
-    if (!ok) {
-      // 실패 시 기존 단축키 복원
-      const prev = (await storeGet<string>("hotkey")) ?? DEFAULT_SHORTCUT;
-      await registerHotkey(prev, toggleFloatingWindow);
-      setShortcutError("단축키 등록에 실패했습니다. 다른 단축키를 사용해주세요.");
-      return;
+    try {
+      if (isTauri()) {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const prev = (await storeGet<string>("hotkey")) ?? DEFAULT_SHORTCUT;
+        // Rust 레벨에서 단축키 교체 → HMR 재로드 후에도 유지됨
+        await invoke("set_global_shortcut", { old: prev, new: shortcut });
+      }
+      await storeSet("hotkey", shortcut);
+      setShortcutSaved(true);
+      setTimeout(() => setShortcutSaved(false), 2000);
+    } catch {
+      setShortcutError("단축키 등록에 실패했습니다. 다른 키 조합을 시도해보세요.");
     }
-    await storeSet("hotkey", shortcut);
-    setShortcutSaved(true);
-    setTimeout(() => setShortcutSaved(false), 2000);
   };
 
   return (
@@ -205,7 +204,7 @@ export default function SettingsContent() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>Microsoft Todo</h2>
-          {microsoftTokens && <span className={styles.badge}>연결됨</span>}
+          {microsoftTokens && <span className={microsoftTokens.access_token ? styles.badge : styles.badgeWarn}>{ microsoftTokens.access_token ? "연결됨" : "토큰 오류 (재연결 필요)" }</span>}
         </div>
         <p className={styles.description}>
           Microsoft 계정으로 로그인하여 할일을 동기화합니다.
@@ -234,18 +233,12 @@ export default function SettingsContent() {
         <p className={styles.description}>플로팅 입력창을 열기 위한 전역 단축키를 설정합니다.</p>
         <div className={styles.shortcutRow}>
           <input
-            className={`${styles.shortcutInput} ${isRecording ? styles.shortcutRecording : ""}`}
+            className={`${styles.shortcutInput}${isRecording ? ` ${styles.shortcutRecording}` : ""}`}
             value={isRecording ? "단축키를 입력하세요..." : shortcut}
             readOnly
-            onFocus={() => {
-              setIsRecording(true);
-              isRecordingRef.current = true;
-            }}
-            onBlur={() => {
-              setIsRecording(false);
-              isRecordingRef.current = false;
-            }}
-            placeholder="클릭 후 단축키 입력 (예: Option + Space)"
+            onFocus={() => { setIsRecording(true); isRecordingRef.current = true; }}
+            onBlur={() => { setIsRecording(false); isRecordingRef.current = false; }}
+            placeholder="클릭 후 단축키 입력"
           />
           <button className={styles.saveBtn} onClick={saveShortcut}>
             {shortcutSaved ? "저장됨 ✓" : "저장"}

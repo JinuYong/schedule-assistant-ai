@@ -305,6 +305,24 @@ fn show_floating(_app: tauri::AppHandle) -> Result<(), String> {
 
 /// 플로팅 창 숨기기
 /// restore=true (ESC): 이전 앱 활성화 후 숨김 → Space 전환 없이 원위치 복원
+/// 메인 단축키를 새 값으로 교체 (설정에서 변경 시)
+/// Rust 레벨에서 등록하므로 WebView 재로드(HMR)와 무관하게 영구 동작
+#[tauri::command]
+fn set_global_shortcut(app: tauri::AppHandle, old: String, new: String) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+    if !old.is_empty() {
+        app.global_shortcut().unregister(old.as_str()).ok();
+    }
+    let app_handle = app.clone();
+    app.global_shortcut()
+        .on_shortcut(new.as_str(), move |_app, _shortcut, event| {
+            if event.state() == ShortcutState::Pressed {
+                show_floating(app_handle.clone()).ok();
+            }
+        })
+        .map_err(|e| e.to_string())
+}
+
 /// restore=false (클릭 아웃): 이미 다른 앱이 포커스를 받았으므로 그냥 숨김
 #[tauri::command]
 fn hide_floating(app: tauri::AppHandle, restore: bool) -> Result<(), String> {
@@ -408,18 +426,29 @@ async fn exchange_microsoft_token(
         "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
         tenant
     );
+    // Public Client (데스크톱 앱 / localhost redirect) → client_secret 전송 금지
+    // Azure Public Client 설정 시 secret을 보내면 AADSTS90023 오류 발생
+    let _ = client_secret; // 사용하지 않음
     let response = client
         .post(&url)
         .form(&[
             ("code", code.as_str()),
             ("client_id", client_id.as_str()),
-            ("client_secret", client_secret.as_str()),
             ("redirect_uri", redirect_uri.as_str()),
             ("grant_type", "authorization_code"),
+            ("scope", "Tasks.ReadWrite offline_access User.Read"),
         ])
         .send()
         .await
         .map_err(|e| e.to_string())?;
+    if !response.status().is_success() {
+        let body: serde_json::Value = response.json().await.unwrap_or_default();
+        let desc = body.get("error_description")
+            .and_then(|v| v.as_str())
+            .or_else(|| body.get("error").and_then(|v| v.as_str()))
+            .unwrap_or("token exchange failed");
+        return Err(desc.to_string());
+    }
     response
         .json::<serde_json::Value>()
         .await
@@ -439,12 +468,12 @@ async fn refresh_microsoft_token(
         "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
         tenant
     );
+    let _ = client_secret; // Public Client → secret 전송 금지
     let response = client
         .post(&url)
         .form(&[
             ("refresh_token", refresh_token.as_str()),
             ("client_id", client_id.as_str()),
-            ("client_secret", client_secret.as_str()),
             ("grant_type", "refresh_token"),
             ("scope", "Tasks.ReadWrite offline_access User.Read"),
         ])
@@ -578,6 +607,28 @@ pub fn run() {
                     }
                 });
             }
+            // 메인 단축키를 Rust 레벨에서 등록
+            // → WebView HMR 재로드 시에도 JS 콜백 ID 문제 없이 영구 동작
+            {
+                use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+                use tauri_plugin_store::StoreExt;
+                let shortcut_str = match _app.handle().store("app-store.json") {
+                    Ok(store) => store
+                        .get("hotkey")
+                        .and_then(|v: serde_json::Value| v.as_str().map(|s| s.to_string()))
+                        .unwrap_or_else(|| "Option+Space".to_string()),
+                    Err(_) => "Option+Space".to_string(),
+                };
+                let app_handle = _app.handle().clone();
+                _app.global_shortcut()
+                    .on_shortcut(shortcut_str.as_str(), move |_app, _shortcut, event| {
+                        if event.state() == ShortcutState::Pressed {
+                            show_floating(app_handle.clone()).ok();
+                        }
+                    })
+                    .ok();
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -585,6 +636,7 @@ pub fn run() {
             stream_chat,
             show_floating,
             hide_floating,
+            set_global_shortcut,
             exchange_google_token,
             refresh_google_token,
             exchange_microsoft_token,

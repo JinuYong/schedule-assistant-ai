@@ -1,12 +1,13 @@
 "use client";
 
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Sidebar.module.css";
-import { useCallback, useEffect, useRef, useState } from 'react'
 
 const NAV_ITEMS = [
   { href: "/schedule", label: "일정", icon: "📅" },
+  { href: "/todo", label: "할일", icon: "✅" },
   { href: "/chat", label: "AI 브리핑", icon: "💬" },
   { href: "/settings", label: "설정", icon: "⚙️" },
 ];
@@ -21,25 +22,37 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isIconOnly, setIsIconOnly] = useState(false);
+  // pointerdown/pointermove 간 드래그 시작값 공유 (모두 React 이벤트로 처리해 좌표계 일관성 보장)
+  const dragStartRef = useRef({ x: 0, width: DEFAULT_WIDTH });
 
+  // localStorage 복원
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-width");
     if (saved) {
       const w = Number(saved);
       setWidth(w);
-      setIsIconOnly(w <= ICON_ONLY_THRESHOLD);
+      setIsIconOnly(w <= ICON_ONLY_WIDTH);
     }
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = width;
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      dragStartRef.current = { x: e.clientX, width };
+      document.body.style.cursor = "col-resize";
+    },
+    [width]
+  );
 
-    document.body.style.userSelect = "none";
-
-    const onMove = (ev: MouseEvent) => {
-      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (ev.clientX - startX)));
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+      const { x: startX, width: startWidth } = dragStartRef.current;
+      const newWidth = Math.min(
+        MAX_WIDTH,
+        Math.max(MIN_WIDTH, startWidth + (e.clientX - startX))
+      );
 
       if (newWidth <= ICON_ONLY_THRESHOLD) {
         setWidth(ICON_ONLY_WIDTH);
@@ -48,25 +61,27 @@ export default function Sidebar() {
         setWidth(newWidth);
         setIsIconOnly(false);
       }
-    };
+    },
+    []
+  );
 
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      document.body.style.userSelect = "";
-
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      document.body.style.cursor = "";
       setWidth((w) => {
         localStorage.setItem("sidebar-width", String(w));
         return w;
       });
-    };
-
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }, [width])
+    },
+    []
+  );
 
   return (
-    <aside className={`${styles.sidebar} ${isIconOnly ? styles.iconOnly : ""}`} style={{ width }}>
+    <aside
+      className={`${styles.sidebar} ${isIconOnly ? styles.iconOnly : ""}`}
+      style={{ width }}
+    >
       <div className={styles.logo}>
         <img className={styles.logoIcon} src="/cali-logo.svg" alt="Cali Logo" />
       </div>
@@ -88,7 +103,12 @@ export default function Sidebar() {
           );
         })}
       </nav>
-      <div className={styles.resizeHandle} onMouseDown={handleMouseDown} />
+      <div
+        className={styles.resizeHandle}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      />
     </aside>
   );
 }

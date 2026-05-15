@@ -17,6 +17,7 @@ import {listen} from "@tauri-apps/api/event";
 import {isTauri} from "@/lib/tauri-store";
 import {showToast} from "@/store/toast";
 import styles from "./page.module.css";
+import { formatDue } from '@/lib/date-utils'
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -103,15 +104,6 @@ function formatDateLabel(dateStr: string): string {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("ko-KR", {
     month: "long", day: "numeric", weekday: "short",
   });
-}
-
-function formatDue(dateTime: string) {
-  const d = new Date(dateTime);
-  const today = new Date();
-  const isPast = d < today && d.toDateString() !== today.toDateString();
-  const isToday = d.toDateString() === today.toDateString();
-  const label = isToday ? "오늘" : d.toLocaleDateString("ko-KR", {month: "short", day: "numeric"});
-  return {label, isPast};
 }
 
 function getEventDateKey(ev: CalendarEvent): string {
@@ -248,6 +240,7 @@ export default function SchedulePage() {
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     sideDragRef.current = { x: e.clientX, width: sidePanelWidth };
+    document.body.style.cursor = "col-resize";
   }, [sidePanelWidth]);
 
   const handleSidePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -260,6 +253,7 @@ export default function SchedulePage() {
 
   const handleSidePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.releasePointerCapture(e.pointerId);
+    document.body.style.cursor = "";
     setSidePanelWidth((w) => {
       localStorage.setItem("schedule-side-width", String(w));
       return w;
@@ -301,11 +295,8 @@ export default function SchedulePage() {
 
   // Microsoft Todo 로드
   useEffect(() => {
-    if (!microsoftTokens) return;
-    (async () => {
-      const tokens = await refreshMicrosoft();
-      if (tokens?.access_token) fetchTodos(tokens.access_token);
-    })();
+    if (!microsoftTokens?.access_token) return;
+    fetchTodos(microsoftTokens.access_token);
   }, [microsoftTokens?.access_token]); // eslint-disable-line
 
   const cells = useMemo(() => buildCells(currentYear, currentMonth), [currentYear, currentMonth]);
@@ -780,9 +771,11 @@ export default function SchedulePage() {
                 <h2 className={styles.todoTitle}>할일</h2>
                 {todosError && <p className={styles.error}>{todosError}</p>}
                 {todosLoading && <p className={styles.empty}>불러오는 중...</p>}
-                {!todosLoading && todos.length === 0 && <p className={styles.empty}>미완료 할일이 없습니다.</p>}
+                {!todosLoading && todos.filter((t) => t.dueDateTime).length === 0 && (
+                  <p className={styles.empty}>마감일 있는 할일이 없습니다.</p>
+                )}
                 <ul className={styles.todoList}>
-                  {todos.map((todo) => {
+                  {todos.filter((t) => t.dueDateTime).map((todo) => {
                     const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime) : null;
                     return (
                       <li key={todo.id} className={styles.todoItem}>

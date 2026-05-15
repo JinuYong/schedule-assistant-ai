@@ -39,6 +39,15 @@
   font-weight: 600;
 }
 
+.badgeWarn {
+  padding: 2px 8px;
+  background: rgba(255, 149, 0, 0.12);
+  color: #e07800;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .description {
   font-size: 14px;
   color: var(--color-text-secondary);
