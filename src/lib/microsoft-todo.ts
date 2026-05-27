@@ -44,6 +44,8 @@ export interface TodoTask {
   id?: string;
   title: string;
   status?: "notStarted" | "inProgress" | "completed";
+  importance?: "low" | "normal" | "high";
+  recurrence?: { pattern: { type: string; interval: number }; range: { type: string } };
   dueDateTime?: { dateTime: string; timeZone: string };
   body?: { content: string; contentType: "text" | "html" };
   checklistItems?: ChecklistItem[];
@@ -93,6 +95,31 @@ export async function toggleChecklistItem(
     `/me/todo/lists/${listId}/tasks/${taskId}/checklistItems/${itemId}`,
     accessToken,
     { method: "PATCH", body: JSON.stringify({ isChecked }) }
+  );
+}
+
+export async function updateTask(
+  accessToken: string,
+  listId: string,
+  taskId: string,
+  updates: Partial<Pick<TodoTask, "title" | "dueDateTime" | "importance" | "body">>
+): Promise<TodoTask> {
+  return graphFetch<TodoTask>(
+    `/me/todo/lists/${listId}/tasks/${taskId}`,
+    accessToken,
+    { method: "PATCH", body: JSON.stringify(updates) }
+  );
+}
+
+export async function deleteTask(
+  accessToken: string,
+  listId: string,
+  taskId: string
+): Promise<void> {
+  await graphFetch<null>(
+    `/me/todo/lists/${listId}/tasks/${taskId}`,
+    accessToken,
+    { method: "DELETE" }
   );
 }
 

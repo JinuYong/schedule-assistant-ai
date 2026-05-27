@@ -1,6 +1,6 @@
 .container {
   padding: 24px 28px;
-  max-width: 700px;
+  width: 100%;
 }
 
 .header {
@@ -67,14 +67,19 @@
   gap: 6px;
 }
 
+.listHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  margin-bottom: 4px;
+}
 .listName {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 0 4px;
-  margin-bottom: 4px;
 }
 
 .todoList {
@@ -85,25 +90,34 @@
 }
 
 .todoItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 11px 14px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   transition: border-color 0.15s;
+  overflow: hidden;
 }
 
 .todoItem:hover {
   border-color: var(--color-accent);
 }
 
+/* 헤더 행: 체크박스 | 제목 | 마감일 | 화살표 — 한 행에 나란히 */
+.todoRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+}
+
+.todoRowClickable {
+  cursor: pointer;
+  user-select: none;
+}
+
 .checkBtn {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  margin-top: 2px;
   border: 2px solid var(--color-border);
   border-radius: 50%;
   background: transparent;
@@ -116,21 +130,191 @@
   background: var(--color-accent-soft);
 }
 
-.todoBody {
+.todoText {
   flex: 1;
   min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.todoText {
   font-size: 14px;
   font-weight: 500;
   color: var(--color-text-primary);
-  flex: 1;
-  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iconStar {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  opacity: 0.35;
+}
+
+.iconStarFilled {
+  flex-shrink: 0;
+  color: #f5a623;
+}
+
+.iconRepeat {
+  flex-shrink: 0;
+  color: var(--color-accent);
+  opacity: 0.75;
+}
+
+/* 즐겨찾기 버튼 */
+.starBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  background: transparent;
+  padding: 2px;
+  border-radius: 3px;
+  transition: opacity 0.15s;
+}
+.starBtn:hover { opacity: 0.8; }
+
+/* 수정·삭제 버튼 (호버 시 표시) */
+.actionBtns {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.todoRow:hover .actionBtns { opacity: 1; }
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: background 0.12s, color 0.12s;
+}
+.actionBtn:hover { background: var(--color-accent-soft); color: var(--color-accent); }
+.deleteBtn:hover { background: rgba(255,59,48,0.08); color: var(--color-danger); }
+
+/* 리스트 헤더 추가 버튼 */
+.addBtn {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-accent);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+.addBtn:hover { background: var(--color-accent-soft); color: var(--color-accent); }
+
+/* ── 모달 ── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+.modalTitle { font-size: 15px; font-weight: 700; color: var(--color-text-primary); }
+.modalClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  transition: background 0.12s;
+}
+.modalClose:hover { background: var(--color-accent-soft); }
+.formGroup { padding: 10px 20px 0; }
+.formLabel { display: block; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 5px; }
+.formInput {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.formInput:focus { border-color: var(--color-accent); }
+.formTextarea { resize: vertical; min-height: 72px; font-family: inherit; }
+.formImportance { padding: 10px 20px 0; }
+.importanceBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.12s;
+}
+.importanceBtn:hover { border-color: #f5a623; color: #f5a623; }
+.importanceBtnActive { border-color: #f5a623; color: #f5a623; background: rgba(245,166,35,0.08); }
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+}
+.cancelBtn {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+.submitBtn {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: #fff;
+  transition: opacity 0.12s;
+}
+.submitBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.chevronSlot {
+  flex-shrink: 0;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 아코디언 화살표 */
+.chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform 0.2s;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
 }
 
 .due {
@@ -144,14 +328,28 @@
   color: var(--color-danger);
 }
 
-/* ── Checklist Items ── */
+/* ── 아코디언 내용 영역 ── */
+.accordionBody {
+  padding: 10px 14px 18px 42px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bodyNote {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Checklist Items (아코디언 펼침) ── */
 .checklistItems {
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 8px;
-  padding-left: 2px;
 }
 
 .checklistItem {

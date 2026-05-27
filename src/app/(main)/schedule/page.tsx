@@ -14,10 +14,10 @@ import {
   CalendarListItem
 } from "@/lib/google-calendar";
 import {listen} from "@tauri-apps/api/event";
+import {formatDue} from "@/lib/date-utils";
 import {isTauri} from "@/lib/tauri-store";
 import {showToast} from "@/store/toast";
 import styles from "./page.module.css";
-import { formatDue } from '@/lib/date-utils'
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -105,6 +105,7 @@ function formatDateLabel(dateStr: string): string {
     month: "long", day: "numeric", weekday: "short",
   });
 }
+
 
 function getEventDateKey(ev: CalendarEvent): string {
   return ev.startTime.split("T")[0] ?? ev.startTime.slice(0, 10);
@@ -199,7 +200,7 @@ const EMPTY_FORM: EventForm = {
 export default function SchedulePage() {
   const {googleTokens, microsoftTokens, refreshGoogle, refreshMicrosoft} = useAuthStore();
   const {events, isLoading, error, fetchEvents, prefetchEvents, invalidateCache} = useEventsStore();
-  const {todos, isLoading: todosLoading, error: todosError, fetchTodos, completeTodo} = useTodosStore();
+  const {todos, isLoading: todosLoading, error: todosError, fetchTodos, createTodo, completeTodo} = useTodosStore();
 
   const today = new Date();
   const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
@@ -212,6 +213,9 @@ export default function SchedulePage() {
   const [quickStatus, setQuickStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [eventForm, setEventForm] = useState<EventForm>(EMPTY_FORM);
+  const [todoForm, setTodoForm] = useState<{open: boolean; title: string; listId: string; submitting: boolean}>({
+    open: false, title: "", listId: "", submitting: false,
+  });
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
   const [ghostPos, setGhostPos] = useState({x: 0, y: 0});
@@ -293,7 +297,8 @@ export default function SchedulePage() {
     })();
   }, [googleTokens?.access_token, currentYear, currentMonth]); // eslint-disable-line
 
-  // Microsoft Todo 로드
+  // Microsoft Todo 로드 — refreshMicrosoft() 거치지 않고 저장된 토큰 직접 사용
+  // (refresh 중 Rust invoke 실패 시 fetchTodos가 아예 호출되지 않는 문제 방지)
   useEffect(() => {
     if (!microsoftTokens?.access_token) return;
     fetchTodos(microsoftTokens.access_token);
@@ -574,6 +579,34 @@ export default function SchedulePage() {
     await completeTodo(tokens.access_token, todo.listId, todo.id);
   }, [refreshMicrosoft, completeTodo]);
 
+  // 할일의 고유 리스트 목록 (listId → listName)
+  const todoLists = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of todos) map.set(t.listId, t.listName);
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [todos]);
+
+  const openTodoForm = useCallback(() => {
+    const defaultList = todoLists[0]?.id ?? "";
+    setTodoForm({ open: true, title: "", listId: defaultList, submitting: false });
+  }, [todoLists]);
+
+  const handleTodoSubmit = useCallback(async (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    if (!todoForm.title.trim() || !todoForm.listId || !microsoftTokens?.access_token) return;
+    setTodoForm((f) => ({ ...f, submitting: true }));
+    try {
+      await createTodo(microsoftTokens.access_token, todoForm.listId, {
+        title: todoForm.title.trim(),
+        importance: "normal",
+        dueDateTime: { dateTime: `${selectedDate}T00:00:00.0000000`, timeZone: "UTC" },
+      });
+      setTodoForm((f) => ({ ...f, open: false, title: "" }));
+    } finally {
+      setTodoForm((f) => ({ ...f, submitting: false }));
+    }
+  }, [todoForm, microsoftTokens, createTodo, selectedDate]);
+
   const hasAnyAccount = !!googleTokens || !!microsoftTokens;
 
   if (!hasAnyAccount) {
@@ -768,7 +801,42 @@ export default function SchedulePage() {
 
             {microsoftTokens && (
               <section className={styles.todoSection}>
-                <h2 className={styles.todoTitle}>할일</h2>
+                <div className={styles.todoSectionHeader}>
+                  <h2 className={styles.todoTitle}>마감 예정 할일</h2>
+                  {todoLists.length > 0 && (
+                    <button className={styles.todoAddBtn} onClick={openTodoForm} title="할일 추가">
+                      <IconPlus />
+                    </button>
+                  )}
+                </div>
+                {todoForm.open && (
+                  <form className={styles.todoForm} onSubmit={handleTodoSubmit}>
+                    <input
+                      className={styles.todoFormInput}
+                      value={todoForm.title}
+                      onChange={(e) => setTodoForm((f) => ({ ...f, title: e.target.value }))}
+                      placeholder="할일 제목"
+                      autoFocus
+                    />
+                    {todoLists.length > 1 && (
+                      <select
+                        className={styles.todoFormSelect}
+                        value={todoForm.listId}
+                        onChange={(e) => setTodoForm((f) => ({ ...f, listId: e.target.value }))}
+                      >
+                        {todoLists.map((l) => (
+                          <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                      </select>
+                    )}
+                    <div className={styles.todoFormActions}>
+                      <button type="button" className={styles.todoFormCancel} onClick={() => setTodoForm((f) => ({ ...f, open: false }))}>취소</button>
+                      <button type="submit" className={styles.todoFormSubmit} disabled={!todoForm.title.trim() || todoForm.submitting}>
+                        {todoForm.submitting ? "추가 중..." : "추가"}
+                      </button>
+                    </div>
+                  </form>
+                )}
                 {todosError && <p className={styles.error}>{todosError}</p>}
                 {todosLoading && <p className={styles.empty}>불러오는 중...</p>}
                 {!todosLoading && todos.filter((t) => t.dueDateTime).length === 0 && (
@@ -776,7 +844,7 @@ export default function SchedulePage() {
                 )}
                 <ul className={styles.todoList}>
                   {todos.filter((t) => t.dueDateTime).map((todo) => {
-                    const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime) : null;
+                    const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime, todo.dueDateTime.timeZone) : null;
                     return (
                       <li key={todo.id} className={styles.todoItem}>
                         <button className={styles.todoCheck} onClick={() => handleCompleteTodo(todo)} title="완료 처리"/>
@@ -808,7 +876,7 @@ export default function SchedulePage() {
             {!todosLoading && todos.length === 0 && <p className={styles.empty}>미완료 할일이 없습니다.</p>}
             <ul className={styles.todoList}>
               {todos.map((todo) => {
-                const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime) : null;
+                const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime, todo.dueDateTime.timeZone) : null;
                 return (
                   <li key={todo.id} className={styles.todoItem}>
                     <button className={styles.todoCheck} onClick={() => handleCompleteTodo(todo)} title="완료 처리"/>

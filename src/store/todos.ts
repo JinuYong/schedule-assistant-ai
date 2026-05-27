@@ -1,5 +1,13 @@
 import { create } from "zustand";
-import { getTaskLists, getTasks, completeTask as apiCompleteTask, toggleChecklistItem as apiToggleChecklistItem, TodoTask } from "@/lib/microsoft-todo";
+import {
+  getTaskLists, getTasks,
+  createTask as apiCreateTask,
+  updateTask as apiUpdateTask,
+  deleteTask as apiDeleteTask,
+  completeTask as apiCompleteTask,
+  toggleChecklistItem as apiToggleChecklistItem,
+  TodoTask,
+} from "@/lib/microsoft-todo";
 
 export interface TodoItem extends TodoTask {
   id: string;
@@ -14,7 +22,11 @@ interface TodosStore {
   lastFetchedAt: number;
   throttledUntil: number; // 429 쿨다운 만료 시각 (force 포함 모든 요청 차단)
   fetchTodos: (accessToken: string, force?: boolean) => Promise<void>;
+  createTodo: (accessToken: string, listId: string, task: Pick<TodoTask, "title" | "dueDateTime" | "importance" | "body">) => Promise<void>;
+  updateTodo: (accessToken: string, listId: string, taskId: string, updates: Partial<Pick<TodoTask, "title" | "dueDateTime" | "importance" | "body">>) => Promise<void>;
+  deleteTodo: (accessToken: string, listId: string, taskId: string) => Promise<void>;
   completeTodo: (accessToken: string, listId: string, taskId: string) => Promise<void>;
+  toggleImportance: (accessToken: string, listId: string, taskId: string, current: "low" | "normal" | "high" | undefined) => Promise<void>;
   toggleChecklistItem: (accessToken: string, listId: string, taskId: string, itemId: string, isChecked: boolean) => Promise<void>;
 }
 
@@ -73,6 +85,48 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
       });
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  createTodo: async (accessToken, listId, task) => {
+    await apiCreateTask(accessToken, listId, task);
+    await get().fetchTodos(accessToken, true);
+  },
+
+  updateTodo: async (accessToken, listId, taskId, updates) => {
+    // 낙관적 업데이트
+    set((s) => ({
+      todos: s.todos.map((t) =>
+        t.id !== taskId ? t : { ...t, ...updates }
+      ),
+    }));
+    try {
+      await apiUpdateTask(accessToken, listId, taskId, updates);
+    } catch {
+      await get().fetchTodos(accessToken, true);
+    }
+  },
+
+  deleteTodo: async (accessToken, listId, taskId) => {
+    set((s) => ({ todos: s.todos.filter((t) => t.id !== taskId) }));
+    try {
+      await apiDeleteTask(accessToken, listId, taskId);
+    } catch {
+      await get().fetchTodos(accessToken, true);
+    }
+  },
+
+  toggleImportance: async (accessToken, listId, taskId, current) => {
+    const next = current === "high" ? "normal" : "high";
+    set((s) => ({
+      todos: s.todos.map((t) =>
+        t.id !== taskId ? t : { ...t, importance: next }
+      ),
+    }));
+    try {
+      await apiUpdateTask(accessToken, listId, taskId, { importance: next });
+    } catch {
+      await get().fetchTodos(accessToken, true);
     }
   },
 
