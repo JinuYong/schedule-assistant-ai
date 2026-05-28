@@ -1,7 +1,6 @@
 "use client";
 
 import {useEffect, useState, useCallback, useMemo, useRef} from "react";
-import Link from "next/link";
 import {useAuthStore} from "@/store/auth";
 import {useEventsStore, CalendarEvent} from "@/store/events";
 import {ChecklistDraftItem, useTodosStore, TodoItem} from "@/store/todos";
@@ -782,15 +781,6 @@ export default function SchedulePage() {
   const dueTodoGroups = useMemo(() => {
     const map = new Map<string, { listId: string; listName: string; items: TodoItem[] }>();
     for (const todo of todos.filter((t) => t.dueDateTime)) {
-      if (!map.has(todo.listId)) map.set(todo.listId, {listId: todo.listId, listName: todo.listName, items: []});
-      map.get(todo.listId)!.items.push(todo);
-    }
-    return Array.from(map.values());
-  }, [todos]);
-
-  const allTodoGroups = useMemo(() => {
-    const map = new Map<string, { listId: string; listName: string; items: TodoItem[] }>();
-    for (const todo of todos) {
       if (!map.has(todo.listId)) map.set(todo.listId, {listId: todo.listId, listName: todo.listName, items: []});
       map.get(todo.listId)!.items.push(todo);
     }
