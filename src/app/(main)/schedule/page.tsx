@@ -1,9 +1,11 @@
 "use client";
 
 import {useEffect, useState, useCallback, useMemo, useRef} from "react";
+import Link from "next/link";
 import {useAuthStore} from "@/store/auth";
 import {useEventsStore, CalendarEvent} from "@/store/events";
-import {useTodosStore, TodoItem} from "@/store/todos";
+import {ChecklistDraftItem, useTodosStore, TodoItem} from "@/store/todos";
+import {TodoTask, TodoTaskUpdates} from "@/lib/microsoft-todo";
 import {parseScheduleText} from "@/lib/claude";
 import {
   createEvent,
@@ -17,7 +19,9 @@ import {listen} from "@tauri-apps/api/event";
 import {formatDue} from "@/lib/date-utils";
 import {isTauri} from "@/lib/tauri-store";
 import {showToast} from "@/store/toast";
+import Divider from "@/components/Divider/Divider";
 import styles from "./page.module.css";
+import UnavailableContent from '@/components/UnavailableContent/UnavailableContent'
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -71,6 +75,51 @@ function IconPencil() {
   );
 }
 
+function IconTrash() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M19 6l-1 14H6L5 6"/>
+      <path d="M10 11v6"/>
+      <path d="M14 11v6"/>
+      <path d="M9 6V4h6v2"/>
+    </svg>
+  );
+}
+
+function IconStar({filled}: { filled: boolean }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" strokeWidth="1.8" strokeLinecap="round"
+         strokeLinejoin="round" fill={filled ? "currentColor" : "none"} stroke="currentColor"
+         className={filled ? styles.iconStarFilled : styles.iconStar}>
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </svg>
+  );
+}
+
+function IconRepeat() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" className={styles.iconRepeat}>
+      <path d="M17 1l4 4-4 4"/>
+      <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+      <path d="M7 23l-4-4 4-4"/>
+      <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+    </svg>
+  );
+}
+
+function IconChevron({open}: { open: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8"
+         strokeLinecap="round" strokeLinejoin="round"
+         className={`${styles.chevron}${open ? ` ${styles.chevronOpen}` : ""}`}>
+      <path d="M2 4l4 4 4-4"/>
+    </svg>
+  );
+}
+
 function IconClose() {
   return (
     <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.8"
@@ -97,13 +146,39 @@ function formatMonthYear(y: number, m: number): string {
 }
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit"});
+  const date = new Date(iso);
+  return date.toLocaleTimeString("ko-KR", date.getMinutes() === 0 ? {hour: 'numeric'} : {hour: 'numeric', minute: "2-digit"});
 }
 
 function formatDateLabel(dateStr: string): string {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("ko-KR", {
     month: "long", day: "numeric", weekday: "short",
   });
+}
+
+function recurrenceLabel(type: TodoFormState["repeatType"]): string {
+  if (type === "daily") return "매일";
+  if (type === "weekly") return "매주";
+  if (type === "absoluteMonthly") return "매월";
+  return "매년";
+}
+
+function graphDayOfWeek(date: string): string {
+  const day = new Date(date + "T00:00:00").getDay();
+  return ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][day];
+}
+
+function buildTodoRecurrence(form: TodoFormState): TodoTask["recurrence"] | null | undefined {
+  if (!form.repeatEnabled) return form.mode === "edit" ? null : undefined;
+  const startDate = form.dueDate || new Date().toISOString().split("T")[0];
+  return {
+    pattern: {
+      type: form.repeatType,
+      interval: Math.max(1, form.repeatInterval || 1),
+      ...(form.repeatType === "weekly" ? {daysOfWeek: [graphDayOfWeek(startDate)]} : {}),
+    },
+    range: {type: "noEnd", startDate},
+  } as TodoTask["recurrence"];
 }
 
 
@@ -197,10 +272,34 @@ const EMPTY_FORM: EventForm = {
   startTime: "09:00", endTime: "10:00", location: "", calendarId: "primary", submitting: false,
 };
 
+interface TodoFormState {
+  open: boolean;
+  mode: "create" | "edit";
+  listId: string;
+  taskId?: string;
+  title: string;
+  dueDate: string;
+  importance: "normal" | "high";
+  memo: string;
+  repeatEnabled: boolean;
+  repeatType: "daily" | "weekly" | "absoluteMonthly" | "absoluteYearly";
+  repeatInterval: number;
+  checklistItems: ChecklistDraftItem[];
+}
+
+const EMPTY_TODO_FORM: TodoFormState = {
+  open: false, mode: "create", listId: "", taskId: undefined,
+  title: "", dueDate: "", importance: "normal", memo: "",
+  repeatEnabled: false, repeatType: "daily", repeatInterval: 1, checklistItems: [],
+};
+
 export default function SchedulePage() {
   const {googleTokens, microsoftTokens, refreshGoogle, refreshMicrosoft} = useAuthStore();
   const {events, isLoading, error, fetchEvents, prefetchEvents, invalidateCache} = useEventsStore();
-  const {todos, isLoading: todosLoading, error: todosError, fetchTodos, createTodo, completeTodo} = useTodosStore();
+  const {
+    todos, isLoading: todosLoading, error: todosError, fetchTodos,
+    createTodo, updateTodo, deleteTodo, completeTodo, toggleImportance, toggleChecklistItem
+  } = useTodosStore();
 
   const today = new Date();
   const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
@@ -213,9 +312,9 @@ export default function SchedulePage() {
   const [quickStatus, setQuickStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [eventForm, setEventForm] = useState<EventForm>(EMPTY_FORM);
-  const [todoForm, setTodoForm] = useState<{open: boolean; title: string; listId: string; submitting: boolean}>({
-    open: false, title: "", listId: "", submitting: false,
-  });
+  const [todoForm, setTodoForm] = useState<TodoFormState>(EMPTY_TODO_FORM);
+  const [todoSubmitting, setTodoSubmitting] = useState(false);
+  const [expandedTodos, setExpandedTodos] = useState<Set<string>>(new Set());
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
   const [ghostPos, setGhostPos] = useState({x: 0, y: 0});
@@ -579,6 +678,34 @@ export default function SchedulePage() {
     await completeTodo(tokens.access_token, todo.listId, todo.id);
   }, [refreshMicrosoft, completeTodo]);
 
+  const handleToggleTodoImportance = useCallback(async (e: React.MouseEvent, todo: TodoItem) => {
+    e.stopPropagation();
+    const tokens = await refreshMicrosoft();
+    if (!tokens?.access_token) return;
+    await toggleImportance(tokens.access_token, todo.listId, todo.id, todo.importance);
+  }, [refreshMicrosoft, toggleImportance]);
+
+  const handleDeleteTodo = useCallback(async (e: React.MouseEvent, todo: TodoItem) => {
+    e.stopPropagation();
+    const tokens = await refreshMicrosoft();
+    if (!tokens?.access_token) return;
+    await deleteTodo(tokens.access_token, todo.listId, todo.id);
+  }, [refreshMicrosoft, deleteTodo]);
+
+  const handleToggleTodoChecklist = useCallback(async (todo: TodoItem, itemId: string, isChecked: boolean) => {
+    const tokens = await refreshMicrosoft();
+    if (!tokens?.access_token) return;
+    await toggleChecklistItem(tokens.access_token, todo.listId, todo.id, itemId, isChecked);
+  }, [refreshMicrosoft, toggleChecklistItem]);
+
+  const toggleTodoExpand = useCallback((id: string) => {
+    setExpandedTodos((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
   // 할일의 고유 리스트 목록 (listId → listName)
   const todoLists = useMemo(() => {
     const map = new Map<string, string>();
@@ -586,36 +713,185 @@ export default function SchedulePage() {
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [todos]);
 
-  const openTodoForm = useCallback(() => {
-    const defaultList = todoLists[0]?.id ?? "";
-    setTodoForm({ open: true, title: "", listId: defaultList, submitting: false });
-  }, [todoLists]);
+  const openTodoForm = useCallback((listId?: string) => {
+    const defaultList = listId ?? todoLists[0]?.id ?? "";
+    setTodoForm({
+      ...EMPTY_TODO_FORM,
+      open: true,
+      mode: "create",
+      listId: defaultList,
+      dueDate: selectedDate,
+    });
+  }, [todoLists, selectedDate]);
+
+  const openTodoEditForm = useCallback((e: React.MouseEvent, todo: TodoItem) => {
+    e.stopPropagation();
+    setTodoForm({
+      open: true,
+      mode: "edit",
+      listId: todo.listId,
+      taskId: todo.id,
+      title: todo.title,
+      dueDate: todo.dueDateTime?.dateTime.split("T")[0] ?? "",
+      importance: todo.importance === "high" ? "high" : "normal",
+      memo: todo.body?.content ?? "",
+      repeatEnabled: !!todo.recurrence,
+      repeatType: (
+        todo.recurrence?.pattern.type === "weekly" ||
+        todo.recurrence?.pattern.type === "absoluteMonthly" ||
+        todo.recurrence?.pattern.type === "absoluteYearly"
+      ) ? todo.recurrence.pattern.type : "daily",
+      repeatInterval: todo.recurrence?.pattern.interval ?? 1,
+      checklistItems: todo.checklistItems?.map((item) => ({
+        id: item.id,
+        displayName: item.displayName,
+        isChecked: item.isChecked,
+      })) ?? [],
+    });
+  }, []);
+
+  const closeTodoForm = useCallback(() => setTodoForm(EMPTY_TODO_FORM), []);
 
   const handleTodoSubmit = useCallback(async (e: { preventDefault(): void }) => {
     e.preventDefault();
     if (!todoForm.title.trim() || !todoForm.listId || !microsoftTokens?.access_token) return;
-    setTodoForm((f) => ({ ...f, submitting: true }));
+    setTodoSubmitting(true);
     try {
-      await createTodo(microsoftTokens.access_token, todoForm.listId, {
+      const dueDateTime = todoForm.dueDate
+        ? { dateTime: `${todoForm.dueDate}T00:00:00.0000000`, timeZone: "UTC" }
+        : undefined;
+      const task: TodoTaskUpdates & Pick<TodoTask, "title"> = {
         title: todoForm.title.trim(),
-        importance: "normal",
-        dueDateTime: { dateTime: `${selectedDate}T00:00:00.0000000`, timeZone: "UTC" },
-      });
-      setTodoForm((f) => ({ ...f, open: false, title: "" }));
+        importance: todoForm.importance,
+        recurrence: buildTodoRecurrence(todoForm),
+        ...(dueDateTime ? {dueDateTime} : {}),
+        ...(todoForm.memo.trim() ? {body: {content: todoForm.memo.trim(), contentType: "text" as const}} : {}),
+      };
+      const checklistItems = todoForm.checklistItems.filter((item) => item.displayName.trim());
+      if (todoForm.mode === "create") {
+        await createTodo(microsoftTokens.access_token, todoForm.listId, task as Parameters<typeof createTodo>[2], checklistItems);
+      } else if (todoForm.taskId) {
+        await updateTodo(microsoftTokens.access_token, todoForm.listId, todoForm.taskId, task, checklistItems);
+      }
+      closeTodoForm();
     } finally {
-      setTodoForm((f) => ({ ...f, submitting: false }));
+      setTodoSubmitting(false);
     }
-  }, [todoForm, microsoftTokens, createTodo, selectedDate]);
+  }, [todoForm, microsoftTokens, createTodo, updateTodo, closeTodoForm]);
 
-  const hasAnyAccount = !!googleTokens || !!microsoftTokens;
+  const dueTodoGroups = useMemo(() => {
+    const map = new Map<string, { listId: string; listName: string; items: TodoItem[] }>();
+    for (const todo of todos.filter((t) => t.dueDateTime)) {
+      if (!map.has(todo.listId)) map.set(todo.listId, {listId: todo.listId, listName: todo.listName, items: []});
+      map.get(todo.listId)!.items.push(todo);
+    }
+    return Array.from(map.values());
+  }, [todos]);
 
-  if (!hasAnyAccount) {
+  const allTodoGroups = useMemo(() => {
+    const map = new Map<string, { listId: string; listName: string; items: TodoItem[] }>();
+    for (const todo of todos) {
+      if (!map.has(todo.listId)) map.set(todo.listId, {listId: todo.listId, listName: todo.listName, items: []});
+      map.get(todo.listId)!.items.push(todo);
+    }
+    return Array.from(map.values());
+  }, [todos]);
+
+  const renderTodoGroups = useCallback((
+    groups: { listId: string; listName: string; items: TodoItem[] }[],
+    emptyMessage: string
+  ) => (
+    <>
+      {todosError && <p className={styles.error}>{todosError}</p>}
+      {todosLoading && <p className={styles.empty}>불러오는 중...</p>}
+      {!todosLoading && groups.length === 0 && <p className={styles.empty}>{emptyMessage}</p>}
+      <div className={styles.todoGroups}>
+        {groups.map(({listId, listName, items}) => (
+          <section key={listId} className={styles.todoGroup}>
+            <div className={styles.todoGroupHeader}>
+              <h3 className={styles.todoGroupName}>{listName}</h3>
+            </div>
+            <ul className={styles.todoAccordionList}>
+              {items.map((todo) => {
+                const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime, todo.dueDateTime.timeZone) : null;
+                const hasAccordion = (todo.checklistItems?.length ?? 0) > 0 || !!todo.body?.content?.trim();
+                const isOpen = expandedTodos.has(todo.id);
+                return (
+                  <li key={todo.id} className={styles.todoAccordionItem}>
+                    <div
+                      className={`${styles.todoAccordionRow}${hasAccordion ? ` ${styles.todoAccordionRowClickable}` : ""}`}
+                      onClick={() => hasAccordion && toggleTodoExpand(todo.id)}
+                    >
+                      <button className={styles.todoCheckBtn} onClick={(e) => {
+                        e.stopPropagation();
+                        handleCompleteTodo(todo);
+                      }} title="완료"/>
+                      <div className={styles.todoAccordionMain}>
+                        <div className={styles.todoAccordionTopLine}>
+                          <p className={styles.todoAccordionText}>{todo.title}</p>
+                          <div className={styles.todoActionBtns}>
+                            <button className={styles.todoActionBtn} onClick={(e) => openTodoEditForm(e, todo)} title="수정">
+                              <IconPencil/>
+                            </button>
+                            <button className={`${styles.todoActionBtn} ${styles.todoDeleteBtn}`}
+                                    onClick={(e) => handleDeleteTodo(e, todo)} title="삭제">
+                              <IconTrash/>
+                            </button>
+                          </div>
+                          {todo.recurrence && <IconRepeat/>}
+                          <button className={styles.todoStarBtn} onClick={(e) => handleToggleTodoImportance(e, todo)}
+                                  title={todo.importance === "high" ? "즐겨찾기 해제" : "즐겨찾기"}>
+                            <IconStar filled={todo.importance === "high"}/>
+                          </button>
+                          <span className={styles.todoChevronSlot}>{hasAccordion && <IconChevron open={isOpen}/>}</span>
+                        </div>
+                        <div className={styles.todoAccordionMeta}>
+                          {due && <span className={`${styles.todoDue}${due.isPast ? ` ${styles.todoDueOverdue}` : ""}`}>{due.label}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    {hasAccordion && isOpen && (
+                      <div className={styles.todoAccordionBody}>
+                        {todo.body?.content?.trim() && (
+                          todo.body.contentType === "html"
+                            ? <div className={styles.todoBodyNote} dangerouslySetInnerHTML={{__html: todo.body.content}}/>
+                            : <p className={styles.todoBodyNote}>{todo.body.content}</p>
+                        )}
+                        {(todo.checklistItems?.length ?? 0) > 0 && (
+                          <ul className={styles.todoChecklistItems}>
+                            {todo.checklistItems!.map((item) => (
+                              <li key={item.id} className={styles.todoChecklistItem}>
+                                <button
+                                  className={`${styles.todoChecklistBtn}${item.isChecked ? ` ${styles.todoChecklistChecked}` : ""}`}
+                                  onClick={() => handleToggleTodoChecklist(todo, item.id, !item.isChecked)}
+                                  title={item.isChecked ? "완료 취소" : "완료"}
+                                />
+                                <span className={`${styles.todoChecklistText}${item.isChecked ? ` ${styles.todoChecklistDone}` : ""}`}>
+                                  {item.displayName}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </>
+  ), [
+    todosError, todosLoading, expandedTodos, openTodoForm, toggleTodoExpand,
+    handleCompleteTodo, openTodoEditForm, handleDeleteTodo, handleToggleTodoImportance, handleToggleTodoChecklist
+  ]);
+
+  if (!googleTokens) {
     return (
       <div className={styles.container}>
-        <div className={styles.emptyState}>
-          <p>Google Calendar 또는 Microsoft Todo를 연동하면 일정이 표시됩니다.</p>
-          <a href="/settings/" className={styles.linkBtn}>설정으로 이동</a>
-        </div>
+        <UnavailableContent type="GOOGLE" />
       </div>
     );
   }
@@ -623,24 +899,21 @@ export default function SchedulePage() {
   return (
     <div className={styles.container}>
       {/* 자연어 빠른 추가 */}
-      {googleTokens && (
-        <form className={styles.quickAddForm} onSubmit={handleQuickAdd}>
-          <input
-            className={styles.quickAddInput}
-            value={quickInput}
-            onChange={(e) => setQuickInput(e.target.value)}
-            placeholder="자연어로 일정 추가 (예: 내일 오후 3시 팀 미팅 회사 캘린더에)"
-            disabled={quickStatus === "loading"}
-          />
-          <button className={styles.quickAddBtn} type="submit"
-                  disabled={!quickInput.trim() || quickStatus === "loading"}>
-            {quickStatus === "loading" ? "분석 중..." : quickStatus === "done" ? "완료 ✓" : quickStatus === "error" ? "오류 ✗" : "추가"}
-          </button>
-        </form>
-      )}
+      <form className={styles.quickAddForm} onSubmit={handleQuickAdd}>
+        <input
+          className={styles.quickAddInput}
+          value={quickInput}
+          onChange={(e) => setQuickInput(e.target.value)}
+          placeholder="자연어로 일정 추가 (예: 내일 오후 3시 팀 미팅 회사 캘린더에)"
+          disabled={quickStatus === "loading"}
+        />
+        <button className={styles.quickAddBtn} type="submit"
+                disabled={!quickInput.trim() || quickStatus === "loading"}>
+          {quickStatus === "loading" ? "분석 중..." : quickStatus === "done" ? "완료 ✓" : quickStatus === "error" ? "오류 ✗" : "추가"}
+        </button>
+      </form>
 
       {/* 달력(좌) + 일정·할일(우) 2컬럼 레이아웃 */}
-      {googleTokens ? (
         <div className={styles.mainLayout} style={{ gridTemplateColumns: `1fr ${sidePanelWidth}px` }}>
           {/* ── 좌측: 달력 ── */}
           <div className={styles.calendarColumn}>
@@ -710,7 +983,7 @@ export default function SchedulePage() {
                       onClick={() => {
                         if (!draggingEvent) {
                           setSelectedDate(date);
-                          openEventForm(date);
+                          // openEventForm(date);
                         }
                       }}
                     >
@@ -731,7 +1004,7 @@ export default function SchedulePage() {
                         <span
                           key={ev.id}
                           className={`${styles.eventChip}${draggingEvent?.id === ev.id ? ` ${styles.draggingChip}` : ""}`}
-                          style={ev.calendarColor ? {background: ev.calendarColor, color: "#fff"} : undefined}
+                          style={ev.calendarColor ? {background: ev.description === "공휴일" ? "#c44343" : ev.calendarColor, color: "#fff"} : undefined}
                           onClick={(e) => { e.stopPropagation(); setSelectedDate(date); setDetailEvent(ev); }}
                           onMouseDown={(e) => {
                             e.preventDefault();
@@ -763,140 +1036,63 @@ export default function SchedulePage() {
               onPointerMove={handleSidePointerMove}
               onPointerUp={handleSidePointerUp}
             />
-            <section className={styles.dayDetail}>
-              <div className={styles.dayDetailHeader}>
-                <h3 className={styles.dayDetailTitle}>{formatDateLabel(selectedDate)}</h3>
-                <button className={styles.dayAddBtn} onClick={() => openEventForm(selectedDate)}><IconPlus/> 추가</button>
-              </div>
-              <ul className={styles.eventList}>
-                {isLoading ? (<p className={styles.empty}>loading...</p>) :
-                  selectedEvents.length === 0 ? (<p className={styles.empty}>일정이 없습니다.</p>) : selectedEvents.map((ev) => (
-                    <li
-                      key={ev.id}
-                      className={styles.eventItem}
-                      style={ev.calendarColor ? {borderLeftColor: ev.calendarColor} : undefined}
-                      onClick={() => setDetailEvent(ev)}
-                    >
-                    <span className={styles.eventTime} style={ev.calendarColor ? {color: ev.calendarColor} : undefined}>
-                      {ev.isAllDay ? "종일" : formatTime(ev.startTime)}
-                    </span>
-                      <div className={styles.eventBody}>
-                        <p className={styles.eventTitle}>{ev.title}</p>
-                        {ev.location && <p className={styles.eventMeta}>📍 {ev.location}</p>}
-                      </div>
-                      <button className={styles.editBtn} onClick={(e) => {
-                        e.stopPropagation();
-                        openEditForm(ev);
-                      }} title="일정 수정"><IconPencil/></button>
-                      <button className={styles.deleteBtn} onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteEvent(ev);
-                      }} disabled={deletingId === ev.id} title="일정 삭제">
-                        {deletingId === ev.id ? "..." : <IconClose/>}
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            </section>
-
-            {microsoftTokens && (
-              <section className={styles.todoSection}>
-                <div className={styles.todoSectionHeader}>
-                  <h2 className={styles.todoTitle}>마감 예정 할일</h2>
-                  {todoLists.length > 0 && (
-                    <button className={styles.todoAddBtn} onClick={openTodoForm} title="할일 추가">
-                      <IconPlus />
-                    </button>
-                  )}
+            <div className={styles.sidePanelContent}>
+              <h2 className={styles.dayTitle}>{formatDateLabel(selectedDate)}</h2>
+              <section>
+                <div className={styles.dayDetailHeader}>
+                  <h3 className={styles.dayDetailTitle}>일정</h3>
+                  <button className={styles.dayAddBtn} onClick={() => openEventForm(selectedDate)}><IconPlus/> 추가</button>
                 </div>
-                {todoForm.open && (
-                  <form className={styles.todoForm} onSubmit={handleTodoSubmit}>
-                    <input
-                      className={styles.todoFormInput}
-                      value={todoForm.title}
-                      onChange={(e) => setTodoForm((f) => ({ ...f, title: e.target.value }))}
-                      placeholder="할일 제목"
-                      autoFocus
-                    />
-                    {todoLists.length > 1 && (
-                      <select
-                        className={styles.todoFormSelect}
-                        value={todoForm.listId}
-                        onChange={(e) => setTodoForm((f) => ({ ...f, listId: e.target.value }))}
+                <ul className={styles.eventList}>
+                  {isLoading ? (<p className={styles.empty}>loading...</p>) :
+                    selectedEvents.length === 0 ? (<p className={styles.empty}>일정이 없습니다.</p>) : selectedEvents.map((ev) => (
+                      <li
+                        key={ev.id}
+                        className={styles.eventItem}
+                        style={ev.calendarColor ? {borderLeftColor: ev.calendarColor} : undefined}
+                        onClick={() => setDetailEvent(ev)}
                       >
-                        {todoLists.map((l) => (
-                          <option key={l.id} value={l.id}>{l.name}</option>
-                        ))}
-                      </select>
-                    )}
-                    <div className={styles.todoFormActions}>
-                      <button type="button" className={styles.todoFormCancel} onClick={() => setTodoForm((f) => ({ ...f, open: false }))}>취소</button>
-                      <button type="submit" className={styles.todoFormSubmit} disabled={!todoForm.title.trim() || todoForm.submitting}>
-                        {todoForm.submitting ? "추가 중..." : "추가"}
-                      </button>
-                    </div>
-                  </form>
-                )}
-                {todosError && <p className={styles.error}>{todosError}</p>}
-                {todosLoading && <p className={styles.empty}>불러오는 중...</p>}
-                {!todosLoading && todos.filter((t) => t.dueDateTime).length === 0 && (
-                  <p className={styles.empty}>마감일 있는 할일이 없습니다.</p>
-                )}
-                <ul className={styles.todoList}>
-                  {todos.filter((t) => t.dueDateTime).map((todo) => {
-                    const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime, todo.dueDateTime.timeZone) : null;
-                    return (
-                      <li key={todo.id} className={styles.todoItem}>
-                        <button className={styles.todoCheck} onClick={() => handleCompleteTodo(todo)} title="완료 처리"/>
-                        <div className={styles.todoBody}>
-                          <p className={styles.todoText}>{todo.title}</p>
-                          <div className={styles.todoMeta}>
-                            <span className={styles.todoListName}>{todo.listName}</span>
-                            {due && (
-                              <span
-                                className={`${styles.todoDue}${due.isPast ? ` ${styles.todoDueOverdue}` : ""}`}>{due.label}</span>
-                            )}
-                          </div>
+                      <span className={styles.eventTime} style={ev.calendarColor ? {color: ev.calendarColor} : undefined}>
+                        {ev.isAllDay ? "종일" : formatTime(ev.startTime)}
+                      </span>
+                        <div className={styles.eventBody}>
+                          <p className={styles.eventTitle}>{ev.title}</p>
+                          {ev.location && <p className={styles.eventMeta}>📍 {ev.location}</p>}
                         </div>
+                        <button className={styles.editBtn} onClick={(e) => {
+                          e.stopPropagation();
+                          openEditForm(ev);
+                        }} title="일정 수정"><IconPencil/></button>
+                        <button className={styles.deleteBtn} onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteEvent(ev);
+                        }} disabled={deletingId === ev.id} title="일정 삭제">
+                          {deletingId === ev.id ? "..." : <IconClose/>}
+                        </button>
                       </li>
-                    );
-                  })}
+                    ))}
                 </ul>
               </section>
-            )}
+              <Divider />
+              {microsoftTokens ? (
+                <section>
+                  <div className={styles.dayDetailHeader}>
+                    <h3 className={styles.dayDetailTitle}>마감 예정 할일</h3>
+                    <button className={styles.dayAddBtn} onClick={() => openTodoForm()}><IconPlus/> 추가</button>
+                  </div>
+                  {renderTodoGroups(dueTodoGroups, "마감일 있는 할일이 없습니다.")}
+                </section>
+              ) : (
+                <section>
+                  <div className={styles.dayDetailHeader}>
+                    <h3 className={styles.dayDetailTitle}>마감 예정 할일</h3>
+                  </div>
+                  <UnavailableContent type="MICROSOFT" />
+                </section>
+              )}
+            </div>
           </div>
         </div>
-      ) : (
-        /* Google 미연동, Microsoft만 연동된 경우 */
-        microsoftTokens && (
-          <section className={styles.todoSection}>
-            <h2 className={styles.todoTitle}>할일</h2>
-            {todosError && <p className={styles.error}>{todosError}</p>}
-            {todosLoading && <p className={styles.empty}>불러오는 중...</p>}
-            {!todosLoading && todos.length === 0 && <p className={styles.empty}>미완료 할일이 없습니다.</p>}
-            <ul className={styles.todoList}>
-              {todos.map((todo) => {
-                const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime, todo.dueDateTime.timeZone) : null;
-                return (
-                  <li key={todo.id} className={styles.todoItem}>
-                    <button className={styles.todoCheck} onClick={() => handleCompleteTodo(todo)} title="완료 처리"/>
-                    <div className={styles.todoBody}>
-                      <p className={styles.todoText}>{todo.title}</p>
-                      <div className={styles.todoMeta}>
-                        <span className={styles.todoListName}>{todo.listName}</span>
-                        {due && (
-                          <span
-                            className={`${styles.todoDue}${due.isPast ? ` ${styles.todoDueOverdue}` : ""}`}>{due.label}</span>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )
-      )}
 
       {/* 드래그 고스트 */}
       {draggingEvent && (
@@ -905,6 +1101,174 @@ export default function SchedulePage() {
           style={{left: ghostPos.x + 14, top: ghostPos.y - 10}}
         >
           {draggingEvent.title}
+        </div>
+      )}
+
+      {/* 할일 추가/수정 모달 */}
+      {todoForm.open && (
+        <div className={styles.modalOverlay} onClick={closeTodoForm}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>{todoForm.mode === "create" ? "할일 추가" : "할일 수정"}</h2>
+              <button className={styles.modalClose} onClick={closeTodoForm}><IconClose/></button>
+            </div>
+            <form onSubmit={handleTodoSubmit}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>제목</label>
+                <div className={styles.todoTitleInputRow}>
+                  <input
+                    className={styles.formInput}
+                    value={todoForm.title}
+                    onChange={(e) => setTodoForm((f) => ({...f, title: e.target.value}))}
+                    placeholder="할일 제목"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className={`${styles.todoModalIconBtn}${todoForm.importance === "high" ? ` ${styles.todoModalIconBtnActive}` : ""}`}
+                    onClick={() => setTodoForm((f) => ({...f, importance: f.importance === "high" ? "normal" : "high"}))}
+                    title={todoForm.importance === "high" ? "즐겨찾기 해제" : "즐겨찾기"}
+                  >
+                    <IconStar filled={todoForm.importance === "high"}/>
+                  </button>
+                </div>
+              </div>
+              {todoLists.length > 1 && (
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>목록</label>
+                  <select
+                    className={styles.formInput}
+                    value={todoForm.listId}
+                    onChange={(e) => setTodoForm((f) => ({...f, listId: e.target.value}))}
+                  >
+                    {todoLists.map((l) => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>마감일</label>
+                <div className={styles.todoDueInputRow}>
+                  <input
+                    className={styles.formInput}
+                    type="date"
+                    value={todoForm.dueDate}
+                    onChange={(e) => setTodoForm((f) => ({...f, dueDate: e.target.value}))}
+                  />
+                  <button
+                    type="button"
+                    className={`${styles.todoModalIconBtn}${todoForm.repeatEnabled ? ` ${styles.todoModalIconBtnActive}` : ""}`}
+                    onClick={() => setTodoForm((f) => ({...f, repeatEnabled: !f.repeatEnabled}))}
+                    title={todoForm.repeatEnabled ? "반복 해제" : "반복"}
+                  >
+                    <IconRepeat/>
+                  </button>
+                </div>
+              </div>
+              {todoForm.repeatEnabled && (
+                <div className={styles.repeatPanel}>
+                  <label className={styles.formLabel}>반복</label>
+                  <div className={styles.repeatControls}>
+                    <select
+                      className={styles.formInput}
+                      value={todoForm.repeatType}
+                      onChange={(e) => setTodoForm((f) => ({...f, repeatType: e.target.value as TodoFormState["repeatType"]}))}
+                    >
+                      <option value="daily">매일</option>
+                      <option value="weekly">매주</option>
+                      <option value="absoluteMonthly">매월</option>
+                      <option value="absoluteYearly">매년</option>
+                    </select>
+                    <div className={styles.repeatIntervalControl}>
+                      <input
+                        className={styles.formInput}
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={todoForm.repeatInterval}
+                        onChange={(e) => setTodoForm((f) => ({...f, repeatInterval: Math.max(1, Number(e.target.value) || 1)}))}
+                      />
+                      <span>{recurrenceLabel(todoForm.repeatType)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className={styles.formGroup}>
+                <div className={styles.checklistHeader}>
+                  <label className={styles.formLabel}>체크리스트</label>
+                  <button
+                    type="button"
+                    className={styles.checklistAddBtn}
+                    onClick={() => setTodoForm((f) => ({
+                      ...f,
+                      checklistItems: [...f.checklistItems, {displayName: "", isChecked: false}],
+                    }))}
+                  >
+                    <IconPlus/> 항목 추가
+                  </button>
+                </div>
+                {todoForm.checklistItems.length > 0 && (
+                  <ul className={styles.checklistEditor}>
+                    {todoForm.checklistItems.map((item, index) => (
+                      <li key={item.id ?? index} className={styles.checklistEditorItem}>
+                        <button
+                          type="button"
+                          className={`${styles.todoChecklistBtn}${item.isChecked ? ` ${styles.todoChecklistChecked}` : ""}`}
+                          onClick={() => setTodoForm((f) => ({
+                            ...f,
+                            checklistItems: f.checklistItems.map((current, i) =>
+                              i === index ? {...current, isChecked: !current.isChecked} : current
+                            ),
+                          }))}
+                          title={item.isChecked ? "완료 취소" : "완료"}
+                        />
+                        <input
+                          className={styles.checklistEditorInput}
+                          value={item.displayName}
+                          onChange={(e) => setTodoForm((f) => ({
+                            ...f,
+                            checklistItems: f.checklistItems.map((current, i) =>
+                              i === index ? {...current, displayName: e.target.value} : current
+                            ),
+                          }))}
+                          placeholder="체크리스트 항목"
+                        />
+                        <button
+                          type="button"
+                          className={styles.checklistRemoveBtn}
+                          onClick={() => setTodoForm((f) => ({
+                            ...f,
+                            checklistItems: f.checklistItems.filter((_, i) => i !== index),
+                          }))}
+                          title="항목 삭제"
+                        >
+                          <IconClose/>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>메모</label>
+                <textarea
+                  className={`${styles.formInput} ${styles.formTextarea}`}
+                  value={todoForm.memo}
+                  onChange={(e) => setTodoForm((f) => ({...f, memo: e.target.value}))}
+                  placeholder="메모 (선택)"
+                  rows={3}
+                />
+              </div>
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.cancelBtn} onClick={closeTodoForm}>취소</button>
+                <button type="submit" className={styles.submitBtn}
+                        disabled={!todoForm.title.trim() || todoSubmitting}>
+                  {todoSubmitting ? "저장 중..." : todoForm.mode === "create" ? "추가" : "저장"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

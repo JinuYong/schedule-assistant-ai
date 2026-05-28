@@ -1,5 +1,7 @@
 /** Google Calendar REST API — 브라우저 fetch 사용 (CORS 지원됨) */
 
+import { useAuthStore } from "@/store/auth";
+
 const BASE = "https://www.googleapis.com/calendar/v3";
 
 export interface GCalEvent {
@@ -29,14 +31,21 @@ async function request<T>(
   accessToken: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const token = (await useAuthStore.getState().refreshGoogle())?.access_token ?? accessToken;
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       ...(options.headers ?? {}),
     },
   });
+  if (res.status === 401) {
+    const refreshed = await useAuthStore.getState().refreshGoogle(true);
+    if (refreshed?.access_token && refreshed.access_token !== token) {
+      return request(path, refreshed.access_token, options);
+    }
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { error?: { message?: string } })?.error?.message ?? `HTTP ${res.status}`);

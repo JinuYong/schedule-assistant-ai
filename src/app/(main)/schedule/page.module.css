@@ -1,5 +1,6 @@
 .container {
   width: 100%;
+  height: 100%;
 }
 
 /* ── Two-column main layout ── */
@@ -8,6 +9,7 @@
   /* grid-template-columns은 인라인 스타일로 동적 설정 */
   gap: 10px;
   align-items: start;
+  padding-bottom: 24px;
 }
 
 .calendarColumn {
@@ -234,7 +236,7 @@
 
 .dayCell {
   min-height: 96px;
-  padding: 5px 6px;
+  padding: 5px 3px;
   border-right: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
@@ -375,11 +377,19 @@
   color: var(--color-accent);
 }
 
-/* ── Day Detail ── */
-.dayDetail {
-  margin-bottom: 16px;
+.sidePanelContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
+.dayTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ── Day Detail ── */
 .dayDetailHeader {
   display: flex;
   align-items: center;
@@ -416,8 +426,7 @@
 .eventItem {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 9px 14px;
+  padding: 9px 2px 9px 9px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-left: 3px solid var(--color-border);
@@ -432,11 +441,12 @@
 
 .eventTime {
   flex-shrink: 0;
-  width: 48px;
+  width: 46px;
   font-size: 13px;
   font-weight: 500;
   color: var(--color-accent);
   padding-top: 1px;
+  word-break: keep-all;
 }
 
 .eventBody {
@@ -451,6 +461,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding-left: 2px;
 }
 
 .eventMeta {
@@ -506,22 +517,9 @@
 }
 
 /* ── Microsoft Todo ── */
-.todoSection {
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
-}
 
-.todoSectionHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.todoTitle {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-primary);
+.todoSectionStandalone {
+  padding-top: 0;
 }
 
 .todoAddBtn {
@@ -677,6 +675,271 @@
   color: var(--color-danger);
 }
 
+.todoGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.todoGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.todoGroupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.todoGroupName {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todoAccordionList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.todoAccordionItem {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.todoAccordionItem:hover {
+  border-color: var(--color-accent);
+}
+
+.todoAccordionRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 10px 9px;
+}
+
+.todoAccordionRowClickable {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.todoCheckBtn {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  margin-top: 4px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background: transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.todoCheckBtn:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.todoAccordionMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.todoAccordionTopLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 24px;
+}
+
+.todoAccordionText {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todoAccordionMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.todoActionBtns {
+  flex-shrink: 0;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.todoAccordionTopLine:hover .todoActionBtns,
+.todoAccordionRow:hover .todoActionBtns {
+  opacity: 1;
+}
+
+.todoActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: background 0.12s, color 0.12s;
+}
+
+.todoActionBtn:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.todoDeleteBtn:hover {
+  background: rgba(255, 59, 48, 0.08);
+  color: var(--color-danger);
+}
+
+.todoStarBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.todoStarBtn:hover {
+  background: var(--color-accent-ultra-soft);
+}
+
+.iconStar {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  opacity: 0.35;
+}
+
+.iconStarFilled {
+  flex-shrink: 0;
+  color: #f5a623;
+}
+
+.iconRepeat {
+  flex-shrink: 0;
+  color: var(--color-accent);
+  opacity: 0.75;
+}
+
+.todoChevronSlot {
+  flex-shrink: 0;
+  width: 14px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chevron {
+  color: var(--color-text-secondary);
+  transition: transform 0.2s;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.todoAccordionBody {
+  padding: 4px 12px 14px 35px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.todoBodyNote {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.todoChecklistItems {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.todoChecklistItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.todoChecklistBtn {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 3px;
+  background: transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.todoChecklistBtn:hover {
+  border-color: var(--color-accent);
+}
+
+.todoChecklistChecked {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.todoChecklistChecked::after {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 5px;
+  border-left: 1.5px solid #fff;
+  border-bottom: 1.5px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+  margin: auto;
+}
+
+.todoChecklistText {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.todoChecklistDone {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
 /* ── Misc ── */
 .empty {
   font-size: 14px;
@@ -687,24 +950,6 @@
   font-size: 13px;
   color: var(--color-danger);
   margin-bottom: 10px;
-}
-
-.emptyState {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 60px 0;
-  color: var(--color-text-secondary);
-}
-
-.linkBtn {
-  padding: 9px 18px;
-  background: var(--color-accent);
-  color: #fff;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 500;
 }
 
 /* ── Event Creation Modal ── */
@@ -796,6 +1041,134 @@
 
 .formInput:focus {
   border-color: var(--color-accent);
+}
+
+.formTextarea {
+  height: auto;
+  min-height: 76px;
+  padding: 8px 10px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.todoTitleInputRow,
+.todoDueInputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.todoModalIconBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+
+.todoModalIconBtn:hover,
+.todoModalIconBtnActive {
+  border-color: #f5a623;
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.08);
+}
+
+.repeatPanel {
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.repeatControls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.repeatIntervalControl {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.checklistHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.checklistAddBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.checklistAddBtn:hover {
+  background: var(--color-accent-ultra-soft);
+}
+
+.checklistEditor {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checklistEditorItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checklistEditorInput {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 9px;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.checklistEditorInput:focus {
+  border-color: var(--color-accent);
+}
+
+.checklistRemoveBtn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+.checklistRemoveBtn:hover {
+  background: rgba(255, 59, 48, 0.08);
+  color: var(--color-danger);
 }
 
 /* select 전용: 드롭다운 화살표 */

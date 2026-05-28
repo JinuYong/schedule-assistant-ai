@@ -6,6 +6,7 @@ import { useTodosStore, TodoItem } from "@/store/todos";
 import { TodoTask } from "@/lib/microsoft-todo";
 import styles from "./page.module.css";
 import { formatDue } from "@/lib/date-utils";
+import UnavailableContent from '@/components/UnavailableContent/UnavailableContent'
 
 /* ── 아이콘 ── */
 function IconRefresh() {
@@ -213,11 +214,8 @@ export default function TodoPage() {
 
   if (!microsoftTokens) {
     return (
-      <div className={ styles.container }>
-        <div className={ styles.emptyState }>
-          <p>Microsoft 계정을 연동하면 할일이 표시됩니다.</p>
-          <a href="/settings/" className={ styles.linkBtn }>설정으로 이동</a>
-        </div>
+      <div className={ styles.emptyContainer }>
+        <UnavailableContent type="MICROSOFT" />
       </div>
     );
   }

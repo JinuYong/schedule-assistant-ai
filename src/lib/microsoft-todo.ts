@@ -1,3 +1,5 @@
+import { useAuthStore } from "@/store/auth";
+
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
 async function graphFetch<T>(
@@ -6,14 +8,21 @@ async function graphFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const isWrite = options.method && options.method !== "GET";
+  const token = (await useAuthStore.getState().refreshMicrosoft())?.access_token ?? accessToken;
   const res = await fetch(`${GRAPH_BASE}${path}`, {
     ...options,
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${token}`,
       ...(isWrite ? { "Content-Type": "application/json" } : {}),
       ...(options.headers ?? {}),
     },
   });
+  if (res.status === 401) {
+    const refreshed = await useAuthStore.getState().refreshMicrosoft(true);
+    if (refreshed?.access_token && refreshed.access_token !== token) {
+      return graphFetch(path, refreshed.access_token, options);
+    }
+  }
   if (!res.ok) {
     if (res.status === 429) {
       const retry = parseInt(res.headers.get("Retry-After") ?? "60", 10);
@@ -51,6 +60,10 @@ export interface TodoTask {
   checklistItems?: ChecklistItem[];
 }
 
+export type TodoTaskUpdates = Partial<Omit<Pick<TodoTask, "title" | "dueDateTime" | "importance" | "body" | "recurrence">, "recurrence">> & {
+  recurrence?: TodoTask["recurrence"] | null;
+};
+
 export async function getTaskLists(
   accessToken: string
 ): Promise<{ id: string; displayName: string }[]> {
@@ -84,6 +97,19 @@ export async function createTask(
   );
 }
 
+export async function createChecklistItem(
+  accessToken: string,
+  listId: string,
+  taskId: string,
+  displayName: string
+): Promise<ChecklistItem> {
+  return graphFetch<ChecklistItem>(
+    `/me/todo/lists/${listId}/tasks/${taskId}/checklistItems`,
+    accessToken,
+    { method: "POST", body: JSON.stringify({ displayName }) }
+  );
+}
+
 export async function toggleChecklistItem(
   accessToken: string,
   listId: string,
@@ -98,16 +124,43 @@ export async function toggleChecklistItem(
   );
 }
 
+export async function updateChecklistItem(
+  accessToken: string,
+  listId: string,
+  taskId: string,
+  itemId: string,
+  updates: Partial<Pick<ChecklistItem, "displayName" | "isChecked">>
+): Promise<ChecklistItem> {
+  return graphFetch<ChecklistItem>(
+    `/me/todo/lists/${listId}/tasks/${taskId}/checklistItems/${itemId}`,
+    accessToken,
+    { method: "PATCH", body: JSON.stringify(updates) }
+  );
+}
+
 export async function updateTask(
   accessToken: string,
   listId: string,
   taskId: string,
-  updates: Partial<Pick<TodoTask, "title" | "dueDateTime" | "importance" | "body">>
+  updates: TodoTaskUpdates
 ): Promise<TodoTask> {
   return graphFetch<TodoTask>(
     `/me/todo/lists/${listId}/tasks/${taskId}`,
     accessToken,
     { method: "PATCH", body: JSON.stringify(updates) }
+  );
+}
+
+export async function deleteChecklistItem(
+  accessToken: string,
+  listId: string,
+  taskId: string,
+  itemId: string
+): Promise<void> {
+  await graphFetch<null>(
+    `/me/todo/lists/${listId}/tasks/${taskId}/checklistItems/${itemId}`,
+    accessToken,
+    { method: "DELETE" }
   );
 }
 

@@ -148,12 +148,12 @@ export async function refreshGoogleTokenIfNeeded(tokens: {
   access_token: string;
   refresh_token?: string;
   expiresAt?: number;
-}): Promise<typeof tokens> {
+}, force = false): Promise<typeof tokens> {
   if (!tokens.refresh_token) return tokens;
-  if ((tokens.expiresAt ?? 0) - Date.now() > 5 * 60 * 1000) return tokens;
+  if (!force && (tokens.expiresAt ?? 0) - Date.now() > 5 * 60 * 1000) return tokens;
   if (!GOOGLE_CLIENT_ID) return tokens;
 
-  const refreshed = await invoke<{ access_token: string; expires_in?: number }>(
+  const refreshed = await invoke<{ access_token: string; expires_in?: number; refresh_token?: string }>(
     "refresh_google_token",
     { refreshToken: tokens.refresh_token, clientId: GOOGLE_CLIENT_ID, clientSecret: GOOGLE_CLIENT_SECRET }
   );
@@ -161,6 +161,7 @@ export async function refreshGoogleTokenIfNeeded(tokens: {
   return {
     ...tokens,
     access_token: refreshed.access_token,
+    refresh_token: refreshed.refresh_token ?? tokens.refresh_token,
     expiresAt: Date.now() + (refreshed.expires_in ?? 3600) * 1000,
   };
 }
@@ -169,13 +170,13 @@ export async function refreshMicrosoftTokenIfNeeded(tokens: {
   access_token: string;
   refresh_token?: string;
   expiresAt?: number;
-}): Promise<typeof tokens> {
+}, force = false): Promise<typeof tokens> {
   if (!tokens.refresh_token) return tokens;
-  if ((tokens.expiresAt ?? 0) - Date.now() > 5 * 60 * 1000) return tokens;
+  if (!force && (tokens.expiresAt ?? 0) - Date.now() > 5 * 60 * 1000) return tokens;
 
   if (!MICROSOFT_CLIENT_ID) return tokens;
 
-  const refreshed = await invoke<{ access_token: string; expires_in?: number }>(
+  const refreshed = await invoke<{ access_token: string; expires_in?: number; refresh_token?: string }>(
     "refresh_microsoft_token",
     {
       refreshToken: tokens.refresh_token,
@@ -188,6 +189,7 @@ export async function refreshMicrosoftTokenIfNeeded(tokens: {
   return {
     ...tokens,
     access_token: refreshed.access_token,
+    refresh_token: refreshed.refresh_token ?? tokens.refresh_token,
     expiresAt: Date.now() + (refreshed.expires_in ?? 3600) * 1000,
   };
 }

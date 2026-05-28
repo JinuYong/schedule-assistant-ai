@@ -6,7 +6,12 @@ import {
   deleteTask as apiDeleteTask,
   completeTask as apiCompleteTask,
   toggleChecklistItem as apiToggleChecklistItem,
+  createChecklistItem as apiCreateChecklistItem,
+  updateChecklistItem as apiUpdateChecklistItem,
+  deleteChecklistItem as apiDeleteChecklistItem,
   TodoTask,
+  TodoTaskUpdates,
+  ChecklistItem,
 } from "@/lib/microsoft-todo";
 
 export interface TodoItem extends TodoTask {
@@ -22,12 +27,47 @@ interface TodosStore {
   lastFetchedAt: number;
   throttledUntil: number; // 429 쿨다운 만료 시각 (force 포함 모든 요청 차단)
   fetchTodos: (accessToken: string, force?: boolean) => Promise<void>;
-  createTodo: (accessToken: string, listId: string, task: Pick<TodoTask, "title" | "dueDateTime" | "importance" | "body">) => Promise<void>;
-  updateTodo: (accessToken: string, listId: string, taskId: string, updates: Partial<Pick<TodoTask, "title" | "dueDateTime" | "importance" | "body">>) => Promise<void>;
+  createTodo: (accessToken: string, listId: string, task: TodoTaskUpdates & Pick<TodoTask, "title">, checklistItems?: ChecklistDraftItem[]) => Promise<void>;
+  updateTodo: (accessToken: string, listId: string, taskId: string, updates: TodoTaskUpdates, checklistItems?: ChecklistDraftItem[]) => Promise<void>;
   deleteTodo: (accessToken: string, listId: string, taskId: string) => Promise<void>;
   completeTodo: (accessToken: string, listId: string, taskId: string) => Promise<void>;
   toggleImportance: (accessToken: string, listId: string, taskId: string, current: "low" | "normal" | "high" | undefined) => Promise<void>;
   toggleChecklistItem: (accessToken: string, listId: string, taskId: string, itemId: string, isChecked: boolean) => Promise<void>;
+}
+
+let fetchTodosPromise: Promise<void> | null = null;
+
+export interface ChecklistDraftItem {
+  id?: string;
+  displayName: string;
+  isChecked?: boolean;
+}
+
+async function syncChecklistItems(
+  accessToken: string,
+  listId: string,
+  taskId: string,
+  currentItems: ChecklistItem[] = [],
+  nextItems: ChecklistDraftItem[] = []
+) {
+  const nextById = new Map(nextItems.filter((item) => item.id).map((item) => [item.id!, item]));
+  for (const current of currentItems) {
+    const next = nextById.get(current.id);
+    if (!next || !next.displayName.trim()) {
+      await apiDeleteChecklistItem(accessToken, listId, taskId, current.id);
+    } else if (next.displayName.trim() !== current.displayName || next.isChecked !== current.isChecked) {
+      await apiUpdateChecklistItem(accessToken, listId, taskId, current.id, {
+        displayName: next.displayName.trim(),
+        isChecked: next.isChecked ?? false,
+      });
+    }
+  }
+
+  for (const item of nextItems) {
+    if (!item.id && item.displayName.trim()) {
+      await apiCreateChecklistItem(accessToken, listId, taskId, item.displayName.trim());
+    }
+  }
 }
 
 export const useTodosStore = create<TodosStore>((set, get) => ({
@@ -38,19 +78,22 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
   throttledUntil: 0,
 
   fetchTodos: async (accessToken, force = false) => {
+    if (fetchTodosPromise) return fetchTodosPromise;
+
     const now = Date.now();
     // 429 쿨다운 중이면 force 포함 모든 요청 차단
     if (now < get().throttledUntil) return;
     // 5분 이내 재요청 방지 (normal fetch만)
     if (!force && get().lastFetchedAt > 0 && now - get().lastFetchedAt < 5 * 60 * 1000) return;
-    set({ isLoading: true, error: null });
-    try {
-      const lists = await getTaskLists(accessToken);
-      const results: TodoItem[] = [];
 
-      // 모든 목록에서 미완료 할일 가져오기
-      await Promise.all(
-        lists.map(async (list) => {
+    fetchTodosPromise = (async () => {
+      set({ isLoading: true, error: null });
+      try {
+        const lists = await getTaskLists(accessToken);
+        const results: TodoItem[] = [];
+
+        // Microsoft Graph 429 방지를 위해 목록별 task 요청은 순차 처리한다.
+        for (const list of lists) {
           const tasks = await getTasks(accessToken, list.id);
           for (const task of tasks) {
             if (task.id) {
@@ -62,46 +105,64 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
               });
             }
           }
-        })
-      );
+        }
 
-      // 마감일 순 정렬 (마감일 없는 항목은 뒤로)
-      results.sort((a, b) => {
-        const da = a.dueDateTime?.dateTime ?? "9999";
-        const db = b.dueDateTime?.dateTime ?? "9999";
-        return da.localeCompare(db);
-      });
+        // 마감일 순 정렬 (마감일 없는 항목은 뒤로)
+        results.sort((a, b) => {
+          const da = a.dueDateTime?.dateTime ?? "9999";
+          const db = b.dueDateTime?.dateTime ?? "9999";
+          return da.localeCompare(db);
+        });
 
-      set({ todos: results, lastFetchedAt: Date.now() });
-    } catch (err) {
-      const retryAfter = (err as { retryAfter?: number }).retryAfter;
-      const now2 = Date.now();
-      // 429는 최소 5분 쿨다운 (Retry-After가 짧아도 루프 방지)
-      const cooldown = retryAfter ? Math.max(retryAfter, 300) * 1000 : 0;
-      set({
-        error: err instanceof Error ? err.message : "할일 조회 실패",
-        lastFetchedAt: now2,
-        throttledUntil: cooldown ? now2 + cooldown : 0,
-      });
-    } finally {
-      set({ isLoading: false });
-    }
+        set({ todos: results, lastFetchedAt: Date.now() });
+      } catch (err) {
+        const retryAfter = (err as { retryAfter?: number }).retryAfter;
+        const now2 = Date.now();
+        // 429는 최소 5분 쿨다운 (Retry-After가 짧아도 루프 방지)
+        const cooldown = retryAfter ? Math.max(retryAfter, 300) * 1000 : 0;
+        set({
+          error: err instanceof Error ? err.message : "할일 조회 실패",
+          lastFetchedAt: now2,
+          throttledUntil: cooldown ? now2 + cooldown : 0,
+        });
+      } finally {
+        set({ isLoading: false });
+        fetchTodosPromise = null;
+      }
+    })();
+
+    return fetchTodosPromise;
   },
 
-  createTodo: async (accessToken, listId, task) => {
-    await apiCreateTask(accessToken, listId, task);
+  createTodo: async (accessToken, listId, task, checklistItems = []) => {
+    const created = await apiCreateTask(accessToken, listId, task as TodoTask);
+    if (created.id && checklistItems.length > 0) {
+      await syncChecklistItems(accessToken, listId, created.id, [], checklistItems);
+    }
     await get().fetchTodos(accessToken, true);
   },
 
-  updateTodo: async (accessToken, listId, taskId, updates) => {
+  updateTodo: async (accessToken, listId, taskId, updates, checklistItems) => {
     // 낙관적 업데이트
+    const { recurrence, ...restUpdates } = updates;
+    const optimisticUpdates: Partial<TodoTask> = {
+      ...restUpdates,
+      ...(recurrence ? { recurrence } : {}),
+    };
     set((s) => ({
       todos: s.todos.map((t) =>
-        t.id !== taskId ? t : { ...t, ...updates }
+        t.id !== taskId ? t : { ...t, ...optimisticUpdates }
       ),
     }));
     try {
       await apiUpdateTask(accessToken, listId, taskId, updates);
+      if (checklistItems) {
+        const current = get().todos.find((t) => t.id === taskId)?.checklistItems ?? [];
+        await syncChecklistItems(accessToken, listId, taskId, current, checklistItems);
+      }
+      if (checklistItems) {
+        await get().fetchTodos(accessToken, true);
+      }
     } catch {
       await get().fetchTodos(accessToken, true);
     }

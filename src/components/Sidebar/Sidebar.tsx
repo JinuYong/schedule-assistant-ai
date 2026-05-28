@@ -25,14 +25,13 @@ export default function Sidebar() {
   // pointerdown/pointermove 간 드래그 시작값 공유 (모두 React 이벤트로 처리해 좌표계 일관성 보장)
   const dragStartRef = useRef({ x: 0, width: DEFAULT_WIDTH });
 
-  // localStorage 복원
+  // localStorage 복원은 hydration 이후에만 수행해야 서버/클라이언트 첫 렌더가 일치한다.
   useEffect(() => {
-    const saved = localStorage.getItem("sidebar-width");
-    if (saved) {
-      const w = Number(saved);
-      setWidth(w);
-      setIsIconOnly(w <= ICON_ONLY_WIDTH);
-    }
+    const saved = Number(localStorage.getItem("sidebar-width"));
+    if (!Number.isFinite(saved)) return;
+    const nextWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, saved));
+    setWidth(nextWidth);
+    setIsIconOnly(nextWidth <= ICON_ONLY_WIDTH);
   }, []);
 
   const handlePointerDown = useCallback(
