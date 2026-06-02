@@ -140,6 +140,19 @@ function isoDate(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
+function getTodayInfo() {
+  const today = new Date();
+  return {
+    year: today.getFullYear(),
+    month: today.getMonth(),
+    date: isoDate(today.getFullYear(), today.getMonth(), today.getDate()),
+  };
+}
+
+function msUntilNextDay(now = new Date()): number {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime() + 1000;
+}
+
 function formatMonthYear(y: number, m: number): string {
   return new Date(y, m, 1).toLocaleDateString("ko-KR", {year: "numeric", month: "long"});
 }
@@ -300,12 +313,10 @@ export default function SchedulePage() {
     createTodo, updateTodo, deleteTodo, completeTodo, toggleImportance, toggleChecklistItem
   } = useTodosStore();
 
-  const today = new Date();
-  const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
-
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const [todayInfo, setTodayInfo] = useState(getTodayInfo);
+  const [currentYear, setCurrentYear] = useState(todayInfo.year);
+  const [currentMonth, setCurrentMonth] = useState(todayInfo.month);
+  const [selectedDate, setSelectedDate] = useState<string>(todayInfo.date);
   const [calendars, setCalendars] = useState<CalendarListItem[]>([]);
   const [quickInput, setQuickInput] = useState("");
   const [quickStatus, setQuickStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -327,6 +338,48 @@ export default function SchedulePage() {
   const wheelJustReleasedRef = useRef(false);
   const lastAbsDeltaRef = useRef(0);
   const cooldownStartRef = useRef(0);
+
+  const refreshTodayInfo = useCallback(() => {
+    const nextToday = getTodayInfo();
+    setTodayInfo((prev) => prev.date === nextToday.date ? prev : nextToday);
+    return nextToday;
+  }, []);
+
+  const goToToday = useCallback(() => {
+    const nextToday = refreshTodayInfo();
+    setCurrentYear(nextToday.year);
+    setCurrentMonth(nextToday.month);
+    setSelectedDate(nextToday.date);
+  }, [refreshTodayInfo]);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const scheduleMidnightRefresh = () => {
+      timeoutId = setTimeout(() => {
+        refreshTodayInfo();
+        scheduleMidnightRefresh();
+      }, msUntilNextDay());
+    };
+
+    const handleFocus = () => {
+      refreshTodayInfo();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) refreshTodayInfo();
+    };
+
+    scheduleMidnightRefresh();
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refreshTodayInfo]);
 
   // 우측 패널 너비 (드래그 리사이즈)
   const [sidePanelWidth, setSidePanelWidth] = useState(DEFAULT_SIDE_WIDTH);
@@ -911,7 +964,7 @@ export default function SchedulePage() {
               <button className={styles.navBtn} onClick={prevMonth}><IconChevronLeft/></button>
               <h2 className={styles.monthTitle}>{formatMonthYear(currentYear, currentMonth)}</h2>
               <button className={styles.navBtn} onClick={nextMonth}><IconChevronRight/></button>
-              <button className={styles.todayBtn} onClick={() => { setCurrentYear(today.getFullYear()); setCurrentMonth(today.getMonth()); setSelectedDate(todayStr); }}>오늘</button>
+              <button className={styles.todayBtn} onClick={goToToday}>오늘</button>
               <div className={styles.refreshGroup}>
                 {isLoading && <span className={styles.loadingDot}/>}
                 <button type="button" className={styles.refreshBtn} onClick={handleRefreshAll} disabled={isLoading || todosLoading} title="새로고침"><IconRefresh/></button>
@@ -950,7 +1003,7 @@ export default function SchedulePage() {
               </div>
               <div className={styles.dayCells}>
                 {cells.map(({date, day, inMonth, isSunday}) => {
-                  const isToday = date === todayStr;
+                  const isToday = date === todayInfo.date;
                   const isSelected = date === selectedDate;
                   const dayEvs = eventsByDate.get(date) ?? [];
                   const shown = dayEvs.slice(0, 3);
