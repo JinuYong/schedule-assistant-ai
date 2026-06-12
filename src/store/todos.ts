@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createSingleFlight } from "@/lib/promise-cache";
 import {
   getTaskLists, getTasks,
   createTask as apiCreateTask,
@@ -35,7 +36,7 @@ interface TodosStore {
   toggleChecklistItem: (accessToken: string, listId: string, taskId: string, itemId: string, isChecked: boolean) => Promise<void>;
 }
 
-let fetchTodosPromise: Promise<void> | null = null;
+const fetchTodosFlight = createSingleFlight<void>();
 
 export interface ChecklistDraftItem {
   id?: string;
@@ -78,7 +79,7 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
   throttledUntil: 0,
 
   fetchTodos: async (accessToken, force = false) => {
-    if (fetchTodosPromise) return fetchTodosPromise;
+    if (fetchTodosFlight.inflight) return fetchTodosFlight.inflight;
 
     const now = Date.now();
     // 429 쿨다운 중이면 force 포함 모든 요청 차단
@@ -86,7 +87,7 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
     // 5분 이내 재요청 방지 (normal fetch만)
     if (!force && get().lastFetchedAt > 0 && now - get().lastFetchedAt < 5 * 60 * 1000) return;
 
-    fetchTodosPromise = (async () => {
+    return fetchTodosFlight.run(async () => {
       set({ isLoading: true, error: null });
       try {
         const lists = await getTaskLists(accessToken);
@@ -127,11 +128,8 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
         });
       } finally {
         set({ isLoading: false });
-        fetchTodosPromise = null;
       }
-    })();
-
-    return fetchTodosPromise;
+    });
   },
 
   createTodo: async (accessToken, listId, task, checklistItems = []) => {

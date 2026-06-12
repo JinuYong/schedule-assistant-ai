@@ -5,11 +5,9 @@ import {
   refreshMicrosoftTokenIfNeeded,
 } from "@/lib/oauth";
 import { AuthError } from "@/lib/api-errors";
+import { createSingleFlight, type SingleFlight } from "@/lib/promise-cache";
 import type { BaseTokens } from "@/types/tokens";
 import { showToast } from '@/store/toast'
-
-let googleRefreshPromise: Promise<GoogleTokens | null> | null = null;
-let microsoftRefreshPromise: Promise<MicrosoftTokens | null> | null = null;
 
 export type GoogleTokens = BaseTokens;
 export type MicrosoftTokens = BaseTokens;
@@ -25,95 +23,105 @@ interface AuthStore {
   refreshMicrosoft: (force?: boolean) => Promise<MicrosoftTokens | null>;
 }
 
-export const useAuthStore = create<AuthStore>((set, get) => ({
-  googleTokens: null,
-  microsoftTokens: null,
+/** provider별 토큰 갱신 흐름 (single-flight + 상태/스토어 반영 + AuthError 처리) */
+interface RefreshConfig<T extends BaseTokens> {
+  flight: SingleFlight<T | null>;
+  /** 현재 보관 중인 토큰 */
+  getTokens: () => T | null;
+  /** 갱신된 토큰을 상태 + 스토어에 반영 */
+  applyTokens: (tokens: T) => Promise<void>;
+  /** 만료(AuthError) 시 토큰 제거 */
+  clearTokens: () => Promise<void>;
+  /** 만료 임박/force 시 실제 갱신 (lib/oauth) */
+  refreshIfNeeded: (tokens: T, force: boolean) => Promise<T>;
+  /** AuthError 시 안내 토스트 메시지 */
+  expiredMessage: string;
+}
 
-  setGoogleTokens: (tokens) => {
-    set({ googleTokens: tokens });
-    storeSet("google.tokens", tokens);
-  },
+function createTokenRefresh<T extends BaseTokens>(config: RefreshConfig<T>) {
+  return (force = false): Promise<T | null> => {
+    if (config.flight.inflight && !force) return config.flight.inflight;
+    const tokens = config.getTokens();
+    if (!tokens) return Promise.resolve(null);
 
-  setMicrosoftTokens: (tokens) => {
-    set({ microsoftTokens: tokens });
-    storeSet("microsoft.tokens", tokens);
-  },
-
-  loadFromStore: async () => {
-    const [googleTokens, microsoftTokens] = await Promise.all([
-      storeGet<GoogleTokens>("google.tokens"),
-      storeGet<MicrosoftTokens>("microsoft.tokens"),
-    ]);
-    set({ googleTokens, microsoftTokens });
-  },
-
-  refreshGoogle: async (force = false) => {
-    if (googleRefreshPromise && !force) return googleRefreshPromise;
-    const tokens = get().googleTokens;
-    if (!tokens) return null;
-
-    googleRefreshPromise = (async () => {
+    return config.flight.run(async () => {
       try {
-        const refreshed = await refreshGoogleTokenIfNeeded(tokens, force);
+        const refreshed = await config.refreshIfNeeded(tokens, force);
         if (
           refreshed.access_token !== tokens.access_token ||
           refreshed.refresh_token !== tokens.refresh_token ||
           refreshed.expiresAt !== tokens.expiresAt
         ) {
-          const updated = refreshed;
-          set({ googleTokens: updated });
-          await storeSet("google.tokens", updated);
-          return updated;
+          await config.applyTokens(refreshed);
+          return refreshed;
         }
       } catch (e) {
         // 토큰 초기화, 재연결 안내
         if (e instanceof AuthError) {
-          set({ googleTokens: null });
-          await storeDelete("google.tokens");
-          showToast("Google 연결이 만료되었습니다. 설정에서 다시 연결해주세요.");
+          await config.clearTokens();
+          showToast(config.expiredMessage);
           return null;
         }
       }
-      return get().googleTokens;
-    })().finally(() => {
-      googleRefreshPromise = null;
+      return config.getTokens();
     });
+  };
+}
 
-    return googleRefreshPromise;
-  },
+export const useAuthStore = create<AuthStore>((set, get) => {
+  const refreshGoogle = createTokenRefresh<GoogleTokens>({
+    flight: createSingleFlight<GoogleTokens | null>(),
+    getTokens: () => get().googleTokens,
+    applyTokens: async (tokens) => {
+      set({ googleTokens: tokens });
+      await storeSet("google.tokens", tokens);
+    },
+    clearTokens: async () => {
+      set({ googleTokens: null });
+      await storeDelete("google.tokens");
+    },
+    refreshIfNeeded: refreshGoogleTokenIfNeeded,
+    expiredMessage: "Google 연결이 만료되었습니다. 설정에서 다시 연결해주세요.",
+  });
 
-  refreshMicrosoft: async (force = false) => {
-    if (microsoftRefreshPromise && !force) return microsoftRefreshPromise;
-    const tokens = get().microsoftTokens;
-    if (!tokens) return null;
+  const refreshMicrosoft = createTokenRefresh<MicrosoftTokens>({
+    flight: createSingleFlight<MicrosoftTokens | null>(),
+    getTokens: () => get().microsoftTokens,
+    applyTokens: async (tokens) => {
+      set({ microsoftTokens: tokens });
+      await storeSet("microsoft.tokens", tokens);
+    },
+    clearTokens: async () => {
+      set({ microsoftTokens: null });
+      await storeDelete("microsoft.tokens");
+    },
+    refreshIfNeeded: refreshMicrosoftTokenIfNeeded,
+    expiredMessage: "Microsoft 연결이 만료되었습니다. 설정에서 다시 연결해주세요.",
+  });
 
-    microsoftRefreshPromise = (async () => {
-      try {
-        const refreshed = await refreshMicrosoftTokenIfNeeded(tokens, force);
-        if (
-          refreshed.access_token !== tokens.access_token ||
-          refreshed.refresh_token !== tokens.refresh_token ||
-          refreshed.expiresAt !== tokens.expiresAt
-        ) {
-          const updated = refreshed;
-          set({ microsoftTokens: updated });
-          await storeSet("microsoft.tokens", updated);
-          return updated;
-        }
-      } catch (e) {
-        // 갱신 실패
-        if (e instanceof AuthError) {
-          set({ microsoftTokens: null });
-          await storeDelete("microsoft.tokens");
-          showToast("Microsoft 연결이 만료되었습니다. 설정에서 다시 연결해주세요.");
-          return null;
-        }
-      }
-      return get().microsoftTokens;
-    })().finally(() => {
-      microsoftRefreshPromise = null;
-    });
+  return {
+    googleTokens: null,
+    microsoftTokens: null,
 
-    return microsoftRefreshPromise;
-  },
-}));
+    setGoogleTokens: (tokens) => {
+      set({ googleTokens: tokens });
+      storeSet("google.tokens", tokens);
+    },
+
+    setMicrosoftTokens: (tokens) => {
+      set({ microsoftTokens: tokens });
+      storeSet("microsoft.tokens", tokens);
+    },
+
+    loadFromStore: async () => {
+      const [googleTokens, microsoftTokens] = await Promise.all([
+        storeGet<GoogleTokens>("google.tokens"),
+        storeGet<MicrosoftTokens>("microsoft.tokens"),
+      ]);
+      set({ googleTokens, microsoftTokens });
+    },
+
+    refreshGoogle,
+    refreshMicrosoft,
+  };
+});
