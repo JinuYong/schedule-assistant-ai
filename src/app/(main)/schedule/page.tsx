@@ -12,6 +12,7 @@ import {
   deleteEvent,
   getCalendarList,
   clearCalendarListCache,
+  buildEventFromParsed,
   CalendarListItem
 } from "@/lib/google-calendar";
 import {listen} from "@tauri-apps/api/event";
@@ -30,6 +31,7 @@ import {
 import {useTodayInfo} from "./hooks/use-today-info";
 import {useSidePanelWidth} from "./hooks/use-side-panel-width";
 import {useEventDrag} from "./hooks/use-event-drag";
+import {useTodoActions} from "@/hooks/use-todo-actions";
 import CalendarGrid from "./components/calendar-grid";
 import EventList from "./components/event-list";
 import TodoGroups from "./components/todo-groups";
@@ -41,8 +43,7 @@ export default function SchedulePage() {
   const {googleTokens, microsoftTokens, refreshGoogle, refreshMicrosoft} = useAuthStore();
   const {events, isLoading, error, fetchEvents, prefetchEvents, invalidateCache} = useEventsStore();
   const {
-    todos, isLoading: todosLoading, error: todosError, fetchTodos,
-    createTodo, updateTodo, deleteTodo, completeTodo, toggleImportance, toggleChecklistItem
+    todos, isLoading: todosLoading, error: todosError, fetchTodos, createTodo, updateTodo
   } = useTodosStore();
 
   const {todayInfo, refreshTodayInfo} = useTodayInfo();
@@ -232,18 +233,7 @@ export default function SchedulePage() {
       const matched = parsed.calendarName ? matchCalendar(parsed.calendarName, calendars) : undefined;
       const calendarId = matched?.id ?? primaryCalendarId;
 
-      await createEvent(tokens.access_token, {
-        id: "",
-        summary: parsed.title,
-        description: parsed.description,
-        location: parsed.location,
-        ...(parsed.isAllDay
-          ? {start: {date: parsed.startTime.split("T")[0]}, end: {date: parsed.endTime.split("T")[0]}}
-          : {
-            start: {dateTime: parsed.startTime, timeZone: "Asia/Seoul"},
-            end: {dateTime: parsed.endTime, timeZone: "Asia/Seoul"}
-          }),
-      }, calendarId);
+      await createEvent(tokens.access_token, buildEventFromParsed(parsed), calendarId);
 
       setQuickInput("");
       setQuickStatus("done");
@@ -334,31 +324,12 @@ export default function SchedulePage() {
     onClick: setDetailEvent,
   });
 
-  const handleCompleteTodo = useCallback(async (todo: TodoItem) => {
-    const tokens = await refreshMicrosoft();
-    if (!tokens?.access_token) return;
-    await completeTodo(tokens.access_token, todo.listId, todo.id);
-  }, [refreshMicrosoft, completeTodo]);
-
-  const handleToggleTodoImportance = useCallback(async (e: React.MouseEvent, todo: TodoItem) => {
-    e.stopPropagation();
-    const tokens = await refreshMicrosoft();
-    if (!tokens?.access_token) return;
-    await toggleImportance(tokens.access_token, todo.listId, todo.id, todo.importance);
-  }, [refreshMicrosoft, toggleImportance]);
-
-  const handleDeleteTodo = useCallback(async (e: React.MouseEvent, todo: TodoItem) => {
-    e.stopPropagation();
-    const tokens = await refreshMicrosoft();
-    if (!tokens?.access_token) return;
-    await deleteTodo(tokens.access_token, todo.listId, todo.id);
-  }, [refreshMicrosoft, deleteTodo]);
-
-  const handleToggleTodoChecklist = useCallback(async (todo: TodoItem, itemId: string, isChecked: boolean) => {
-    const tokens = await refreshMicrosoft();
-    if (!tokens?.access_token) return;
-    await toggleChecklistItem(tokens.access_token, todo.listId, todo.id, itemId, isChecked);
-  }, [refreshMicrosoft, toggleChecklistItem]);
+  // Microsoft Todo CRUD — refreshMicrosoft()로 토큰 확보 후 스토어 액션 호출
+  const resolveMicrosoftToken = useCallback(
+    async () => (await refreshMicrosoft())?.access_token ?? null,
+    [refreshMicrosoft]
+  );
+  const todoActions = useTodoActions(resolveMicrosoftToken);
 
   const toggleTodoExpand = useCallback((id: string) => {
     setExpandedTodos((prev) => {
@@ -547,11 +518,11 @@ export default function SchedulePage() {
                     todosLoading={todosLoading}
                     expandedTodos={expandedTodos}
                     onToggleExpand={toggleTodoExpand}
-                    onComplete={handleCompleteTodo}
+                    onComplete={todoActions.complete}
                     onEditTodo={openTodoEditForm}
-                    onDeleteTodo={handleDeleteTodo}
-                    onToggleImportance={handleToggleTodoImportance}
-                    onToggleChecklist={handleToggleTodoChecklist}
+                    onDeleteTodo={todoActions.remove}
+                    onToggleImportance={todoActions.toggleImportance}
+                    onToggleChecklist={todoActions.toggleChecklist}
                   />
                 </section>
               ) : (

@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { useTodosStore, TodoItem } from "@/store/todos";
+import { useTodoActions } from "@/hooks/use-todo-actions";
 import { TodoTask } from "@/lib/microsoft-todo";
 import styles from "./page.module.css";
 import { formatDue } from "@/lib/date-utils";
@@ -31,12 +32,18 @@ const EMPTY_FORM: FormState = {
 export default function TodoPage() {
   const { microsoftTokens } = useAuthStore();
   const {
-    todos, isLoading, error, fetchTodos, createTodo, updateTodo, deleteTodo,
-    completeTodo, toggleImportance, toggleChecklistItem
+    todos, isLoading, error, fetchTodos, createTodo, updateTodo
   } = useTodosStore();
   const [ expanded, setExpanded ] = useState<Set<string>>(new Set());
   const [ form, setForm ] = useState<FormState>(EMPTY_FORM);
   const [ submitting, setSubmitting ] = useState(false);
+
+  // Microsoft Todo CRUD — 저장된 토큰 직접 사용
+  const resolveMicrosoftToken = useCallback(
+    async () => microsoftTokens?.access_token ?? null,
+    [ microsoftTokens ]
+  );
+  const todoActions = useTodoActions(resolveMicrosoftToken);
 
   const loadTodos = useCallback(async (force = false) => {
     if (!microsoftTokens?.access_token) return;
@@ -55,28 +62,6 @@ export default function TodoPage() {
       return next;
     });
   }, []);
-
-  const handleComplete = useCallback(async (todo: TodoItem) => {
-    if (!microsoftTokens?.access_token) return;
-    await completeTodo(microsoftTokens.access_token, todo.listId, todo.id);
-  }, [ microsoftTokens, completeTodo ]);
-
-  const handleToggleImportance = useCallback(async (e: React.MouseEvent, todo: TodoItem) => {
-    e.stopPropagation();
-    if (!microsoftTokens?.access_token) return;
-    await toggleImportance(microsoftTokens.access_token, todo.listId, todo.id, todo.importance);
-  }, [ microsoftTokens, toggleImportance ]);
-
-  const handleDelete = useCallback(async (e: React.MouseEvent, todo: TodoItem) => {
-    e.stopPropagation();
-    if (!microsoftTokens?.access_token) return;
-    await deleteTodo(microsoftTokens.access_token, todo.listId, todo.id);
-  }, [ microsoftTokens, deleteTodo ]);
-
-  const handleToggleChecklist = useCallback(async (todo: TodoItem, itemId: string, isChecked: boolean) => {
-    if (!microsoftTokens?.access_token) return;
-    await toggleChecklistItem(microsoftTokens.access_token, todo.listId, todo.id, itemId, isChecked);
-  }, [ microsoftTokens, toggleChecklistItem ]);
 
   const openCreate = useCallback((listId: string) => {
     setForm({ ...EMPTY_FORM, open: true, mode: "create", listId });
@@ -175,19 +160,19 @@ export default function TodoPage() {
                     >
                       <button className={ styles.checkBtn } onClick={ (e) => {
                         e.stopPropagation();
-                        handleComplete(todo);
+                        todoActions.complete(todo);
                       } } title="완료" />
                       <p className={ styles.todoText }>{ todo.title }</p>
                       <div className={ styles.actionBtns }>
                         <button className={ styles.actionBtn } onClick={ (e) => openEdit(e, todo) } title="수정">
                           <IconPencil /></button>
                         <button className={ `${ styles.actionBtn } ${ styles.deleteBtn }` }
-                                onClick={ (e) => handleDelete(e, todo) } title="삭제"><IconTrash /></button>
+                                onClick={ (e) => todoActions.remove(e, todo) } title="삭제"><IconTrash /></button>
                       </div>
                       { todo.recurrence && <IconRepeat /> }
                       { due && <span
                           className={ `${ styles.due }${ due.isPast ? ` ${ styles.overdue }` : "" }` }>{ due.label }</span> }
-                      <button className={ styles.starBtn } onClick={ (e) => handleToggleImportance(e, todo) }
+                      <button className={ styles.starBtn } onClick={ (e) => todoActions.toggleImportance(e, todo) }
                               title={ todo.importance === "high" ? "즐겨찾기 해제" : "즐겨찾기" }>
                         <IconStar filled={ todo.importance === "high" } />
                       </button>
@@ -208,7 +193,7 @@ export default function TodoPage() {
                               <li key={ item.id } className={ styles.checklistItem }>
                                 <button
                                   className={ `${ styles.checklistBtn }${ item.isChecked ? ` ${ styles.checklistChecked }` : "" }` }
-                                  onClick={ () => handleToggleChecklist(todo, item.id, !item.isChecked) }
+                                  onClick={ () => todoActions.toggleChecklist(todo, item.id, !item.isChecked) }
                                   title={ item.isChecked ? "완료 취소" : "완료" }
                                 />
                                 <span
