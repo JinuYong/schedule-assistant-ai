@@ -6,7 +6,7 @@ import { useTodosStore, TodoItem } from "@/store/todos";
 import { TodoTask } from "@/lib/microsoft-todo";
 import styles from "./page.module.css";
 import { formatDue } from "@/lib/date-utils";
-import UnavailableContent from '@/components/UnavailableContent/UnavailableContent'
+import UnavailableContent from '@/components/unavailable-content'
 
 /* ── 아이콘 ── */
 function IconRefresh() {

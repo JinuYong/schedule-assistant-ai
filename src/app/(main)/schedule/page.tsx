@@ -18,9 +18,9 @@ import {listen} from "@tauri-apps/api/event";
 import {formatDue} from "@/lib/date-utils";
 import {isTauri} from "@/lib/tauri-store";
 import {showToast} from "@/store/toast";
-import Divider from "@/components/Divider/Divider";
+import Divider from "@/components/divider";
 import styles from "./page.module.css";
-import UnavailableContent from '@/components/UnavailableContent/UnavailableContent'
+import UnavailableContent from '@/components/unavailable-content'
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 

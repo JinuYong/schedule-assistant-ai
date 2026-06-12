@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import styles from './UnavailableContent.module.css'
+import styles from './unavailable-content.module.css'
 
 export default function UnavailableContent({type} : {type: "GOOGLE" | "MICROSOFT"}) {
   const contents = type === "GOOGLE" ? {iconTitle: "G", title: "Google Calendar", text: "Google"} : {iconTitle: "M", title: "Microsoft Todo", text: "Microsoft"}
