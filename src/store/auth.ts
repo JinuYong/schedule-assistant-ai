@@ -4,24 +4,15 @@ import {
   refreshGoogleTokenIfNeeded,
   refreshMicrosoftTokenIfNeeded,
 } from "@/lib/oauth";
+import { AuthError } from "@/lib/api-errors";
+import type { BaseTokens } from "@/types/tokens";
 import { showToast } from '@/store/toast'
 
 let googleRefreshPromise: Promise<GoogleTokens | null> | null = null;
 let microsoftRefreshPromise: Promise<MicrosoftTokens | null> | null = null;
 
-export interface GoogleTokens {
-  access_token: string;
-  refresh_token?: string;
-  expires_in?: number;
-  expiresAt?: number;
-}
-
-export interface MicrosoftTokens {
-  access_token: string;
-  refresh_token?: string;
-  expires_in?: number;
-  expiresAt?: number;
-}
+export type GoogleTokens = BaseTokens;
+export type MicrosoftTokens = BaseTokens;
 
 interface AuthStore {
   googleTokens: GoogleTokens | null;
@@ -69,14 +60,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           refreshed.refresh_token !== tokens.refresh_token ||
           refreshed.expiresAt !== tokens.expiresAt
         ) {
-          const updated = refreshed as GoogleTokens;
+          const updated = refreshed;
           set({ googleTokens: updated });
           await storeSet("google.tokens", updated);
           return updated;
         }
       } catch (e) {
         // 토큰 초기화, 재연결 안내
-        if (String(e).startsWith("auth_error:")) {
+        if (e instanceof AuthError) {
           set({ googleTokens: null });
           await storeDelete("google.tokens");
           showToast("Google 연결이 만료되었습니다. 설정에서 다시 연결해주세요.");
@@ -104,14 +95,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           refreshed.refresh_token !== tokens.refresh_token ||
           refreshed.expiresAt !== tokens.expiresAt
         ) {
-          const updated = refreshed as MicrosoftTokens;
+          const updated = refreshed;
           set({ microsoftTokens: updated });
           await storeSet("microsoft.tokens", updated);
           return updated;
         }
       } catch (e) {
         // 갱신 실패
-        if (String(e).startsWith("auth_error:")) {
+        if (e instanceof AuthError) {
           set({ microsoftTokens: null });
           await storeDelete("microsoft.tokens");
           showToast("Microsoft 연결이 만료되었습니다. 설정에서 다시 연결해주세요.");
