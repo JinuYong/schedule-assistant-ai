@@ -147,23 +147,6 @@
   white-space: nowrap;
 }
 
-.iconStar {
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-  opacity: 0.35;
-}
-
-.iconStarFilled {
-  flex-shrink: 0;
-  color: #f5a623;
-}
-
-.iconRepeat {
-  flex-shrink: 0;
-  color: var(--color-accent);
-  opacity: 0.75;
-}
-
 /* 즐겨찾기 버튼 */
 .starBtn {
   flex-shrink: 0;
@@ -310,17 +293,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* 아코디언 화살표 */
-.chevron {
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-  transition: transform 0.2s;
-}
-
-.chevronOpen {
-  transform: rotate(180deg);
 }
 
 .due {
