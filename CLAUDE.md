@@ -69,10 +69,14 @@ bun run lint             # ESLint
 
 ```
 schedule-assistant-ai/
-├── src-tauri/                   # Rust 백엔드
+├── src-tauri/                   # Rust 백엔드 (edition 2024)
 │   ├── src/
 │   │   ├── main.rs              # 진입점
-│   │   └── lib.rs               # Tauri commands (Claude, Google OAuth, MS OAuth)
+│   │   ├── lib.rs               # run() 빌더 (setup·invoke_handler·run-event)
+│   │   ├── claude.rs            # call_claude / stream_chat
+│   │   ├── oauth.rs             # Google/Microsoft 토큰 교환·갱신
+│   │   ├── floating_macos.rs    # 플로팅 창 (NSPanel) + 전역 단축키
+│   │   └── error.rs             # auth_error/oauth_error 문자열 헬퍼
 │   ├── capabilities/
 │   │   └── default.json         # 플러그인 권한 설정
 │   ├── icons/                   # 앱 아이콘 (ICO, PNG, ICNS)
@@ -81,8 +85,12 @@ schedule-assistant-ai/
 ├── src/
 │   ├── app/
 │   │   ├── (main)/              # 메인 앱 UI
-│   │   │   ├── schedule/        # Google Calendar 일정 목록
+│   │   │   ├── schedule/        # Google Calendar 일정 (컨테이너 page.tsx)
+│   │   │   │   ├── calendar-utils.ts  # 그리드 계산·이벤트 유틸·폼 타입/상수
+│   │   │   │   ├── hooks/       # use-today-info / use-side-panel-width / use-event-drag
+│   │   │   │   └── components/  # calendar-grid, event-list, todo-groups, *-modal
 │   │   │   ├── chat/            # Claude AI 채팅 + 브리핑
+│   │   │   ├── todo/            # Microsoft Todo 할일 목록
 │   │   │   └── settings/        # OAuth 연동, 테마, 단축키 설정
 │   │   ├── floating/            # 플로팅 입력창 전용 라우트
 │   │   ├── layout.tsx           # 루트 레이아웃 (Providers 포함)
@@ -91,22 +99,35 @@ schedule-assistant-ai/
 │   │   ├── Sidebar/             # 사이드바 네비게이션
 │   │   ├── ThemeApplier/        # CSS 변수 동적 설정 (테마)
 │   │   ├── TauriInit/           # 전역 단축키 등록
-│   │   └── Providers/           # QueryClient + ThemeApplier + TauriInit
+│   │   ├── Providers/           # QueryClient + ThemeApplier + TauriInit
+│   │   └── icons.tsx            # 공통 아이콘 컴포넌트 (평탄화)
+│   ├── hooks/                   # 페이지 간 공유 훅
+│   │   ├── use-todo-actions.ts  # MS Todo CRUD 핸들러 (토큰 resolver 주입)
+│   │   └── use-oauth-connection.ts # OAuth 연결 상태/흐름
 │   ├── lib/
 │   │   ├── claude.ts            # Claude API (invoke "call_claude" / "stream_chat")
-│   │   ├── google-calendar.ts   # Google Calendar REST API (직접 fetch)
+│   │   ├── google-calendar.ts   # Google Calendar REST API + buildEventFromParsed
 │   │   ├── microsoft-todo.ts    # Microsoft Graph REST API (직접 fetch)
-│   │   ├── oauth.ts             # Google/Microsoft OAuth 흐름
+│   │   ├── oauth.ts             # Google/Microsoft OAuth 흐름 (provider 팩토리)
+│   │   ├── authenticated-fetch.ts # 공통 인증 fetch 골격 (401 재시도·429 처리)
+│   │   ├── api-errors.ts        # AuthError / RateLimitError
+│   │   ├── promise-cache.ts     # createSingleFlight (인플라이트 Promise 공유)
 │   │   ├── tauri-store.ts       # LazyStore 래퍼 (storeGet/storeSet/storeDelete)
 │   │   ├── notifications.ts     # 알림 스케줄링 (setTimeout + tauri-plugin-notification)
 │   │   ├── hotkey.ts            # 전역 단축키 등록/해제
+│   │   ├── date-utils.ts        # 날짜 포맷/계산 유틸
 │   │   └── floating-window.ts   # 플로팅 창 토글
+│   ├── types/
+│   │   └── tokens.ts            # BaseTokens
 │   └── store/
-│       ├── auth.ts              # Google/Microsoft 토큰 (Zustand)
+│       ├── auth.ts              # Google/Microsoft 토큰 (Zustand, createTokenRefresh)
 │       ├── events.ts            # 캘린더 이벤트 캐시 + 알림 스케줄
+│       ├── todos.ts            # Microsoft Todo 할일 캐시 (Zustand)
+│       ├── toast.ts            # 토스트 알림 상태 (Zustand)
 │       └── theme.ts             # 테마 색상 (Zustand + localStorage)
 ├── next.config.ts               # output: "export", distDir: "out"
 ├── package.json
+├── AGENTS.md                    # → CLAUDE.md 심볼릭 링크
 └── CLAUDE.md
 ```
 
@@ -120,7 +141,7 @@ schedule-assistant-ai/
 - **API Routes 사용 불가** — 모든 서버 로직은 Rust commands로 처리
 
 ### 2. 플로팅 창 메커니즘
-- `tauri.conf.json`에 두 개의 창 정의: `main` (1200×800) + `floating` (620×80, alwaysOnTop, transparent)
+- `tauri.conf.json`에 두 개의 창 정의: `main` (1200×800) + `floating` (620×64, alwaysOnTop, transparent)
 - `TauriInit.tsx` → `tauri-plugin-global-shortcut`으로 단축키 등록
 - 단축키 트리거 → `floating-window.ts`의 `WebviewWindow.getByLabel("floating")`으로 토글
 
@@ -170,16 +191,19 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 
 ---
 
-## Rust commands (src-tauri/src/lib.rs)
+## Rust commands (src-tauri/src/, 모듈별)
 
-| 커맨드 | 역할 |
-|--------|------|
-| `call_claude` | Claude API 비스트리밍 호출 (일정 파싱용) |
-| `stream_chat` | Claude SSE 스트리밍 → `chat-chunk` / `chat-done` Tauri 이벤트 emit |
-| `exchange_google_token` | Google OAuth code → tokens 교환 |
-| `refresh_google_token` | Google access token 갱신 |
-| `exchange_microsoft_token` | Microsoft OAuth code → tokens 교환 |
-| `refresh_microsoft_token` | Microsoft access token 갱신 |
+| 커맨드 | 모듈 | 역할 |
+|--------|------|------|
+| `call_claude` | claude.rs | Claude API 비스트리밍 호출 (일정 파싱용) |
+| `stream_chat` | claude.rs | Claude SSE 스트리밍 → `chat-chunk` / `chat-done` Tauri 이벤트 emit |
+| `exchange_google_token` | oauth.rs | Google OAuth code → tokens 교환 |
+| `refresh_google_token` | oauth.rs | Google access token 갱신 |
+| `exchange_microsoft_token` | oauth.rs | Microsoft OAuth code → tokens 교환 |
+| `refresh_microsoft_token` | oauth.rs | Microsoft access token 갱신 |
+| `show_floating` | floating_macos.rs | 플로팅 창 표시 (macOS NSPanel: orderFrontRegardless + makeKeyAndOrderFront) |
+| `hide_floating` | floating_macos.rs | 플로팅 창 숨김 (`restore` 인자로 이전 앱 복원 여부 결정) |
+| `set_global_shortcut` | floating_macos.rs | 전역 단축키 동적 재등록 |
 
 ---
 
