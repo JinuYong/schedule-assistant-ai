@@ -2,8 +2,8 @@
 name = "schedule-assistant-ai"
 version = "0.1.0"
 description = "AI 기반 일정 비서"
-authors = []
-edition = "2021"
+authors = ["Jinu"]
+edition = "2024"
 
 [lib]
 name = "schedule_assistant_ai_lib"
