@@ -22,3 +22,21 @@ export function formatDue(dateTime: string, timeZone = "UTC") {
     : d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
   return { label, isPast };
 }
+
+/** "2026년 6월" 형식의 월/연 라벨 */
+export function formatMonthYear(year: number, month: number): string {
+  return new Date(year, month, 1).toLocaleDateString("ko-KR", { year: "numeric", month: "long" });
+}
+
+/** ISO 시각 → "오후 3시" / "오후 3:30" (정시는 분 생략) */
+export function formatTime(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleTimeString("ko-KR", date.getMinutes() === 0 ? { hour: "numeric" } : { hour: "numeric", minute: "2-digit" });
+}
+
+/** "YYYY-MM-DD" → "6월 12일 (금)" 형식의 날짜 라벨 */
+export function formatDateLabel(dateStr: string): string {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("ko-KR", {
+    month: "long", day: "numeric", weekday: "short",
+  });
+}

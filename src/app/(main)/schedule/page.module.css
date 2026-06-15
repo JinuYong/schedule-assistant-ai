@@ -837,23 +837,6 @@
   background: var(--color-accent-ultra-soft);
 }
 
-.iconStar {
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-  opacity: 0.35;
-}
-
-.iconStarFilled {
-  flex-shrink: 0;
-  color: #f5a623;
-}
-
-.iconRepeat {
-  flex-shrink: 0;
-  color: var(--color-accent);
-  opacity: 0.75;
-}
-
 .todoChevronSlot {
   flex-shrink: 0;
   width: 14px;
@@ -861,15 +844,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.chevron {
-  color: var(--color-text-secondary);
-  transition: transform 0.2s;
-}
-
-.chevronOpen {
-  transform: rotate(180deg);
 }
 
 .todoAccordionBody {

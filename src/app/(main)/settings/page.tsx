@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import SettingsContent from "./SettingsContent";
+import SettingsContent from "./settings-content";
 import styles from "./page.module.css";
 
 export default function SettingsPage() {

@@ -6,7 +6,7 @@ import { emit } from "@tauri-apps/api/event";
 import { hideFloatingWindow } from "@/lib/floating-window";
 import { registerHotkey, unregisterHotkey } from "@/lib/hotkey";
 import { parseScheduleText } from "@/lib/claude";
-import { createEvent, getCalendarList, type CalendarListItem } from "@/lib/google-calendar";
+import { createEvent, getCalendarList, buildEventFromParsed, type CalendarListItem } from "@/lib/google-calendar";
 import { useAuthStore } from "@/store/auth";
 import styles from "./page.module.css";
 
@@ -93,21 +93,7 @@ export default function FloatingPage() {
           if (matched) calendarId = matched.id;
         }
 
-        await createEvent(googleTokens.access_token, {
-          id: "",
-          summary: parsed.title,
-          description: parsed.description,
-          location: parsed.location,
-          ...(parsed.isAllDay
-            ? {
-              start: { date: parsed.startTime.split("T")[0] },
-              end: { date: parsed.endTime.split("T")[0] },
-            }
-            : {
-              start: { dateTime: parsed.startTime, timeZone: "Asia/Seoul" },
-              end: { dateTime: parsed.endTime, timeZone: "Asia/Seoul" },
-            }),
-        }, calendarId);
+        await createEvent(googleTokens.access_token, buildEventFromParsed(parsed), calendarId);
         await emit("calendar-mutated");
       }
 

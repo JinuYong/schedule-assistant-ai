@@ -1,7 +1,7 @@
 "use client";
 
 import { useToastStore } from "@/store/toast";
-import styles from "./Toast.module.css";
+import styles from "./toast.module.css";
 
 export default function Toaster() {
   const { toasts, dismiss } = useToastStore();

@@ -1,6 +1,6 @@
 import styles from "./layout.module.css";
-import Sidebar from "@/components/Sidebar/Sidebar";
-import Toaster from "@/components/Toast/Toast";
+import Sidebar from "@/components/sidebar";
+import Toaster from "@/components/toast";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (

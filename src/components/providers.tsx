@@ -3,8 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/auth";
-import ThemeApplier from "@/components/ThemeApplier/ThemeApplier";
-import TauriInit from "@/components/TauriInit/TauriInit";
+import ThemeApplier from "@/components/theme-applier";
+import TauriInit from "@/components/tauri-init";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const queryClientRef = useRef<QueryClient | null>(null);

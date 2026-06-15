@@ -1,6 +1,8 @@
 /** Google Calendar REST API — 브라우저 fetch 사용 (CORS 지원됨) */
 
 import { useAuthStore } from "@/store/auth";
+import { createAuthenticatedFetch } from "./authenticated-fetch";
+import type { ParsedEvent } from "./claude";
 
 const BASE = "https://www.googleapis.com/calendar/v3";
 
@@ -26,33 +28,17 @@ export interface CalendarListItem {
   backgroundColor?: string;
 }
 
-async function request<T>(
-  path: string,
-  accessToken: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const token = (await useAuthStore.getState().refreshGoogle())?.access_token ?? accessToken;
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...(options.headers ?? {}),
-    },
-  });
-  if (res.status === 401) {
-    const refreshed = await useAuthStore.getState().refreshGoogle(true);
-    if (refreshed?.access_token && refreshed.access_token !== token) {
-      return request(path, refreshed.access_token, options);
-    }
-  }
-  if (!res.ok) {
+const request = createAuthenticatedFetch({
+  baseUrl: BASE,
+  refresh: (force) => useAuthStore.getState().refreshGoogle(force),
+  jsonContentType: "always",
+  emptyValue: undefined,
+  rateLimitMessage: "Google API 사용량 초과. 잠시 후 새로고침 버튼을 눌러주세요.",
+  parseError: async (res) => {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: { message?: string } })?.error?.message ?? `HTTP ${res.status}`);
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
-}
+    return new Error((err as { error?: { message?: string } })?.error?.message ?? `HTTP ${res.status}`);
+  },
+});
 
 /** 캘린더 목록 캐시 (1시간 TTL, 새로고침 버튼으로 수동 초기화 가능) */
 let _calListCache: { data: CalendarListItem[]; ts: number } | null = null;
@@ -139,6 +125,22 @@ export async function listEventsInRange(
   );
 
   return dedup(results.flat());
+}
+
+/** parseScheduleText 결과(ParsedEvent)를 Google Calendar 이벤트 본문으로 변환 */
+export function buildEventFromParsed(parsed: ParsedEvent): GCalEvent {
+  return {
+    id: "",
+    summary: parsed.title,
+    description: parsed.description,
+    location: parsed.location,
+    ...(parsed.isAllDay
+      ? { start: { date: parsed.startTime.split("T")[0] }, end: { date: parsed.endTime.split("T")[0] } }
+      : {
+          start: { dateTime: parsed.startTime, timeZone: "Asia/Seoul" },
+          end: { dateTime: parsed.endTime, timeZone: "Asia/Seoul" },
+        }),
+  };
 }
 
 export async function createEvent(

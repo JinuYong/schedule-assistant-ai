@@ -1,46 +1,23 @@
 import { useAuthStore } from "@/store/auth";
+import { createAuthenticatedFetch } from "./authenticated-fetch";
+import { AuthError } from "./api-errors";
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
-async function graphFetch<T>(
-  path: string,
-  accessToken: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const isWrite = options.method && options.method !== "GET";
-  const token = (await useAuthStore.getState().refreshMicrosoft())?.access_token ?? accessToken;
-  const res = await fetch(`${GRAPH_BASE}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(isWrite ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers ?? {}),
-    },
-  });
-  if (res.status === 401) {
-    const refreshed = await useAuthStore.getState().refreshMicrosoft(true);
-    if (refreshed?.access_token && refreshed.access_token !== token) {
-      return graphFetch(path, refreshed.access_token, options);
-    }
-  }
-  if (!res.ok) {
-    if (res.status === 429) {
-      const retry = parseInt(res.headers.get("Retry-After") ?? "60", 10);
-      const err = new Error("Microsoft API 사용량 초과. 5분 후 새로고침 버튼을 눌러주세요.") as Error & { retryAfter: number };
-      err.retryAfter = retry;
-      throw err;
-    }
+const graphFetch = createAuthenticatedFetch({
+  baseUrl: GRAPH_BASE,
+  refresh: (force) => useAuthStore.getState().refreshMicrosoft(force),
+  jsonContentType: "write",
+  emptyValue: null,
+  rateLimitMessage: "Microsoft API 사용량 초과. 5분 후 새로고침 버튼을 눌러주세요.",
+  parseError: async (res) => {
     if (res.status === 401) {
-      const err = new Error("Microsoft 토큰이 만료되었습니다. 설정에서 재연결해주세요.") as Error & { needsReauth: boolean };
-      err.needsReauth = true;
-      throw err;
+      return new AuthError("Microsoft 토큰이 만료되었습니다. 설정에서 재연결해주세요.");
     }
     const text = await res.text().catch(() => "");
-    throw new Error(`Graph API ${res.status}: ${text}`);
-  }
-  if (res.status === 204) return null as T;
-  return res.json() as Promise<T>;
-}
+    return new Error(`Graph API ${res.status}: ${text}`);
+  },
+});
 
 export interface ChecklistItem {
   id: string;

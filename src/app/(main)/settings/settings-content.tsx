@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/auth";
 import { useThemeStore, THEME_COLORS } from "@/store/theme";
 import { storeGet, storeSet, isTauri } from "@/lib/tauri-store";
 import { startGoogleOAuth, startMicrosoftOAuth } from "@/lib/oauth";
+import { useOAuthConnection } from "@/hooks/use-oauth-connection";
 import { DEFAULT_SHORTCUT } from "@/lib/hotkey";
 import styles from "./page.module.css";
 
@@ -21,10 +22,9 @@ export default function SettingsContent() {
   const [mounted, setMounted] = useState(false);
   const [savedKeys, setSavedKeys] = useState(false);
   const [shortcutSaved, setShortcutSaved] = useState(false);
-  const [googleOAuthStatus, setGoogleOAuthStatus] = useState<"idle" | "waiting" | "error">("idle");
-  const [googleOAuthError, setGoogleOAuthError] = useState("");
-  const [msOAuthStatus, setMsOAuthStatus] = useState<"idle" | "waiting" | "error">("idle");
-  const [msOAuthError, setMsOAuthError] = useState("");
+
+  const google = useOAuthConnection(startGoogleOAuth, setGoogleTokens);
+  const microsoft = useOAuthConnection(startMicrosoftOAuth, setMicrosoftTokens);
 
   useEffect(() => {
     setMounted(true);
@@ -38,46 +38,6 @@ export default function SettingsContent() {
     await storeSet("anthropic.apiKey", anthropicKey);
     setSavedKeys(true);
     setTimeout(() => setSavedKeys(false), 2000);
-  };
-
-  const connectGoogle = async () => {
-    setGoogleOAuthStatus("waiting");
-    setGoogleOAuthError("");
-    await startGoogleOAuth(
-      (tokens) => {
-        setGoogleTokens({
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_in: tokens.expires_in,
-          expiresAt: Date.now() + (tokens.expires_in ?? 3600) * 1000,
-        });
-        setGoogleOAuthStatus("idle");
-      },
-      (err) => {
-        setGoogleOAuthError(err);
-        setGoogleOAuthStatus("error");
-      }
-    );
-  };
-
-  const connectMicrosoft = async () => {
-    setMsOAuthStatus("waiting");
-    setMsOAuthError("");
-    await startMicrosoftOAuth(
-      (tokens) => {
-        setMicrosoftTokens({
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_in: tokens.expires_in,
-          expiresAt: Date.now() + (tokens.expires_in ?? 3600) * 1000,
-        });
-        setMsOAuthStatus("idle");
-      },
-      (err) => {
-        setMsOAuthError(err);
-        setMsOAuthStatus("error");
-      }
-    );
   };
 
   useEffect(() => {
@@ -184,7 +144,7 @@ export default function SettingsContent() {
         <p className={styles.description}>
           Google 계정으로 로그인하여 일정을 동기화합니다.
         </p>
-        {googleOAuthError && <p className={styles.errorText}>{googleOAuthError}</p>}
+        {google.error && <p className={styles.errorText}>{google.error}</p>}
         {googleTokens ? (
           <button className={styles.dangerBtn} onClick={() => setGoogleTokens(null)}>
             연결 해제
@@ -192,10 +152,10 @@ export default function SettingsContent() {
         ) : (
           <button
             className={styles.connectBtn}
-            onClick={connectGoogle}
-            disabled={googleOAuthStatus === "waiting"}
+            onClick={google.connect}
+            disabled={google.status === "waiting"}
           >
-            {googleOAuthStatus === "waiting" ? "브라우저에서 인증 중..." : "Google로 로그인"}
+            {google.status === "waiting" ? "브라우저에서 인증 중..." : "Google로 로그인"}
           </button>
         )}
       </section>
@@ -209,7 +169,7 @@ export default function SettingsContent() {
         <p className={styles.description}>
           Microsoft 계정으로 로그인하여 할일을 동기화합니다.
         </p>
-        {msOAuthError && <p className={styles.errorText}>{msOAuthError}</p>}
+        {microsoft.error && <p className={styles.errorText}>{microsoft.error}</p>}
         {microsoftTokens ? (
           <button className={styles.dangerBtn} onClick={() => setMicrosoftTokens(null)}>
             연결 해제
@@ -217,10 +177,10 @@ export default function SettingsContent() {
         ) : (
           <button
             className={styles.connectBtn}
-            onClick={connectMicrosoft}
-            disabled={msOAuthStatus === "waiting"}
+            onClick={microsoft.connect}
+            disabled={microsoft.status === "waiting"}
           >
-            {msOAuthStatus === "waiting" ? "브라우저에서 인증 중..." : "Microsoft로 로그인"}
+            {microsoft.status === "waiting" ? "브라우저에서 인증 중..." : "Microsoft로 로그인"}
           </button>
         )}
       </section>

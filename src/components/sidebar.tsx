@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import styles from "./Sidebar.module.css";
+import styles from "./sidebar.module.css";
 
 const NAV_ITEMS = [
   { href: "/schedule", label: "일정", icon: "📅" },
