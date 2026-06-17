@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction } from "react";
-import { IconClose, IconStar, IconRepeat, IconPlus } from "@/components/icons";
+import { IconClose, IconStar, IconRepeat, IconBell, IconPlus } from "@/components/icons";
 import { TodoFormState, recurrenceLabel } from "../calendar-utils";
 import styles from "../page.module.css";
 
@@ -72,8 +72,41 @@ export default function TodoFormModal({ form, setForm, todoLists, submitting, on
               >
                 <IconRepeat/>
               </button>
+              <button
+                type="button"
+                className={`${styles.todoModalIconBtn}${form.reminderEnabled ? ` ${styles.todoModalIconBtnActive}` : ""}`}
+                onClick={() => setForm((f) => ({
+                  ...f,
+                  reminderEnabled: !f.reminderEnabled,
+                  reminderDate: !f.reminderEnabled && !f.reminderDate
+                    ? (f.dueDate || new Date().toISOString().split("T")[0])
+                    : f.reminderDate,
+                }))}
+                title={form.reminderEnabled ? "알림 해제" : "알림"}
+              >
+                <IconBell/>
+              </button>
             </div>
           </div>
+          {form.reminderEnabled && (
+            <div className={styles.repeatPanel}>
+              <label className={styles.formLabel}>알림</label>
+              <div className={styles.repeatControls}>
+                <input
+                  className={styles.formInput}
+                  type="date"
+                  value={form.reminderDate}
+                  onChange={(e) => setForm((f) => ({...f, reminderDate: e.target.value}))}
+                />
+                <input
+                  className={styles.formInput}
+                  type="time"
+                  value={form.reminderTime}
+                  onChange={(e) => setForm((f) => ({...f, reminderTime: e.target.value}))}
+                />
+              </div>
+            </div>
+          )}
           {form.repeatEnabled && (
             <div className={styles.repeatPanel}>
               <label className={styles.formLabel}>반복</label>

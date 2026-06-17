@@ -4,7 +4,6 @@ import {useEffect, useState, useCallback, useMemo, useRef} from "react";
 import {useAuthStore} from "@/store/auth";
 import {useEventsStore, CalendarEvent} from "@/store/events";
 import {useTodosStore, TodoItem} from "@/store/todos";
-import {TodoTask, TodoTaskUpdates} from "@/lib/microsoft-todo";
 import {
   createEvent,
   updateEvent,
@@ -23,7 +22,7 @@ import styles from "./page.module.css";
 import UnavailableContent from '@/components/unavailable-content'
 import {
   buildCells, daysInMonth, isoDate, getEventDateKey, buildMovedTimeFields,
-  eventShortLabel, buildTodoRecurrence, EMPTY_FORM, EMPTY_TODO_FORM,
+  eventShortLabel, buildTodoTaskFromForm, todoEditFormState, EMPTY_FORM, EMPTY_TODO_FORM,
   type EventForm, type TodoFormState,
 } from "./calendar-utils";
 import {useTodayInfo} from "./hooks/use-today-info";
@@ -358,28 +357,7 @@ export default function SchedulePage() {
 
   const openTodoEditForm = useCallback((e: React.MouseEvent, todo: TodoItem) => {
     e.stopPropagation();
-    setTodoForm({
-      open: true,
-      mode: "edit",
-      listId: todo.listId,
-      taskId: todo.id,
-      title: todo.title,
-      dueDate: todo.dueDateTime?.dateTime.split("T")[0] ?? "",
-      importance: todo.importance === "high" ? "high" : "normal",
-      memo: todo.body?.content ?? "",
-      repeatEnabled: !!todo.recurrence,
-      repeatType: (
-        todo.recurrence?.pattern.type === "weekly" ||
-        todo.recurrence?.pattern.type === "absoluteMonthly" ||
-        todo.recurrence?.pattern.type === "absoluteYearly"
-      ) ? todo.recurrence.pattern.type : "daily",
-      repeatInterval: todo.recurrence?.pattern.interval ?? 1,
-      checklistItems: todo.checklistItems?.map((item) => ({
-        id: item.id,
-        displayName: item.displayName,
-        isChecked: item.isChecked,
-      })) ?? [],
-    });
+    setTodoForm(todoEditFormState(todo));
   }, []);
 
   const closeTodoForm = useCallback(() => setTodoForm(EMPTY_TODO_FORM), []);
@@ -389,16 +367,7 @@ export default function SchedulePage() {
     if (!todoForm.title.trim() || !todoForm.listId || !microsoftTokens?.access_token) return;
     setTodoSubmitting(true);
     try {
-      const dueDateTime = todoForm.dueDate
-        ? { dateTime: `${todoForm.dueDate}T00:00:00.0000000`, timeZone: "UTC" }
-        : undefined;
-      const task: TodoTaskUpdates & Pick<TodoTask, "title"> = {
-        title: todoForm.title.trim(),
-        importance: todoForm.importance,
-        recurrence: buildTodoRecurrence(todoForm),
-        ...(dueDateTime ? {dueDateTime} : {}),
-        ...(todoForm.memo.trim() ? {body: {content: todoForm.memo.trim(), contentType: "text" as const}} : {}),
-      };
+      const task = buildTodoTaskFromForm(todoForm);
       const checklistItems = todoForm.checklistItems.filter((item) => item.displayName.trim());
       if (todoForm.mode === "create") {
         await createTodo(microsoftTokens.access_token, todoForm.listId, task as Parameters<typeof createTodo>[2], checklistItems);
