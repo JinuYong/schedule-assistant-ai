@@ -16,7 +16,7 @@ export interface CalendarEvent {
   calendarId?: string;
 }
 
-function mapGCalEvent(e: GCalEvent): CalendarEvent {
+export function mapGCalEvent(e: GCalEvent): CalendarEvent {
   return {
     id: e.id,
     title: e.summary ?? "(제목 없음)",
