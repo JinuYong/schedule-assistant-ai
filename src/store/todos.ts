@@ -1,5 +1,8 @@
 import { create } from "zustand";
 import { createSingleFlight } from "@/lib/promise-cache";
+import { scheduleNotification, cancelNotification, cancelNotificationsByPrefix } from "@/lib/notifications";
+import { graphDateTimeToMs } from "@/lib/date-utils";
+import { showToast } from "./toast";
 import {
   getTaskLists, getTasks,
   createTask as apiCreateTask,
@@ -37,6 +40,23 @@ interface TodosStore {
 }
 
 const fetchTodosFlight = createSingleFlight<void>();
+
+/** 알림 켜진 할일의 reminderDateTime에 데스크탑 알림 예약 (목록 갱신 시마다 재예약) */
+function scheduleTodoNotifications(todos: TodoItem[]) {
+  cancelNotificationsByPrefix("todo-");
+  for (const t of todos) {
+    if (!t.id || !t.isReminderOn || !t.reminderDateTime?.dateTime) continue;
+    // Graph는 reminderDateTime을 보통 UTC로 돌려주므로 timeZone을 반영해 실제 순간으로 변환
+    const ms = graphDateTimeToMs(t.reminderDateTime.dateTime, t.reminderDateTime.timeZone);
+    if (Number.isNaN(ms) || ms <= Date.now()) continue;
+    void scheduleNotification({
+      id: `todo-${t.id}`,
+      title: t.title,
+      body: t.listName ? `${t.listName} · 할일 알림` : "할일 알림",
+      time: ms,
+    });
+  }
+}
 
 export interface ChecklistDraftItem {
   id?: string;
@@ -116,6 +136,7 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
         });
 
         set({ todos: results, lastFetchedAt: Date.now() });
+        scheduleTodoNotifications(results);
       } catch (err) {
         const retryAfter = (err as { retryAfter?: number }).retryAfter;
         const now2 = Date.now();
@@ -141,11 +162,12 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
   },
 
   updateTodo: async (accessToken, listId, taskId, updates, checklistItems) => {
-    // 낙관적 업데이트
-    const { recurrence, ...restUpdates } = updates;
+    // 낙관적 업데이트 (null로 해제되는 필드는 제외 — 다음 fetch가 반영)
+    const { recurrence, reminderDateTime, ...restUpdates } = updates;
     const optimisticUpdates: Partial<TodoTask> = {
       ...restUpdates,
       ...(recurrence ? { recurrence } : {}),
+      ...(reminderDateTime ? { reminderDateTime } : {}),
     };
     set((s) => ({
       todos: s.todos.map((t) =>
@@ -161,12 +183,15 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
       if (checklistItems) {
         await get().fetchTodos(accessToken, true);
       }
-    } catch {
+    } catch (e) {
+      console.error("[updateTodo] 실패:", e);
+      showToast(e instanceof Error ? `수정 실패: ${e.message}` : "할일 수정 실패");
       await get().fetchTodos(accessToken, true);
     }
   },
 
   deleteTodo: async (accessToken, listId, taskId) => {
+    cancelNotification(`todo-${taskId}`);
     set((s) => ({ todos: s.todos.filter((t) => t.id !== taskId) }));
     try {
       await apiDeleteTask(accessToken, listId, taskId);

@@ -23,6 +23,22 @@ export function formatDue(dateTime: string, timeZone = "UTC") {
   return { label, isPast };
 }
 
+/** Microsoft Graph dateTimeTimeZone → Unix ms (timeZone 반영).
+ *  Graph는 기본적으로 UTC로 값을 돌려주므로 timeZone을 반영해 실제 순간으로 변환한다.
+ *  Temporal 우선, fallback은 오프셋 없으면 UTC(Z)로 간주.
+ */
+export function graphDateTimeToMs(dateTime: string, timeZone = "UTC"): number {
+  const base = dateTime.slice(0, 19); // 분수초 제거
+  try {
+    const T = (window as any).Temporal; // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (T) return T.ZonedDateTime.from(`${base}[${timeZone}]`).toInstant().epochMilliseconds;
+  } catch {
+    /* fallthrough */
+  }
+  const hasZone = base.endsWith("Z") || /[+-]\d\d:?\d\d$/.test(base);
+  return new Date(hasZone ? base : base + "Z").getTime();
+}
+
 /** "2026년 6월" 형식의 월/연 라벨 */
 export function formatMonthYear(year: number, month: number): string {
   return new Date(year, month, 1).toLocaleDateString("ko-KR", { year: "numeric", month: "long" });

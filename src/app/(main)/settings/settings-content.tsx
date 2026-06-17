@@ -7,6 +7,7 @@ import { storeGet, storeSet, isTauri } from "@/lib/tauri-store";
 import { startGoogleOAuth, startMicrosoftOAuth } from "@/lib/oauth";
 import { useOAuthConnection } from "@/hooks/use-oauth-connection";
 import { DEFAULT_SHORTCUT } from "@/lib/hotkey";
+import { fireNotification } from "@/lib/notifications";
 import styles from "./page.module.css";
 
 export default function SettingsContent() {
@@ -22,6 +23,17 @@ export default function SettingsContent() {
   const [mounted, setMounted] = useState(false);
   const [savedKeys, setSavedKeys] = useState(false);
   const [shortcutSaved, setShortcutSaved] = useState(false);
+  const [notifStatus, setNotifStatus] = useState("");
+
+  const testNotification = async () => {
+    if (!isTauri()) { setNotifStatus("데스크탑 앱에서만 동작합니다."); return; }
+    try {
+      await fireNotification("Cali 알림 테스트", "이 알림이 보이면 정상입니다 ✅");
+      setNotifStatus("알림을 보냈습니다. 배너 또는 우측 상단 알림 센터를 확인하세요. (앱이 맨 앞이면 배너 대신 알림 센터로 갑니다)");
+    } catch (e) {
+      setNotifStatus(`실패: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
 
   const google = useOAuthConnection(startGoogleOAuth, setGoogleTokens);
   const microsoft = useOAuthConnection(startMicrosoftOAuth, setMicrosoftTokens);
@@ -206,6 +218,16 @@ export default function SettingsContent() {
         </div>
         {shortcutError && <p className={styles.errorText}>{shortcutError}</p>}
         <p className={styles.hint}>입력창 클릭 후 원하는 키 조합을 누르세요. 변경 시 앱을 재시작해야 적용됩니다.</p>
+      </section>
+
+      {/* 알림 테스트 */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>알림</h2>
+        </div>
+        <p className={styles.description}>할일 알림(데스크탑)이 정상 동작하는지 즉시 테스트합니다.</p>
+        <button className={styles.saveBtn} onClick={testNotification}>테스트 알림 보내기</button>
+        {notifStatus && <p className={styles.hint}>{notifStatus}</p>}
       </section>
     </>
   );

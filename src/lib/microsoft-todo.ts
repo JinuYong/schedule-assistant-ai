@@ -33,12 +33,20 @@ export interface TodoTask {
   importance?: "low" | "normal" | "high";
   recurrence?: { pattern: { type: string; interval: number }; range: { type: string } };
   dueDateTime?: { dateTime: string; timeZone: string };
+  isReminderOn?: boolean;
+  reminderDateTime?: { dateTime: string; timeZone: string };
   body?: { content: string; contentType: "text" | "html" };
   checklistItems?: ChecklistItem[];
 }
 
-export type TodoTaskUpdates = Partial<Omit<Pick<TodoTask, "title" | "dueDateTime" | "importance" | "body" | "recurrence">, "recurrence">> & {
+export type TodoTaskUpdates = Partial<
+  Omit<
+    Pick<TodoTask, "title" | "dueDateTime" | "importance" | "body" | "recurrence" | "isReminderOn" | "reminderDateTime">,
+    "recurrence" | "reminderDateTime"
+  >
+> & {
   recurrence?: TodoTask["recurrence"] | null;
+  reminderDateTime?: TodoTask["reminderDateTime"] | null;
 };
 
 export async function getTaskLists(

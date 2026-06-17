@@ -1,6 +1,7 @@
 mod claude;
 mod error;
 mod floating_macos;
+mod notification;
 mod oauth;
 
 use tauri::Manager;
@@ -27,6 +28,7 @@ pub fn run() {
             floating_macos::hide_floating,
             floating_macos::set_floating_height,
             floating_macos::set_global_shortcut,
+            notification::send_os_notification,
             oauth::exchange_google_token,
             oauth::refresh_google_token,
             oauth::exchange_microsoft_token,
