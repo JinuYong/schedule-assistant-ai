@@ -77,6 +77,91 @@ export async function parseScheduleText(
   return toolUse.input as ParsedEvent;
 }
 
+/** 자동완성에서 선택한 기존 일정에 대한 명령(삭제/수정) */
+export type EditCommand =
+  | { action: "delete" }
+  | { action: "update"; changes: ParsedEventChanges };
+
+export interface ParsedEventChanges {
+  title?: string;
+  startTime?: string; // ISO 8601
+  endTime?: string; // ISO 8601
+  location?: string;
+  isAllDay?: boolean;
+}
+
+interface TargetEventContext {
+  title: string;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  isAllDay: boolean;
+}
+
+/**
+ * 자연어 → 선택된 기존 일정에 대한 삭제/수정 명령 파싱.
+ * 사용자가 자동완성에서 대상 일정을 고른 뒤 호출한다.
+ */
+export async function parseEditCommand(
+  text: string,
+  now: string,
+  target: TargetEventContext
+): Promise<EditCommand | null> {
+  const apiKey = await getApiKey();
+
+  const targetContext =
+    `대상 일정 정보:\n` +
+    `- 제목: ${target.title}\n` +
+    `- 시작: ${target.startTime}\n` +
+    `- 종료: ${target.endTime}\n` +
+    `- 종일: ${target.isAllDay}\n` +
+    (target.location ? `- 장소: ${target.location}\n` : "");
+
+  const body = {
+    model: DEFAULT_MODEL,
+    max_tokens: 1024,
+    tools: [
+      {
+        name: "delete_schedule_event",
+        description: "사용자가 대상 일정을 삭제(취소/제거)하려 할 때 호출합니다.",
+        input_schema: { type: "object", properties: {} },
+      },
+      {
+        name: "update_schedule_event",
+        description:
+          "사용자가 대상 일정을 수정(시간 변경/제목 변경/장소 변경 등)하려 할 때 호출합니다. 변경되는 필드만 채우세요. 시간을 바꾸면 startTime과 endTime을 모두 ISO 8601로 반환하되, 변경 없는 쪽은 대상 일정의 기존 값을 그대로 유지하세요.",
+        input_schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            startTime: { type: "string", description: "ISO 8601" },
+            endTime: { type: "string", description: "ISO 8601" },
+            location: { type: "string" },
+            isAllDay: { type: "boolean" },
+          },
+        },
+      },
+    ],
+    tool_choice: { type: "any" },
+    messages: [
+      {
+        role: "user",
+        content: `현재 시각: ${now}\n${targetContext}\n다음 요청을 처리해주세요: "${text}"`,
+      },
+    ],
+  };
+
+  const result = await invoke<Record<string, unknown>>("call_claude", { apiKey, body });
+  const content = result.content as Array<{ type: string; name?: string; input?: unknown }> | undefined;
+  const toolUse = content?.find((c) => c.type === "tool_use");
+  if (!toolUse) return null;
+  if (toolUse.name === "delete_schedule_event") return { action: "delete" };
+  if (toolUse.name === "update_schedule_event") {
+    return { action: "update", changes: (toolUse.input ?? {}) as ParsedEventChanges };
+  }
+  return null;
+}
+
 /** 스트리밍 채팅 — onChunk 콜백으로 텍스트 청크 수신 */
 export async function streamChat(
   messages: Array<{ role: string; content: string }>,

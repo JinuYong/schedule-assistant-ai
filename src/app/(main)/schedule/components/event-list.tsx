@@ -17,8 +17,9 @@ export default function EventList({
 }: EventListProps) {
   return (
     <ul className={styles.eventList}>
-      {isLoading ? (<p className={styles.empty}>loading...</p>) :
-        events.length === 0 ? (<p className={styles.empty}>일정이 없습니다.</p>) : events.map((ev) => (
+      {events.length === 0 ? (
+        isLoading ? (<p className={styles.empty}>loading...</p>) : (<p className={styles.empty}>일정이 없습니다.</p>)
+      ) : events.map((ev) => (
           <li
             key={ev.id}
             className={styles.eventItem}

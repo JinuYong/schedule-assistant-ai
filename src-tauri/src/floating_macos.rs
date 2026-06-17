@@ -251,6 +251,40 @@ pub fn hide_floating(app: tauri::AppHandle, restore: bool) -> Result<(), String>
     Ok(())
 }
 
+/// 플로팅 창 높이 동적 변경 (자동완성 드롭다운 노출/숨김 시)
+/// Tauri set_size 가 커스텀 NSPanel 에서 무시될 수 있어 직접 setFrame: 호출.
+/// macOS 좌표계는 좌하단 기준이므로 상단(top)을 고정한 채 아래로 늘린다.
+#[tauri::command]
+pub fn set_floating_height(_app: tauri::AppHandle, _height: f64) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        const FLOATING_W: f64 = 620.0;
+        let window = _app
+            .get_webview_window("floating")
+            .ok_or("floating window not found")?;
+        let ns_win = window.ns_window().map_err(|e| e.to_string())?;
+        unsafe {
+            let raw = objc_msgSend
+                as unsafe extern "C" fn(*const c_void, *const c_void, ...) -> *const c_void;
+            type FnFrame    = unsafe extern "C" fn(*const c_void, *const c_void) -> NSRect;
+            type FnSetFrame = unsafe extern "C" fn(*const c_void, *const c_void, NSRect, bool);
+            let f_frame:     FnFrame    = std::mem::transmute(raw);
+            let f_set_frame: FnSetFrame = std::mem::transmute(raw);
+            let sel_frame     = sel_registerName(b"frame\0".as_ptr());
+            let sel_set_frame = sel_registerName(b"setFrame:display:\0".as_ptr());
+
+            let cur: NSRect = f_frame(ns_win as *const c_void, sel_frame);
+            let top = cur.origin.y + cur.size.height;
+            let new_rect = NSRect {
+                origin: NSPoint { x: cur.origin.x, y: top - _height },
+                size: NSSize { width: FLOATING_W, height: _height },
+            };
+            f_set_frame(ns_win as *const c_void, sel_set_frame, new_rect, true);
+        }
+    }
+    Ok(())
+}
+
 /// 메인 단축키를 새 값으로 교체 (설정에서 변경 시)
 /// Rust 레벨에서 등록하므로 WebView 재로드(HMR)와 무관하게 영구 동작
 #[tauri::command]

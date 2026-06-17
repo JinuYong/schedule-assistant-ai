@@ -39,12 +39,15 @@
         "title": "",
         "width": 620,
         "height": 64,
+        "minHeight": 64,
+        "maxWidth": 620,
+        "minWidth": 620,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": false,
-        "resizable": false,
+        "resizable": true,
         "focus": false
       }
     ],

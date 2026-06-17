@@ -25,6 +25,7 @@ pub fn run() {
             claude::stream_chat,
             floating_macos::show_floating,
             floating_macos::hide_floating,
+            floating_macos::set_floating_height,
             floating_macos::set_global_shortcut,
             oauth::exchange_google_token,
             oauth::refresh_google_token,

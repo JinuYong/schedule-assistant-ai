@@ -5,14 +5,12 @@ import {useAuthStore} from "@/store/auth";
 import {useEventsStore, CalendarEvent} from "@/store/events";
 import {useTodosStore, TodoItem} from "@/store/todos";
 import {TodoTask, TodoTaskUpdates} from "@/lib/microsoft-todo";
-import {parseScheduleText} from "@/lib/claude";
 import {
   createEvent,
   updateEvent,
   deleteEvent,
   getCalendarList,
   clearCalendarListCache,
-  buildEventFromParsed,
   CalendarListItem
 } from "@/lib/google-calendar";
 import {listen} from "@tauri-apps/api/event";
@@ -25,13 +23,14 @@ import styles from "./page.module.css";
 import UnavailableContent from '@/components/unavailable-content'
 import {
   buildCells, daysInMonth, isoDate, getEventDateKey, buildMovedTimeFields,
-  matchCalendar, buildTodoRecurrence, EMPTY_FORM, EMPTY_TODO_FORM,
+  eventShortLabel, buildTodoRecurrence, EMPTY_FORM, EMPTY_TODO_FORM,
   type EventForm, type TodoFormState,
 } from "./calendar-utils";
 import {useTodayInfo} from "./hooks/use-today-info";
 import {useSidePanelWidth} from "./hooks/use-side-panel-width";
 import {useEventDrag} from "./hooks/use-event-drag";
 import {useTodoActions} from "@/hooks/use-todo-actions";
+import {useScheduleCommand} from "@/hooks/use-schedule-command";
 import CalendarGrid from "./components/calendar-grid";
 import EventList from "./components/event-list";
 import TodoGroups from "./components/todo-groups";
@@ -51,8 +50,6 @@ export default function SchedulePage() {
   const [currentMonth, setCurrentMonth] = useState(todayInfo.month);
   const [selectedDate, setSelectedDate] = useState<string>(todayInfo.date);
   const [calendars, setCalendars] = useState<CalendarListItem[]>([]);
-  const [quickInput, setQuickInput] = useState("");
-  const [quickStatus, setQuickStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [eventForm, setEventForm] = useState<EventForm>(EMPTY_FORM);
   const [todoForm, setTodoForm] = useState<TodoFormState>(EMPTY_TODO_FORM);
@@ -216,37 +213,39 @@ export default function SchedulePage() {
     await Promise.all(p);
   }, [refreshGoogle, refreshMicrosoft, fetchEvents, fetchTodos, gridRange]);
 
-  const handleQuickAdd = useCallback(async (e: { preventDefault(): void }) => {
-    e.preventDefault();
-    const text = quickInput.trim();
-    if (!text || quickStatus === "loading") return;
-    setQuickStatus("loading");
-    try {
-      const tokens = await refreshGoogle();
-      if (!tokens?.access_token) throw new Error("Google 계정 연결이 필요합니다.");
-      const now = new Date().toLocaleString("ko-KR", {timeZone: "Asia/Seoul"});
-      const calendarNames = calendars.map((c) => c.summary);
-      const parsed = await parseScheduleText(text, now, calendarNames);
-      if (!parsed) throw new Error("파싱 실패");
-
-      // 캘린더 매칭
-      const matched = parsed.calendarName ? matchCalendar(parsed.calendarName, calendars) : undefined;
-      const calendarId = matched?.id ?? primaryCalendarId;
-
-      await createEvent(tokens.access_token, buildEventFromParsed(parsed), calendarId);
-
-      setQuickInput("");
-      setQuickStatus("done");
+  const {
+    input: quickInput,
+    setInput: setQuickInput,
+    status: quickStatus,
+    matches: quickMatches,
+    activeIndex: quickActiveIndex,
+    setActiveIndex: setQuickActiveIndex,
+    showDropdown: showQuickDropdown,
+    loading: quickDateLoading,
+    lockedTarget: quickLockedTarget,
+    lockTarget: lockQuickTarget,
+    clearLock: clearQuickLock,
+    handleKeyDown: onQuickKeyDown,
+    submit: submitQuickCommand,
+  } = useScheduleCommand({
+    events,
+    calendars,
+    primaryCalendarId,
+    getToken: useCallback(async () => (await refreshGoogle())?.access_token ?? null, [refreshGoogle]),
+    onMutated: useCallback(async () => {
       invalidateCache();
-      await fetchEvents(tokens.access_token, gridRange.timeMin, gridRange.timeMax);
-      setTimeout(() => setQuickStatus("idle"), 1500);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "일정 추가에 실패했습니다.";
-      showToast(msg);
-      setQuickStatus("error");
-      setTimeout(() => setQuickStatus("idle"), 2000);
-    }
-  }, [quickInput, quickStatus, refreshGoogle, fetchEvents, gridRange, calendars, primaryCalendarId]);
+      const tokens = await refreshGoogle();
+      if (tokens?.access_token) {
+        await fetchEvents(tokens.access_token, gridRangeRef.current.timeMin, gridRangeRef.current.timeMax);
+      }
+    }, [refreshGoogle, invalidateCache, fetchEvents]),
+    onError: showToast,
+  });
+
+  const handleQuickAdd = useCallback((e: { preventDefault(): void }) => {
+    e.preventDefault();
+    void submitQuickCommand();
+  }, [submitQuickCommand]);
 
   const handleEventFormSubmit = useCallback(async (e: { preventDefault(): void }) => {
     e.preventDefault();
@@ -431,18 +430,59 @@ export default function SchedulePage() {
 
   return (
     <div className={styles.container}>
-      {/* 자연어 빠른 추가 */}
+      {/* 자연어 입력: 대상 미지정 + Enter → 생성 · 후보 지정 후 명령 → 수정/삭제 */}
       <form className={styles.quickAddForm} onSubmit={handleQuickAdd}>
-        <input
-          className={styles.quickAddInput}
-          value={quickInput}
-          onChange={(e) => setQuickInput(e.target.value)}
-          placeholder="자연어로 일정 추가 (예: 내일 오후 3시 팀 미팅 회사 캘린더에)"
-          disabled={quickStatus === "loading"}
-        />
+        <div className={styles.quickAddInputWrap}>
+          {quickLockedTarget && (
+            <span className={styles.lockChip} title={quickLockedTarget.title}>
+              <span className={styles.lockChipLabel}>{quickLockedTarget.title}</span>
+              <button type="button" className={styles.lockChipClear} onClick={clearQuickLock} aria-label="대상 해제">✕</button>
+            </span>
+          )}
+          <input
+            className={styles.quickAddInput}
+            value={quickInput}
+            onChange={(e) => setQuickInput(e.target.value)}
+            onKeyDown={onQuickKeyDown}
+            placeholder={quickLockedTarget
+              ? "수정/삭제 명령 입력 (예: 삭제, 오후 7시로 변경)"
+              : "자연어로 일정 추가 (예: 내일 오후 3시 팀 미팅 회사 캘린더에)"}
+            disabled={quickStatus === "loading"}
+            autoComplete="off"
+          />
+          {showQuickDropdown && (
+            <ul className={styles.quickDropdown}>
+              {quickDateLoading && quickMatches.length === 0 ? (
+                [0, 1].map((i) => (
+                  <li key={`sk-${i}`} className={styles.skeletonRow}>
+                    <span className={`${styles.skeletonBar} ${styles.skeletonTitle}`}/>
+                    <span className={`${styles.skeletonBar} ${styles.skeletonMeta}`}/>
+                  </li>
+                ))
+              ) : (
+                <li className={styles.quickDropdownHint}>
+                  ↑↓로 대상 지정 후 명령 입력 · 지정 없이 Enter는 새 일정
+                </li>
+              )}
+              {quickMatches.map((ev, i) => (
+                <li
+                  key={ev.id}
+                  className={`${styles.quickDropdownItem} ${i === quickActiveIndex ? styles.quickDropdownItemActive : ""}`}
+                  onMouseEnter={() => setQuickActiveIndex(i)}
+                  onMouseDown={(e) => { e.preventDefault(); lockQuickTarget(ev); }}
+                  style={ev.calendarColor ? {borderLeftColor: ev.calendarColor} : undefined}
+                >
+                  <span className={styles.quickDropdownTitle}>{ev.title}</span>
+                  <span className={styles.quickDropdownMeta}>{eventShortLabel(ev)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <button className={styles.quickAddBtn} type="submit"
-                disabled={!quickInput.trim() || quickStatus === "loading"}>
-          {quickStatus === "loading" ? "분석 중..." : quickStatus === "done" ? "완료 ✓" : quickStatus === "error" ? "오류 ✗" : "추가"}
+                disabled={(!quickInput.trim() && !quickLockedTarget) || quickStatus === "loading"}>
+          {quickStatus === "loading" ? "분석 중..." : quickStatus === "done" ? "완료 ✓" : quickStatus === "error" ? "오류 ✗"
+            : quickLockedTarget ? "실행" : "추가"}
         </button>
       </form>
 
