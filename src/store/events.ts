@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { listUpcomingEvents, listEventsInRange, GCalEvent } from "@/lib/google-calendar";
 import { storeSet } from "@/lib/tauri-store";
-import { scheduleNotification, cancelAllNotifications } from "@/lib/notifications";
+import { scheduleNotification, cancelNotificationsByPrefix } from "@/lib/notifications";
 import { showToast } from "./toast";
 
 export interface CalendarEvent {
@@ -33,7 +33,7 @@ export function mapGCalEvent(e: GCalEvent): CalendarEvent {
 const NOTIFY_BEFORE_MS = 15 * 60 * 1000; // 15분 전
 
 async function scheduleEventNotifications(events: CalendarEvent[]) {
-  cancelAllNotifications();
+  cancelNotificationsByPrefix("event-");
   for (const ev of events) {
     if (ev.isAllDay) continue;
     const startMs = new Date(ev.startTime).getTime();
