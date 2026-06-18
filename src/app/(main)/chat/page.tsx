@@ -3,13 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { streamChat } from "@/lib/claude";
 import { useEventsStore } from "@/store/events";
+import { useChatStore, ChatMessage } from "@/store/chat";
 import { showToast } from "@/store/toast";
 import styles from "./page.module.css";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
 
 function buildSystemPrompt(events: ReturnType<typeof useEventsStore.getState>["events"]): string {
   const now = new Date();
@@ -60,8 +56,7 @@ function buildSystemPrompt(events: ReturnType<typeof useEventsStore.getState>["e
 }
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
+  const { messages, setMessages, input, setInput, clear } = useChatStore();
   const [isStreaming, setIsStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -88,7 +83,7 @@ export default function ChatPage() {
     const text = input.trim();
     if (!text || isStreaming) return;
 
-    const newMessages: Message[] = [...messages, { role: "user", content: text }];
+    const newMessages: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages([...newMessages, { role: "assistant", content: "" }]);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -136,7 +131,12 @@ export default function ChatPage() {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.title}>AI 브리핑</h1>
+      <div className={styles.header}>
+        <h1 className={styles.title}>AI 브리핑</h1>
+        {messages.length > 0 && (
+          <button className={styles.clearBtn} onClick={clear} disabled={isStreaming}>새 대화</button>
+        )}
+      </div>
 
       <div className={styles.messageArea}>
         {messages.length === 0 && (
