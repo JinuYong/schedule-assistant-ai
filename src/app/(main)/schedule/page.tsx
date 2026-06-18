@@ -38,11 +38,25 @@ import EventDetailModal from "./components/event-detail-modal";
 import TodoFormModal from "./components/todo-form-modal";
 
 export default function SchedulePage() {
-  const {googleTokens, microsoftTokens, refreshGoogle, refreshMicrosoft} = useAuthStore();
-  const {events, isLoading, error, fetchEvents, prefetchEvents, invalidateCache} = useEventsStore();
-  const {
-    todos, isLoading: todosLoading, error: todosError, fetchTodos, createTodo, updateTodo
-  } = useTodosStore();
+  // 필드별 셀렉터 구독 — 미사용 스토어 필드(todos.lastFetchedAt 등) 변경 시 리렌더 방지
+  const googleTokens = useAuthStore((s) => s.googleTokens);
+  const microsoftTokens = useAuthStore((s) => s.microsoftTokens);
+  const refreshGoogle = useAuthStore((s) => s.refreshGoogle);
+  const refreshMicrosoft = useAuthStore((s) => s.refreshMicrosoft);
+
+  const events = useEventsStore((s) => s.events);
+  const isLoading = useEventsStore((s) => s.isLoading);
+  const error = useEventsStore((s) => s.error);
+  const fetchEvents = useEventsStore((s) => s.fetchEvents);
+  const prefetchEvents = useEventsStore((s) => s.prefetchEvents);
+  const invalidateCache = useEventsStore((s) => s.invalidateCache);
+
+  const todos = useTodosStore((s) => s.todos);
+  const todosLoading = useTodosStore((s) => s.isLoading);
+  const todosError = useTodosStore((s) => s.error);
+  const fetchTodos = useTodosStore((s) => s.fetchTodos);
+  const createTodo = useTodosStore((s) => s.createTodo);
+  const updateTodo = useTodosStore((s) => s.updateTodo);
 
   const {todayInfo, refreshTodayInfo} = useTodayInfo();
   const [currentYear, setCurrentYear] = useState(todayInfo.year);
@@ -76,7 +90,7 @@ export default function SchedulePage() {
         setCalendars(list);
       }
     })();
-  }, [googleTokens?.access_token]); // eslint-disable-line
+  }, [googleTokens?.access_token]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존(객체 재생성 시 재실행 방지), 나머지 누락 deps는 안정적 액션
 
   // 월별 이벤트 로드 + 인접 달 백그라운드 프리페치
   useEffect(() => {
@@ -97,14 +111,14 @@ export default function SchedulePage() {
       void prefetchEvents(tokens.access_token, new Date(prevCells[0].date + "T00:00:00").toISOString(), new Date(prevCells[prevCells.length - 1].date + "T23:59:59").toISOString());
       void prefetchEvents(tokens.access_token, new Date(nextCells[0].date + "T00:00:00").toISOString(), new Date(nextCells[nextCells.length - 1].date + "T23:59:59").toISOString());
     })();
-  }, [googleTokens?.access_token, currentYear, currentMonth]); // eslint-disable-line
+  }, [googleTokens?.access_token, currentYear, currentMonth]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존(객체 재생성 시 재실행 방지), 나머지 누락 deps는 안정적 액션
 
   // Microsoft Todo 로드 — refreshMicrosoft() 거치지 않고 저장된 토큰 직접 사용
   // (refresh 중 Rust invoke 실패 시 fetchTodos가 아예 호출되지 않는 문제 방지)
   useEffect(() => {
     if (!microsoftTokens?.access_token) return;
     fetchTodos(microsoftTokens.access_token);
-  }, [microsoftTokens?.access_token]); // eslint-disable-line
+  }, [microsoftTokens?.access_token]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존(객체 재생성 시 재실행 방지), 나머지 누락 deps는 안정적 액션
 
   const cells = useMemo(() => buildCells(currentYear, currentMonth), [currentYear, currentMonth]);
 
@@ -154,7 +168,7 @@ export default function SchedulePage() {
       unlisten = fn;
     });
     return () => unlisten?.();
-  }, [googleTokens?.access_token]); // eslint-disable-line
+  }, [googleTokens?.access_token]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존(객체 재생성 시 재실행 방지), 나머지 누락 deps는 안정적 액션
 
   const prevMonth = useCallback(() => {
     const newYear = currentMonth === 0 ? currentYear - 1 : currentYear;
@@ -202,6 +216,12 @@ export default function SchedulePage() {
   }, [primaryCalendarId]);
 
   const closeEventForm = useCallback(() => setEventForm(EMPTY_FORM), []);
+
+  // 칩 클릭 핸들러 — CalendarGrid memo가 깨지지 않도록 안정적 참조 유지
+  const handleEventChipClick = useCallback((ev: CalendarEvent, date: string) => {
+    setSelectedDate(date);
+    setDetailEvent(ev);
+  }, []);
 
   const handleRefreshAll = useCallback(async () => {
     clearCalendarListCache();
@@ -483,7 +503,7 @@ export default function SchedulePage() {
               nextMonth={nextMonth}
               onSelectDate={setSelectedDate}
               onAddEvent={openEventForm}
-              onEventChipClick={(ev, date) => { setSelectedDate(date); setDetailEvent(ev); }}
+              onEventChipClick={handleEventChipClick}
               onEventMouseDown={startDrag}
             />
 

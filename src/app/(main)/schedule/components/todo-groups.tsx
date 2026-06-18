@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { TodoItem } from "@/store/todos";
 import { formatDue } from "@/lib/date-utils";
 import { IconPencil, IconTrash, IconStar, IconRepeat, IconChevron } from "@/components/icons";
@@ -23,7 +24,7 @@ interface TodoGroupsProps {
   onToggleChecklist: (todo: TodoItem, itemId: string, isChecked: boolean) => void;
 }
 
-export default function TodoGroups({
+function TodoGroups({
   groups, emptyMessage, todosError, todosLoading, expandedTodos,
   onToggleExpand, onComplete, onEditTodo, onDeleteTodo, onToggleImportance, onToggleChecklist,
 }: TodoGroupsProps) {
@@ -112,3 +113,5 @@ export default function TodoGroups({
     </>
   );
 }
+
+export default memo(TodoGroups);
