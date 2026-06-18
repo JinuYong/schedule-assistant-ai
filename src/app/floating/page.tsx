@@ -10,7 +10,7 @@ import { getCalendarList, listEventsInRange, type CalendarListItem } from "@/lib
 import { useAuthStore } from "@/store/auth";
 import { CalendarEvent, mapGCalEvent } from "@/store/events";
 import { useScheduleCommand } from "@/hooks/use-schedule-command";
-import { eventShortLabel } from "@/app/(main)/schedule/calendar-utils";
+import { eventShortLabel } from "@/lib/event-match";
 import styles from "./page.module.css";
 
 const BASE_HEIGHT = 64;

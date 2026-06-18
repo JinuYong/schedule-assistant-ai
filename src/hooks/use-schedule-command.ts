@@ -12,7 +12,7 @@ import {
   type GCalEvent,
 } from "@/lib/google-calendar";
 import { CalendarEvent, mapGCalEvent } from "@/store/events";
-import { matchEventsByText, matchCalendar, parseDateHint } from "@/app/(main)/schedule/calendar-utils";
+import { matchEventsByText, matchCalendar, parseDateHint } from "@/lib/event-match";
 
 export type CommandStatus = "idle" | "loading" | "done" | "error";
 export type CommandAction = "create" | "update" | "delete";

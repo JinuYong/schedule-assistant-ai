@@ -13,18 +13,16 @@ import {
   CalendarListItem
 } from "@/lib/google-calendar";
 import {listen} from "@tauri-apps/api/event";
-import {formatMonthYear, formatDateLabel} from "@/lib/date-utils";
+import {formatMonthYear, formatDateLabel, isoDate} from "@/lib/date-utils";
 import {isTauri} from "@/lib/tauri-store";
 import {showToast} from "@/store/toast";
 import Divider from "@/components/divider";
 import {IconChevronLeft, IconChevronRight, IconRefresh, IconPlus} from "@/components/icons";
 import styles from "./page.module.css";
 import UnavailableContent from '@/components/unavailable-content'
-import {
-  buildCells, daysInMonth, isoDate, getEventDateKey, buildMovedTimeFields,
-  eventShortLabel, buildTodoTaskFromForm, todoEditFormState, EMPTY_FORM, EMPTY_TODO_FORM,
-  type EventForm, type TodoFormState,
-} from "./calendar-utils";
+import { buildCells, daysInMonth, buildMovedTimeFields, EMPTY_FORM, type EventForm } from "./calendar-utils";
+import { getEventDateKey, eventShortLabel } from "@/lib/event-match";
+import { buildTodoTaskFromForm, todoEditFormState, EMPTY_TODO_FORM, type TodoFormState } from "@/lib/todo-form";
 import {useTodayInfo} from "./hooks/use-today-info";
 import {useSidePanelWidth} from "./hooks/use-side-panel-width";
 import {useEventDrag} from "./hooks/use-event-drag";

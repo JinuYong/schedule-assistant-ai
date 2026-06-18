@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction } from "react";
 import { IconClose, IconStar, IconRepeat, IconBell, IconPlus } from "@/components/icons";
-import { TodoFormState, recurrenceLabel } from "../calendar-utils";
+import { TodoFormState, recurrenceLabel } from "@/lib/todo-form";
 import styles from "../page.module.css";
 
 interface TodoFormModalProps {

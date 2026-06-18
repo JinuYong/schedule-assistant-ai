@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarEvent } from "@/store/events";
-import { getEventDateKey } from "../calendar-utils";
+import { getEventDateKey } from "@/lib/event-match";
 
 interface EventDragOptions {
   /** 다른 날짜로 드롭 시 (이동) */

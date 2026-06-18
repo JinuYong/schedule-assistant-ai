@@ -86,7 +86,7 @@ schedule-assistant-ai/
 │   ├── app/
 │   │   ├── (main)/              # 메인 앱 UI
 │   │   │   ├── schedule/        # Google Calendar 일정 (컨테이너 page.tsx)
-│   │   │   │   ├── calendar-utils.ts  # 그리드 계산·이벤트 유틸·폼 타입/상수
+│   │   │   │   ├── calendar-utils.ts  # 달력 그리드 계산 + 일정 폼 타입/상수 (schedule 로컬)
 │   │   │   │   ├── hooks/       # use-today-info / use-side-panel-width / use-event-drag
 │   │   │   │   └── components/  # calendar-grid, event-list, todo-groups, *-modal
 │   │   │   ├── chat/            # Claude AI 채팅 + 브리핑
@@ -108,6 +108,9 @@ schedule-assistant-ai/
 │   │   ├── claude.ts            # Claude API (invoke "call_claude" / "stream_chat")
 │   │   ├── google-calendar.ts   # Google Calendar REST API + buildEventFromParsed
 │   │   ├── microsoft-todo.ts    # Microsoft Graph REST API (직접 fetch)
+│   │   ├── todo-form.ts         # 할일 폼 상태/빌더 (TodoFormState·buildTodoTaskFromForm 등, 공유)
+│   │   ├── event-match.ts       # 이벤트 자동완성·매칭 (matchEventsByText·parseDateHint·matchCalendar, 공유)
+│   │   ├── dev-mock.ts          # 개발용 더미데이터 (NEXT_PUBLIC_MOCK=1)
 │   │   ├── oauth.ts             # Google/Microsoft OAuth 흐름 (provider 팩토리)
 │   │   ├── authenticated-fetch.ts # 공통 인증 fetch 골격 (401 재시도·429 처리)
 │   │   ├── api-errors.ts        # AuthError / RateLimitError

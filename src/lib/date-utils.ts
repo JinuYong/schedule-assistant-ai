@@ -23,6 +23,11 @@ export function formatDue(dateTime: string, timeZone = "UTC") {
   return { label, isPast };
 }
 
+/** (year, month0-based, day) → "YYYY-MM-DD" */
+export function isoDate(y: number, m: number, d: number): string {
+  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
 /** Microsoft Graph dateTimeTimeZone → Unix ms (timeZone 반영).
  *  Graph는 기본적으로 UTC로 값을 돌려주므로 timeZone을 반영해 실제 순간으로 변환한다.
  *  Temporal 우선, fallback은 오프셋 없으면 UTC(Z)로 간주.

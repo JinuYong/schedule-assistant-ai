@@ -6,7 +6,7 @@ import { useTodosStore, TodoItem } from "@/store/todos";
 import { useTodoActions } from "@/hooks/use-todo-actions";
 import {
   EMPTY_TODO_FORM, todoEditFormState, buildTodoTaskFromForm, type TodoFormState,
-} from "@/app/(main)/schedule/calendar-utils";
+} from "@/lib/todo-form";
 import TodoFormModal from "@/app/(main)/schedule/components/todo-form-modal";
 import styles from "./page.module.css";
 import { formatDue } from "@/lib/date-utils";
