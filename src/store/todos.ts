@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createSingleFlight } from "@/lib/promise-cache";
 import { scheduleNotification, cancelNotification, cancelNotificationsByPrefix } from "@/lib/notifications";
 import { graphDateTimeToMs } from "@/lib/date-utils";
+import { MOCK_ENABLED, MOCK_TODOS } from "@/lib/dev-mock";
 import { showToast } from "./toast";
 import {
   getTaskLists, getTasks,
@@ -92,13 +93,14 @@ async function syncChecklistItems(
 }
 
 export const useTodosStore = create<TodosStore>((set, get) => ({
-  todos: [],
+  todos: MOCK_TODOS,
   isLoading: false,
   error: null,
   lastFetchedAt: 0,
   throttledUntil: 0,
 
   fetchTodos: async (accessToken, force = false) => {
+    if (MOCK_ENABLED) return; // 더미 모드: 네트워크 건너뛰고 주입된 할일 유지
     if (fetchTodosFlight.inflight) return fetchTodosFlight.inflight;
 
     const now = Date.now();

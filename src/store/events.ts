@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { listUpcomingEvents, listEventsInRange, GCalEvent } from "@/lib/google-calendar";
 import { storeSet } from "@/lib/tauri-store";
 import { scheduleNotification, cancelNotificationsByPrefix } from "@/lib/notifications";
+import { MOCK_ENABLED, MOCK_EVENTS } from "@/lib/dev-mock";
 import { showToast } from "./toast";
 
 export interface CalendarEvent {
@@ -72,7 +73,7 @@ interface EventsStore {
 }
 
 export const useEventsStore = create<EventsStore>((set) => ({
-  events: [],
+  events: MOCK_EVENTS,
   isLoading: false,
   error: null,
 
@@ -83,6 +84,7 @@ export const useEventsStore = create<EventsStore>((set) => ({
 
   /** 이벤트 조회 — 캐시가 있으면 즉시 표시 후 백그라운드 갱신 */
   fetchEvents: async (accessToken, timeMin, timeMax) => {
+    if (MOCK_ENABLED) return; // 더미 모드: 네트워크 건너뛰고 주입된 이벤트 유지
     const key = timeMin && timeMax ? eventCacheKey(timeMin, timeMax) : null;
 
     // 캐시 히트 → 즉시 표시하고 로딩 시작

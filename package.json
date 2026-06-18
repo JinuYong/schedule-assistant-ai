@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3100",
+    "dev": "NEXT_PUBLIC_MOCK=1 next dev --port 3100",
+    "dev:web": "next dev --port 3100",
     "build": "next build",
     "tauri": "tauri",
     "dev:tauri": "tauri dev",
