@@ -10,7 +10,7 @@
     "dev:tauri": "tauri dev",
     "build:tauri": "tauri build",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src"
   },
   "dependencies": {
     "@fabianlars/tauri-plugin-oauth": "^2.0.0",

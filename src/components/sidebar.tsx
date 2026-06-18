@@ -30,6 +30,8 @@ export default function Sidebar() {
     const saved = Number(localStorage.getItem("sidebar-width"));
     if (!Number.isFinite(saved)) return;
     const nextWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, saved));
+    // SSR 하이드레이션 일치를 위해 마운트 후 1회 복원하는 의도된 패턴
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWidth(nextWidth);
     setIsIconOnly(nextWidth <= ICON_ONLY_WIDTH);
   }, []);

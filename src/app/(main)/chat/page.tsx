@@ -120,7 +120,7 @@ export default function ChatPage() {
       });
       setIsStreaming(false);
     }
-  }, [input, isStreaming, messages, events]);
+  }, [input, isStreaming, messages, events, setMessages, setInput]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

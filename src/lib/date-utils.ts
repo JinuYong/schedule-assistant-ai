@@ -35,7 +35,7 @@ export function isoDate(y: number, m: number, d: number): string {
 export function graphDateTimeToMs(dateTime: string, timeZone = "UTC"): number {
   const base = dateTime.slice(0, 19); // 분수초 제거
   try {
-    const T = (window as any).Temporal; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const T = (window as any).Temporal;
     if (T) return T.ZonedDateTime.from(`${base}[${timeZone}]`).toInstant().epochMilliseconds;
   } catch {
     /* fallthrough */

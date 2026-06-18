@@ -28,7 +28,7 @@ export function useEventDrag(opts: EventDragOptions) {
   const dragStartPosRef = useRef({ x: 0, y: 0 });
   const hasDragMovedRef = useRef(false);
   const optsRef = useRef(opts);
-  optsRef.current = opts;
+  useEffect(() => { optsRef.current = opts; });
 
   const startDrag = useCallback((ev: CalendarEvent, e: React.MouseEvent) => {
     e.preventDefault();
@@ -86,7 +86,7 @@ export function useEventDrag(opts: EventDragOptions) {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [pressing]); // eslint-disable-line
+  }, [pressing]);
 
   return { draggingEvent, dragOverDate, ghostPos, startDrag };
 }

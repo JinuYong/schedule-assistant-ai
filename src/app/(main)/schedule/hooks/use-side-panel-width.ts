@@ -15,6 +15,8 @@ export function useSidePanelWidth() {
   // 너비 localStorage 복원
   useEffect(() => {
     const saved = localStorage.getItem("schedule-side-width");
+    // SSR 하이드레이션 일치를 위해 마운트 후 1회 복원하는 의도된 패턴
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved) setSidePanelWidth(Math.max(MIN_SIDE_WIDTH, Math.min(MAX_SIDE_WIDTH, Number(saved))));
   }, []);
 
