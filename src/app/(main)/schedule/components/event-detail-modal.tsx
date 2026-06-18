@@ -28,7 +28,7 @@ export default function EventDetailModal({
         </div>
         <div className={styles.detailBody}>
           <p className={styles.detailRow}>
-            🕐 {event.isAllDay
+            <span className={styles.detailIcon}>🕐</span>{event.isAllDay
             ? new Date(event.startTime + "T00:00:00").toLocaleDateString("ko-KR", {
             month: "long",
             day: "numeric",
@@ -49,10 +49,10 @@ export default function EventDetailModal({
           }
           </p>
           {event.location && (
-            <p className={styles.detailRow}>📍 {event.location}</p>
+            <p className={styles.detailRow}><span className={styles.detailIcon}>📍</span>{event.location}</p>
           )}
           <p className={styles.detailRow}>
-            🗂 {calendars.find((c) => c.id === event.calendarId)?.summary ?? "기본 캘린더"}
+            <span className={styles.detailIcon}>🗂</span>{calendars.find((c) => c.id === event.calendarId)?.summary ?? "기본 캘린더"}
           </p>
           {event.description && (
             <p className={styles.detailDesc}>{event.description}</p>

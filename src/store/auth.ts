@@ -7,6 +7,7 @@ import {
 import { AuthError } from "@/lib/api-errors";
 import { createSingleFlight, type SingleFlight } from "@/lib/promise-cache";
 import type { BaseTokens } from "@/types/tokens";
+import { MOCK_ENABLED, MOCK_GOOGLE_TOKENS, MOCK_MICROSOFT_TOKENS } from "@/lib/dev-mock";
 import { showToast } from '@/store/toast'
 
 export type GoogleTokens = BaseTokens;
@@ -100,8 +101,8 @@ export const useAuthStore = create<AuthStore>((set, get) => {
   });
 
   return {
-    googleTokens: null,
-    microsoftTokens: null,
+    googleTokens: MOCK_GOOGLE_TOKENS,
+    microsoftTokens: MOCK_MICROSOFT_TOKENS,
 
     setGoogleTokens: (tokens) => {
       set({ googleTokens: tokens });
@@ -114,6 +115,7 @@ export const useAuthStore = create<AuthStore>((set, get) => {
     },
 
     loadFromStore: async () => {
+      if (MOCK_ENABLED) return; // 더미 모드에선 주입된 토큰 유지
       const [googleTokens, microsoftTokens] = await Promise.all([
         storeGet<GoogleTokens>("google.tokens"),
         storeGet<MicrosoftTokens>("microsoft.tokens"),
