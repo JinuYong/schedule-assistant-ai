@@ -16,10 +16,14 @@ import {
 } from "@/components/icons";
 
 export default function TodoPage() {
-  const { microsoftTokens } = useAuthStore();
-  const {
-    todos, isLoading, error, fetchTodos, createTodo, updateTodo
-  } = useTodosStore();
+  // 필드별 셀렉터 구독 — 미사용 필드(lastFetchedAt 등) 변경 시 리렌더 방지
+  const microsoftTokens = useAuthStore((s) => s.microsoftTokens);
+  const todos = useTodosStore((s) => s.todos);
+  const isLoading = useTodosStore((s) => s.isLoading);
+  const error = useTodosStore((s) => s.error);
+  const fetchTodos = useTodosStore((s) => s.fetchTodos);
+  const createTodo = useTodosStore((s) => s.createTodo);
+  const updateTodo = useTodosStore((s) => s.updateTodo);
   const [ expanded, setExpanded ] = useState<Set<string>>(new Set());
   const [ form, setForm ] = useState<TodoFormState>(EMPTY_TODO_FORM);
   const [ submitting, setSubmitting ] = useState(false);
@@ -39,7 +43,7 @@ export default function TodoPage() {
   useEffect(() => {
     if (!microsoftTokens?.access_token) return;
     fetchTodos(microsoftTokens.access_token);
-  }, [ microsoftTokens?.access_token ]); // eslint-disable-line
+  }, [ microsoftTokens?.access_token ]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존, fetchTodos는 안정적 액션
 
   const toggleExpand = useCallback((id: string) => {
     setExpanded((prev) => {
