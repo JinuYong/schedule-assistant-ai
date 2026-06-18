@@ -105,13 +105,16 @@ export default function TodoPage() {
     <div className={ styles.container }>
       <div className={ styles.header }>
         <h1 className={ styles.title }>할일</h1>
-        <button className={ styles.refreshBtn } onClick={ () => loadTodos(true) } disabled={ isLoading } title="새로고침">
-          <IconRefresh />
-        </button>
+        <div className={ styles.refreshGroup }>
+          { isLoading && <span className={ styles.loadingDot } /> }
+          <button className={ styles.refreshBtn } onClick={ () => loadTodos(true) } disabled={ isLoading } title="새로고침">
+            <IconRefresh />
+          </button>
+        </div>
       </div>
 
       { error && <p className={ styles.error }>{ error }</p> }
-      { isLoading && <p className={ styles.loading }>불러오는 중...</p> }
+      { isLoading && todos.length === 0 && <p className={ styles.loading }>불러오는 중...</p> }
       { !isLoading && todos.length === 0 && !error && <p className={ styles.empty }>미완료 할일이 없습니다.</p> }
 
       <div className={ styles.lists }>
