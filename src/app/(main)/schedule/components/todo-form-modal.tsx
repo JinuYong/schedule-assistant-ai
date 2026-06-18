@@ -33,7 +33,7 @@ export default function TodoFormModal({ form, setForm, todoLists, submitting, on
               />
               <button
                 type="button"
-                className={`${styles.todoModalIconBtn}${form.importance === "high" ? ` ${styles.todoModalIconBtnActive}` : ""}`}
+                className={`${styles.todoModalIconBtn} ${styles.todoModalStarBtn}${form.importance === "high" ? ` ${styles.todoModalIconBtnActive}` : ""}`}
                 onClick={() => setForm((f) => ({...f, importance: f.importance === "high" ? "normal" : "high"}))}
                 title={form.importance === "high" ? "즐겨찾기 해제" : "즐겨찾기"}
               >

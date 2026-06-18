@@ -1175,25 +1175,54 @@
   gap: 8px;
 }
 
+/* 인접한 아이콘 버튼끼리(반복↔알림)만 더 붙임 — 입력↔버튼 간격은 유지 */
+.todoModalIconBtn + .todoModalIconBtn {
+  margin-left: -5px;
+}
+
 .todoModalIconBtn {
   flex-shrink: 0;
-  width: 36px;
+  width: 30px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-border);
+  border: none;
   border-radius: var(--radius-sm);
-  background: var(--color-bg);
+  background: transparent;
   color: var(--color-text-secondary);
-  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  transition: color 0.12s;
 }
 
-.todoModalIconBtn:hover,
-.todoModalIconBtnActive {
-  border-color: #f5a623;
+.todoModalIconBtn:hover {
+  color: var(--color-text-primary);
+}
+
+.todoModalIconBtnActive,
+.todoModalIconBtnActive:hover {
+  color: var(--color-accent);
+}
+
+/* 즐겨찾기(별)만 활성 시 목록 별과 같은 금색 */
+.todoModalStarBtn.todoModalIconBtnActive,
+.todoModalStarBtn.todoModalIconBtnActive:hover {
   color: #f5a623;
-  background: rgba(245, 166, 35, 0.08);
+}
+
+/* 버튼 안 아이콘이 버튼 색(기본/호버/활성)을 그대로 따르고, 크기·굵기를 통일
+   — 아이콘 자체 클래스의 고정 색(.iconRepeat 등)과 제각각 굵기(별 1.8)를 덮어씀 */
+.todoModalIconBtn svg {
+  width: 16px;
+  height: 16px;
+  color: inherit;
+  opacity: 0.55;
+  stroke-width: 1.9;
+}
+
+/* 호버·활성 시에는 또렷하게 (활성 accent/금색이 흐려지지 않도록) */
+.todoModalIconBtn:hover svg,
+.todoModalIconBtnActive svg {
+  opacity: 1;
 }
 
 .repeatPanel {
@@ -1209,6 +1238,12 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 6px;
+}
+
+/* 알림·반복 패널 인풋은 체크리스트 인풋과 같은 높이로 (32px) */
+.repeatControls .formInput {
+  height: 32px;
+  font-size: 13px;
 }
 
 .repeatIntervalControl {
