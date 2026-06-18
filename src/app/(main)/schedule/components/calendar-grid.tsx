@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import { CalendarEvent } from "@/store/events";
 import { formatTime } from "@/lib/date-utils";
 import { IconPlus } from "@/components/icons";
@@ -22,7 +22,7 @@ interface CalendarGridProps {
   onEventMouseDown: (ev: CalendarEvent, e: React.MouseEvent) => void;
 }
 
-export default function CalendarGrid({
+function CalendarGrid({
   cells, todayDate, selectedDate, eventsByDate, draggingEvent, dragOverDate,
   prevMonth, nextMonth, onSelectDate, onAddEvent, onEventChipClick, onEventMouseDown,
 }: CalendarGridProps) {
@@ -121,3 +121,5 @@ export default function CalendarGrid({
     </div>
   );
 }
+
+export default memo(CalendarGrid);

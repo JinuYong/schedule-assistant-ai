@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { CalendarEvent } from "@/store/events";
 import { formatTime } from "@/lib/date-utils";
 import { IconPencil, IconClose } from "@/components/icons";
@@ -12,7 +13,7 @@ interface EventListProps {
   onDelete: (ev: CalendarEvent) => void;
 }
 
-export default function EventList({
+function EventList({
   isLoading, events, deletingId, onEventClick, onEdit, onDelete,
 }: EventListProps) {
   return (
@@ -48,3 +49,5 @@ export default function EventList({
     </ul>
   );
 }
+
+export default memo(EventList);
