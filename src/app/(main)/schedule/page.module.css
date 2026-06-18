@@ -1086,14 +1086,35 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   width: 420px;
   max-width: calc(100vw - 32px);
-  padding: 20px 24px 24px;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 폼 모달: 헤더/푸터 고정, 본문만 스크롤되도록 form을 세로 flex로 */
+.modal form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 스크롤되는 본문 영역 (헤더·푸터는 고정) */
+.modalBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 24px;
 }
 
 .modalHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
+  flex-shrink: 0;
+  padding: 20px 24px 14px;
 }
 
 .modalTitle {
@@ -1349,7 +1370,8 @@ select.formInput {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 20px;
+  flex-shrink: 0;
+  padding: 14px 24px 20px;
 }
 
 .cancelBtn {
@@ -1399,12 +1421,22 @@ select.formInput {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 2px 0 18px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 24px 18px;
 }
 
 .detailRow {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
   font-size: 14px;
   color: var(--color-text-secondary);
+}
+
+.detailIcon {
+  flex-shrink: 0;
 }
 
 .detailDesc {

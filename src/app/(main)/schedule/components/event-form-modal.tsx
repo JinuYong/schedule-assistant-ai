@@ -21,6 +21,7 @@ export default function EventFormModal({ form, setForm, calendars, onClose, onSu
           <button className={styles.modalClose} onClick={onClose}><IconClose/></button>
         </div>
         <form onSubmit={onSubmit}>
+          <div className={styles.modalBody}>
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>제목</label>
             <input
@@ -100,6 +101,7 @@ export default function EventFormModal({ form, setForm, calendars, onClose, onSu
               onChange={(e) => setForm((f) => ({...f, location: e.target.value}))}
               placeholder="장소"
             />
+          </div>
           </div>
 
           <div className={styles.modalFooter}>

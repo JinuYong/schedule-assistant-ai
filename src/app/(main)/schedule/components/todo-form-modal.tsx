@@ -21,6 +21,7 @@ export default function TodoFormModal({ form, setForm, todoLists, submitting, on
           <button className={styles.modalClose} onClick={onClose}><IconClose/></button>
         </div>
         <form onSubmit={onSubmit}>
+          <div className={styles.modalBody}>
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>제목</label>
             <div className={styles.todoTitleInputRow}>
@@ -200,6 +201,7 @@ export default function TodoFormModal({ form, setForm, todoLists, submitting, on
               placeholder="메모 (선택)"
               rows={3}
             />
+          </div>
           </div>
           <div className={styles.modalFooter}>
             <button type="button" className={styles.cancelBtn} onClick={onClose}>취소</button>
