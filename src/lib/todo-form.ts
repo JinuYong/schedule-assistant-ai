@@ -33,6 +33,11 @@ export const EMPTY_TODO_FORM: TodoFormState = {
   checklistItems: [],
 };
 
+/** 체크리스트 표시 정렬 — 미완료 먼저, 완료는 맨 아래 (그룹 내 기존 순서 유지, stable) */
+export function sortChecklistByDone<T extends { isChecked?: boolean }>(items: T[]): T[] {
+  return [...items].sort((a, b) => Number(!!a.isChecked) - Number(!!b.isChecked));
+}
+
 export function recurrenceLabel(type: TodoFormState["repeatType"]): string {
   if (type === "daily") return "매일";
   if (type === "weekly") return "매주";
@@ -141,10 +146,10 @@ export function todoEditFormState(todo: TodoItem): TodoFormState {
     reminderEnabled: reminder !== null,
     reminderDate: reminder?.date ?? "",
     reminderTime: reminder?.time ?? "09:00",
-    checklistItems: todo.checklistItems?.map((item) => ({
+    checklistItems: sortChecklistByDone(todo.checklistItems ?? []).map((item) => ({
       id: item.id,
       displayName: item.displayName,
       isChecked: item.isChecked,
-    })) ?? [],
+    })),
   };
 }

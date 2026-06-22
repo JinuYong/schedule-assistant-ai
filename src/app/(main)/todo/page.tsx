@@ -5,7 +5,7 @@ import { useAuthStore } from "@/store/auth";
 import { useTodosStore, TodoItem } from "@/store/todos";
 import { useTodoActions } from "@/hooks/use-todo-actions";
 import {
-  EMPTY_TODO_FORM, todoEditFormState, buildTodoTaskFromForm, type TodoFormState,
+  EMPTY_TODO_FORM, todoEditFormState, buildTodoTaskFromForm, sortChecklistByDone, type TodoFormState,
 } from "@/lib/todo-form";
 import TodoFormModal from "@/app/(main)/schedule/components/todo-form-modal";
 import styles from "./page.module.css";
@@ -172,7 +172,7 @@ export default function TodoPage() {
                         ) }
                         { (todo.checklistItems?.length ?? 0) > 0 && (
                           <ul className={ styles.checklistItems }>
-                            { todo.checklistItems!.map((item) => (
+                            { sortChecklistByDone(todo.checklistItems!).map((item) => (
                               <li key={ item.id } className={ styles.checklistItem }>
                                 <button
                                   className={ `${ styles.checklistBtn }${ item.isChecked ? ` ${ styles.checklistChecked }` : "" }` }

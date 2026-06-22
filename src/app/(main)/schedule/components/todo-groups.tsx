@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { TodoItem } from "@/store/todos";
+import { sortChecklistByDone } from "@/lib/todo-form";
 import { formatDue } from "@/lib/date-utils";
 import { IconPencil, IconTrash, IconStar, IconRepeat, IconChevron } from "@/components/icons";
 import styles from "../page.module.css";
@@ -87,7 +88,7 @@ function TodoGroups({
                         )}
                         {(todo.checklistItems?.length ?? 0) > 0 && (
                           <ul className={styles.todoChecklistItems}>
-                            {todo.checklistItems!.map((item) => (
+                            {sortChecklistByDone(todo.checklistItems!).map((item) => (
                               <li key={item.id} className={styles.todoChecklistItem}>
                                 <button
                                   className={`${styles.todoChecklistBtn}${item.isChecked ? ` ${styles.todoChecklistChecked}` : ""}`}
