@@ -166,7 +166,7 @@
   font-size: 14px;
   outline: none;
   color: var(--color-text-primary);
-  background: var(--color-bg);
+  background: var(--color-surface);
   transition: border-color 0.15s;
 }
 

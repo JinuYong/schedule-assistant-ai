@@ -44,8 +44,3 @@ export function cancelNotificationsByPrefix(prefix: string) {
     }
   }
 }
-
-export function cancelAllNotifications() {
-  scheduled.forEach((t) => clearTimeout(t));
-  scheduled.clear();
-}
