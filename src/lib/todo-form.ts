@@ -33,9 +33,20 @@ export const EMPTY_TODO_FORM: TodoFormState = {
   checklistItems: [],
 };
 
-/** 체크리스트 표시 정렬 — 미완료 먼저, 완료는 맨 아래 (그룹 내 기존 순서 유지, stable) */
-export function sortChecklistByDone<T extends { isChecked?: boolean }>(items: T[]): T[] {
-  return [...items].sort((a, b) => Number(!!a.isChecked) - Number(!!b.isChecked));
+/** 체크리스트 표시 정렬 — 미완료(기존 순서 유지) 먼저, 완료는 맨 아래.
+ *  완료 그룹은 완료 시각(checkedDateTime) 오름차순이라 **방금 완료한 항목이 가장 아래**.
+ *  (checkedDateTime 없는 항목은 맨 아래로 간주) */
+export function sortChecklistByDone<T extends { isChecked?: boolean; checkedDateTime?: { dateTime: string } }>(
+  items: T[]
+): T[] {
+  return [...items].sort((a, b) => {
+    const ca = a.isChecked ? 1 : 0;
+    const cb = b.isChecked ? 1 : 0;
+    if (ca !== cb) return ca - cb;          // 미완료 먼저
+    if (!a.isChecked) return 0;             // 둘 다 미완료 → 기존 순서 유지(stable)
+    // 둘 다 완료 → 완료 시각 오름차순(최근 완료가 맨 아래), 시각 없으면 맨 아래
+    return (a.checkedDateTime?.dateTime ?? "9999").localeCompare(b.checkedDateTime?.dateTime ?? "9999");
+  });
 }
 
 export function recurrenceLabel(type: TodoFormState["repeatType"]): string {

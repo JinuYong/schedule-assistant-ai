@@ -235,7 +235,14 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
         t.id !== taskId ? t : {
           ...t,
           checklistItems: t.checklistItems?.map((c) =>
-            c.id !== itemId ? c : { ...c, isChecked }
+            c.id !== itemId ? c : {
+              ...c,
+              isChecked,
+              // 완료 시각 즉시 반영 → "방금 완료한 항목이 맨 아래로" 정렬이 새로고침 전에도 동작
+              checkedDateTime: isChecked
+                ? { dateTime: new Date().toISOString(), timeZone: "UTC" }
+                : undefined,
+            }
           ),
         }
       ),
