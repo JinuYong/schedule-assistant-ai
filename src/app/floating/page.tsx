@@ -144,6 +144,7 @@ export default function FloatingPage() {
     <div className={styles.root}>
       <div className={styles.wrapper}>
         <form className={styles.form} onSubmit={handleSubmit}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- 정적 export + 로컬 번들 아이콘이라 next/image 최적화 이득 없음 */}
           <img src="/icon-source.png" className={styles.appIcon} alt="" draggable={false} />
           {lockedTarget && (
             <span className={styles.lockChip} title={lockedTarget.title}>

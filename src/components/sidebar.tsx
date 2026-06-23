@@ -84,6 +84,7 @@ export default function Sidebar() {
       style={{ width }}
     >
       <div className={styles.logo}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- 정적 export + 로컬 SVG 로고라 next/image 최적화 대상 아님 */}
         <img className={styles.logoIcon} src="/cali-logo.svg" alt="Cali Logo" />
       </div>
       <nav className={styles.nav}>
