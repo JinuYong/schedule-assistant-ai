@@ -10,7 +10,9 @@
     "dev:tauri": "tauri dev",
     "build:tauri": "tauri build",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@fabianlars/tauri-plugin-oauth": "^2.0.0",
@@ -33,7 +35,8 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.9"
   },
   "trustedDependencies": [
     "unrs-resolver"
