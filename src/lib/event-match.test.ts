@@ -6,6 +6,7 @@ import {
   matchEventsByText,
   matchCalendar,
   getEventDateKey,
+  getEventDateKeys,
   eventShortLabel,
 } from "./event-match";
 
@@ -53,6 +54,39 @@ describe("parseDateHint", () => {
 describe("getEventDateKey", () => {
   it("startTime의 날짜 부분을 키로", () => {
     expect(getEventDateKey(ev({ startTime: "2026-06-15T10:00:00", title: "x" }))).toBe("2026-06-15");
+  });
+});
+
+describe("getEventDateKeys", () => {
+  it("단일 시간 일정은 시작일 하나", () => {
+    expect(getEventDateKeys(ev({ startTime: "2026-06-03T10:00:00", title: "x", endTime: "2026-06-03T11:00:00" })))
+      .toEqual(["2026-06-03"]);
+  });
+
+  it("단일 종일 일정은 end.date가 배타적이라 하루만", () => {
+    expect(getEventDateKeys(ev({ startTime: "2026-06-03", title: "x", endTime: "2026-06-04", isAllDay: true })))
+      .toEqual(["2026-06-03"]);
+  });
+
+  it("여러 날 종일 일정은 걸친 모든 날짜 (end 배타적 보정)", () => {
+    // 6/3~6/7 표시 일정 → Google end.date = 6/8
+    expect(getEventDateKeys(ev({ startTime: "2026-06-03", title: "x", endTime: "2026-06-08", isAllDay: true })))
+      .toEqual(["2026-06-03", "2026-06-04", "2026-06-05", "2026-06-06", "2026-06-07"]);
+  });
+
+  it("여러 날 시간 일정은 시작~종료 날짜 전부", () => {
+    expect(getEventDateKeys(ev({ startTime: "2026-06-03T22:00:00", title: "x", endTime: "2026-06-05T02:00:00" })))
+      .toEqual(["2026-06-03", "2026-06-04", "2026-06-05"]);
+  });
+
+  it("자정에 끝나는 시간 일정은 그 날을 제외", () => {
+    expect(getEventDateKeys(ev({ startTime: "2026-06-03T22:00:00", title: "x", endTime: "2026-06-04T00:00:00" })))
+      .toEqual(["2026-06-03"]);
+  });
+
+  it("월 경계를 넘어가는 종일 일정", () => {
+    expect(getEventDateKeys(ev({ startTime: "2026-06-29", title: "x", endTime: "2026-07-02", isAllDay: true })))
+      .toEqual(["2026-06-29", "2026-06-30", "2026-07-01"]);
   });
 });
 

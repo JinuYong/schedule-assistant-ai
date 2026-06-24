@@ -21,7 +21,7 @@ import {IconChevronLeft, IconChevronRight, IconRefresh, IconPlus} from "@/compon
 import styles from "./page.module.css";
 import UnavailableContent from '@/components/unavailable-content'
 import { buildCells, daysInMonth, buildMovedTimeFields, EMPTY_FORM, type EventForm } from "./calendar-utils";
-import { getEventDateKey, eventShortLabel } from "@/lib/event-match";
+import { getEventDateKeys, eventShortLabel } from "@/lib/event-match";
 import { buildTodoTaskFromForm, todoEditFormState, EMPTY_TODO_FORM, type TodoFormState } from "@/lib/todo-form";
 import {useTodayInfo} from "./hooks/use-today-info";
 import {useSidePanelWidth} from "./hooks/use-side-panel-width";
@@ -123,9 +123,10 @@ export default function SchedulePage() {
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     for (const ev of events) {
-      const key = getEventDateKey(ev);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(ev);
+      for (const key of getEventDateKeys(ev)) { // 멀티데이 일정은 걸친 모든 날짜에 추가
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(ev);
+      }
     }
     return map;
   }, [events]);

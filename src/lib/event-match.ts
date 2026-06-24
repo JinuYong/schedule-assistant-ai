@@ -9,6 +9,40 @@ export function getEventDateKey(ev: CalendarEvent): string {
   return ev.startTime.split("T")[0] ?? ev.startTime.slice(0, 10);
 }
 
+/** "YYYY-MM-DD"에 일수를 더한 키 (로컬 달력 기준) */
+function addDayKey(dateKey: string, delta: number): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + delta);
+  return isoDate(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+
+/**
+ * 이벤트가 걸쳐 있는 모든 날짜 키(멀티데이 일정 지원). 단일 일정은 [시작일] 하나.
+ * - 종일 일정: Google의 end.date는 배타적(exclusive)이라 마지막 날 하루 전까지 채운다.
+ * - 시간 일정: 자정(00:00)에 끝나면 그 날짜는 제외(직전 날 종료로 간주).
+ */
+export function getEventDateKeys(ev: CalendarEvent): string[] {
+  const startKey = ev.startTime.slice(0, 10);
+  if (!ev.endTime) return [startKey];
+
+  let endKey = ev.endTime.slice(0, 10);
+  if (ev.isAllDay) {
+    endKey = addDayKey(endKey, -1); // end.date 배타적 보정
+  } else if (/^00:00(:00)?/.test(ev.endTime.split("T")[1] ?? "")) {
+    endKey = addDayKey(endKey, -1); // 자정 종료 → 그 날 제외
+  }
+
+  if (endKey <= startKey) return [startKey];
+
+  const keys: string[] = [];
+  let cur = startKey;
+  for (let i = 0; i < 366 && cur <= endKey; i++) { // 366: 무한 루프 방지 상한
+    keys.push(cur);
+    cur = addDayKey(cur, 1);
+  }
+  return keys;
+}
+
 /** 자동완성 후보의 날짜·시간 짧은 라벨 (예: 6/17 종일, 6/17 15:00) */
 export function eventShortLabel(ev: CalendarEvent): string {
   const d = new Date(ev.startTime);
@@ -102,7 +136,8 @@ export function matchEventsByText(
   const dateHint = parseDateHint(q, now);
   if (dateHint) {
     return events
-      .filter((ev) => getEventDateKey(ev) === dateHint)
+      .filter((ev) => getEventDateKeys(ev).includes(dateHint)) // 멀티데이 일정은 걸친 날짜 어디로도 매칭
+
       .sort((a, b) => titleScore(b.title.toLowerCase()) - titleScore(a.title.toLowerCase()) || byTime(a, b))
       .slice(0, limit);
   }
