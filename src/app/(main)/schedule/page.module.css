@@ -445,8 +445,8 @@
 .eventBar {
   display: block;
   box-sizing: border-box;
-  height: 19px;
-  line-height: 17px;
+  height: 17px;
+  line-height: 15px;
   font-size: 12px;
   font-weight: 500;
   padding: 0 5px;
@@ -479,7 +479,7 @@
 /* 빈 레인 — 같은 주 칸끼리 막대 세로 위치를 맞추기 위한 자리채움 */
 .eventBarEmpty {
   display: block;
-  height: 19px;
+  height: 17px;
   margin-bottom: 2px;
 }
 
