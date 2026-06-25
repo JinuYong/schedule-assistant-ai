@@ -385,7 +385,7 @@
   cursor: pointer;
   background: var(--color-surface);
   transition: background 0.1s;
-  overflow: visible; /* 멀티데이 막대가 칸 경계를 넘어 연결되도록 */
+  overflow: hidden;
   position: relative;
 }
 
@@ -440,8 +440,7 @@
   font-weight: 700;
 }
 
-/* 멀티데이 연속 막대 — 기본은 양쪽 칸 경계까지 bleed(왼 -3=padding, 오 -4=padding+border)해
-   인접 칸의 같은 일정 조각과 이어진다. 시작/종료 칸만 안쪽으로 들여 둥글게 처리. */
+/* 멀티데이 막대 — 레인별로 같은 세로 위치를 차지해 가로 정렬. 시작/종료 칸만 둥글게. */
 .eventBar {
   display: block;
   box-sizing: border-box;
@@ -450,7 +449,7 @@
   font-size: 12px;
   font-weight: 500;
   padding: 0 5px;
-  margin: 0 -4px 2px -3px;
+  margin: 0 0 2px 0;
   border-radius: 0;
   background: var(--color-accent);
   color: #fff;
