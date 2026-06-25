@@ -2,7 +2,7 @@ import { memo, useRef } from "react";
 import { CalendarEvent } from "@/store/events";
 import { formatTime } from "@/lib/date-utils";
 import { IconPlus } from "@/components/icons";
-import { CalCell } from "../calendar-utils";
+import { CalCell, LaneSlot } from "../calendar-utils";
 import styles from "../page.module.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -11,7 +11,8 @@ interface CalendarGridProps {
   cells: CalCell[];
   todayDate: string;
   selectedDate: string;
-  eventsByDate: Map<string, CalendarEvent[]>;
+  slotsByDate: Map<string, (LaneSlot | null)[]>;
+  overflowByDate: Map<string, number>;
   draggingEvent: CalendarEvent | null;
   dragOverDate: string | null;
   prevMonth: () => void;
@@ -23,7 +24,7 @@ interface CalendarGridProps {
 }
 
 function CalendarGrid({
-  cells, todayDate, selectedDate, eventsByDate, draggingEvent, dragOverDate,
+  cells, todayDate, selectedDate, slotsByDate, overflowByDate, draggingEvent, dragOverDate,
   prevMonth, nextMonth, onSelectDate, onAddEvent, onEventChipClick, onEventMouseDown,
 }: CalendarGridProps) {
   const wheelCooldownRef = useRef(false);
@@ -64,9 +65,8 @@ function CalendarGrid({
         {cells.map(({date, day, inMonth, isSunday}) => {
           const isToday = date === todayDate;
           const isSelected = date === selectedDate;
-          const dayEvs = eventsByDate.get(date) ?? [];
-          const shown = dayEvs.slice(0, 3);
-          const extra = dayEvs.length - shown.length;
+          const slots = slotsByDate.get(date) ?? [];
+          const extra = overflowByDate.get(date) ?? 0;
           const cls = [
             styles.dayCell,
             !inMonth ? styles.otherMonth : "",
@@ -102,17 +102,28 @@ function CalendarGrid({
                   <IconPlus/>
                 </button>
               )}
-              {shown.map((ev) => (
-                <span
-                  key={ev.id}
-                  className={`${styles.eventChip}${draggingEvent?.id === ev.id ? ` ${styles.draggingChip}` : ""}`}
-                  style={ev.calendarColor ? {background: ev.description === "공휴일" ? "#c44343" : ev.calendarColor, color: "#fff"} : undefined}
-                  onClick={(e) => { e.stopPropagation(); onEventChipClick(ev, date); }}
-                  onMouseDown={(e) => onEventMouseDown(ev, e)}
-                >
-                {ev.isAllDay ? "" : `${formatTime(ev.startTime)} `}{ev.title}
-              </span>
-              ))}
+              {slots.map((slot, i) => {
+                if (!slot) return <span key={`e${i}`} className={styles.eventBarEmpty} aria-hidden />;
+                const ev = slot.event;
+                const barCls = [
+                  styles.eventBar,
+                  slot.isStart ? styles.barStart : "",
+                  slot.isEnd ? styles.barEnd : "",
+                  draggingEvent?.id === ev.id ? styles.draggingChip : "",
+                ].filter(Boolean).join(" ");
+                return (
+                  <span
+                    key={ev.id}
+                    className={barCls}
+                    style={ev.calendarColor ? {background: ev.description === "공휴일" ? "#c44343" : ev.calendarColor, color: "#fff"} : undefined}
+                    title={ev.title}
+                    onClick={(e) => { e.stopPropagation(); onEventChipClick(ev, date); }}
+                    onMouseDown={(e) => onEventMouseDown(ev, e)}
+                  >
+                    {slot.showTitle ? <>{ev.isAllDay ? "" : `${formatTime(ev.startTime)} `}{ev.title}</> : " "}
+                  </span>
+                );
+              })}
               {extra > 0 && <span className={styles.moreEvents}>+{extra}</span>}
             </div>
           );

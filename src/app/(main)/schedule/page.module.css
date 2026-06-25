@@ -385,7 +385,7 @@
   cursor: pointer;
   background: var(--color-surface);
   transition: background 0.1s;
-  overflow: hidden;
+  overflow: visible; /* 멀티데이 막대가 칸 경계를 넘어 연결되도록 */
   position: relative;
 }
 
@@ -440,24 +440,47 @@
   font-weight: 700;
 }
 
-.eventChip {
+/* 멀티데이 연속 막대 — 기본은 양쪽 칸 경계까지 bleed(왼 -3=padding, 오 -4=padding+border)해
+   인접 칸의 같은 일정 조각과 이어진다. 시작/종료 칸만 안쪽으로 들여 둥글게 처리. */
+.eventBar {
   display: block;
+  box-sizing: border-box;
+  height: 19px;
+  line-height: 17px;
   font-size: 12px;
   font-weight: 500;
-  padding: 1px 5px;
-  margin-bottom: 2px;
-  border-radius: 3px;
+  padding: 0 5px;
+  margin: 0 -4px 2px -3px;
+  border-radius: 0;
   background: var(--color-accent);
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.6;
   cursor: grab;
 }
 
-.eventChip:active {
+.eventBar:active {
   cursor: grabbing;
+}
+
+.barStart {
+  margin-left: 2px;
+  border-top-left-radius: 3px;
+  border-bottom-left-radius: 3px;
+}
+
+.barEnd {
+  margin-right: 2px;
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
+
+/* 빈 레인 — 같은 주 칸끼리 막대 세로 위치를 맞추기 위한 자리채움 */
+.eventBarEmpty {
+  display: block;
+  height: 19px;
+  margin-bottom: 2px;
 }
 
 .draggingChip {

@@ -20,7 +20,7 @@ import Divider from "@/components/divider";
 import {IconChevronLeft, IconChevronRight, IconRefresh, IconPlus} from "@/components/icons";
 import styles from "./page.module.css";
 import UnavailableContent from '@/components/unavailable-content'
-import { buildCells, daysInMonth, buildMovedTimeFields, EMPTY_FORM, type EventForm } from "./calendar-utils";
+import { buildCells, buildMonthLayout, daysInMonth, buildMovedTimeFields, EMPTY_FORM, type EventForm } from "./calendar-utils";
 import { getEventDateKeys, eventShortLabel } from "@/lib/event-match";
 import { buildTodoTaskFromForm, todoEditFormState, EMPTY_TODO_FORM, type TodoFormState } from "@/lib/todo-form";
 import {useTodayInfo} from "./hooks/use-today-info";
@@ -135,6 +135,9 @@ export default function SchedulePage() {
     () => (eventsByDate.get(selectedDate) ?? []).sort((a, b) => a.startTime.localeCompare(b.startTime)),
     [eventsByDate, selectedDate]
   );
+
+  // 멀티데이 일정을 칸을 가로지르는 연속 막대로 그리기 위한 주간 레인 레이아웃
+  const monthLayout = useMemo(() => buildMonthLayout(cells, events), [cells, events]);
 
   const primaryCalendarId = useMemo(
     () => calendars.find((c) => c.primary)?.id ?? "primary",
@@ -495,7 +498,8 @@ export default function SchedulePage() {
               cells={cells}
               todayDate={todayInfo.date}
               selectedDate={selectedDate}
-              eventsByDate={eventsByDate}
+              slotsByDate={monthLayout.slotsByDate}
+              overflowByDate={monthLayout.overflowByDate}
               draggingEvent={draggingEvent}
               dragOverDate={dragOverDate}
               prevMonth={prevMonth}

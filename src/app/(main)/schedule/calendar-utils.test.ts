@@ -6,7 +6,18 @@ import {
   buildCells,
   msUntilNextDay,
   buildMovedTimeFields,
+  buildMonthLayout,
 } from "./calendar-utils";
+
+function mkEv(o: { id?: string; startTime: string; endTime?: string; isAllDay?: boolean; title?: string }): CalendarEvent {
+  return {
+    id: o.id ?? o.startTime,
+    title: o.title ?? "x",
+    isAllDay: o.isAllDay ?? false,
+    startTime: o.startTime,
+    endTime: o.endTime ?? o.startTime,
+  } as unknown as CalendarEvent;
+}
 
 describe("daysInMonth", () => {
   it("월별 일수", () => {
@@ -54,6 +65,62 @@ describe("msUntilNextDay", () => {
     const now = new Date(2026, 5, 15, 10, 30, 0);
     const expected = new Date(2026, 5, 16, 0, 0, 0).getTime() - now.getTime() + 1000;
     expect(msUntilNextDay(now)).toBe(expected);
+  });
+});
+
+describe("buildMonthLayout", () => {
+  // 2026년 6월: 6/1=월 → week0 = [5/31(일), 6/1 … 6/6]
+  const cells = buildCells(2026, 5);
+
+  it("멀티데이 종일 일정이 같은 레인을 가로질러 배치된다", () => {
+    // 6/3~6/7 (end.date=6/8 배타적) → week0(6/3~6/6) + week1(6/7)에 걸침
+    const layout = buildMonthLayout(cells, [
+      mkEv({ startTime: "2026-06-03", endTime: "2026-06-08", isAllDay: true }),
+    ]);
+
+    const d3 = layout.slotsByDate.get("2026-06-03")![0]!;
+    expect(d3.isStart).toBe(true);    // 실제 시작일
+    expect(d3.isEnd).toBe(false);     // 아직 안 끝남
+    expect(d3.showTitle).toBe(true);
+
+    const d5 = layout.slotsByDate.get("2026-06-05")![0]!;
+    expect(d5.isStart).toBe(false);   // 중간 → 양쪽 연결
+    expect(d5.isEnd).toBe(false);
+    expect(d5.showTitle).toBe(false);
+
+    // 같은 레인(0)을 6/3~6/6 모두 차지
+    for (const d of ["2026-06-03", "2026-06-04", "2026-06-05", "2026-06-06"]) {
+      expect(layout.slotsByDate.get(d)![0]?.event.id).toBe("2026-06-03");
+    }
+  });
+
+  it("주 경계를 넘으면 다음 주 첫 칸에서 제목을 다시 보여주고 끝을 둥글게", () => {
+    const layout = buildMonthLayout(cells, [
+      mkEv({ startTime: "2026-06-03", endTime: "2026-06-08", isAllDay: true }),
+    ]);
+    const d7 = layout.slotsByDate.get("2026-06-07")![0]!; // 다음 주 일요일 = 실제 종료일
+    expect(d7.isStart).toBe(false);   // 이전 주에서 이어짐 → 왼쪽 안 둥글게
+    expect(d7.isEnd).toBe(true);      // 실제 종료
+    expect(d7.showTitle).toBe(true);  // 주 시작 칸이라 제목 재표시
+  });
+
+  it("겹치는 멀티데이 일정은 서로 다른 레인", () => {
+    const layout = buildMonthLayout(cells, [
+      mkEv({ id: "A", startTime: "2026-06-02", endTime: "2026-06-05", isAllDay: true }),
+      mkEv({ id: "B", startTime: "2026-06-03", endTime: "2026-06-06", isAllDay: true }),
+    ]);
+    const slots = layout.slotsByDate.get("2026-06-04")!; // 둘 다 걸치는 날
+    const ids = slots.filter(Boolean).map((s) => s!.event.id).sort();
+    expect(ids).toEqual(["A", "B"]);
+  });
+
+  it("maxLanes를 넘는 일정은 overflow로 집계", () => {
+    const sameDay = [1, 2, 3, 4].map((n) =>
+      mkEv({ id: `e${n}`, startTime: "2026-06-10T0" + n + ":00:00" })
+    );
+    const layout = buildMonthLayout(cells, sameDay, 3);
+    expect(layout.slotsByDate.get("2026-06-10")).toHaveLength(3);
+    expect(layout.overflowByDate.get("2026-06-10")).toBe(1);
   });
 });
 
