@@ -379,6 +379,7 @@
 
 .dayCell {
   min-height: 96px;
+  min-width: 0; /* 긴 제목(nowrap)이 그리드 열을 늘려 캘린더가 넘치는 것 방지 (overflow:visible 그리드 아이템 보정) */
   padding: 5px 0;
   border-right: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);

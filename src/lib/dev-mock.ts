@@ -50,6 +50,8 @@ export const MOCK_EVENTS: CalendarEvent[] = MOCK_ENABLED
       // 멀티데이 일정 (연속 막대 확인용) — 종일 end.date는 배타적이라 하루 더 줌
       { id: "m7", title: "워크샵 출장", startTime: dayKey(-1), endTime: dayKey(4), isAllDay: true, calendarColor: "#5b9bd5", calendarId: "work" },
       { id: "m8", title: "전사 행사", startTime: dayKey(1), endTime: dayKey(3), isAllDay: true, calendarColor: "#ec91d3", calendarId: "primary" },
+      // 긴 제목 (셀 폭 넘침 회귀 확인용) — min-width:0 없으면 이 칸이 열을 늘려 캘린더가 넘침
+      { id: "m9", title: "분기 마감 전 최종 점검 및 팀 회식 장소 예약하기", startTime: at(2, 18), endTime: at(2, 19), isAllDay: false, calendarColor: "#ec91d3", calendarId: "primary" },
     ]
   : [];
 
