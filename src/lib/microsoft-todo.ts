@@ -52,11 +52,14 @@ export type TodoTaskUpdates = Partial<
 export async function getTaskLists(
   accessToken: string
 ): Promise<{ id: string; displayName: string }[]> {
-  const data = await graphFetch<{ value: { id: string; displayName: string }[] }>(
+  const data = await graphFetch<{ value: { id: string; displayName: string; wellknownListName?: string }[] }>(
     "/me/todo/lists",
     accessToken
   );
-  return data.value;
+  // 'flaggedEmails'(Outlook 플래그 메일) 시스템 목록은 일반 할일 목록이 아니므로 제외
+  return data.value
+    .filter((l) => l.wellknownListName !== "flaggedEmails")
+    .map(({ id, displayName }) => ({ id, displayName }));
 }
 
 export async function getTasks(
