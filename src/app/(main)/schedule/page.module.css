@@ -816,17 +816,34 @@
   min-width: 0;
 }
 
-/* 호버 전에는 공간을 차지하지 않도록 display:none → 제목이 가용 폭 전체 사용.
-   호버 시에만 나타난다(이때 제목이 줄어 자리 양보). */
-.todoActionBtns {
+/* 우측 고정 컨트롤(반복/즐겨찾기/펼침) 묶음 — 액션 버튼 오버레이의 기준점 */
+.todoRightControls {
+  position: relative;
   flex-shrink: 0;
-  display: none;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.todoAccordionTopLine:hover .todoActionBtns,
-.todoAccordionRow:hover .todoActionBtns {
+/* 수정/삭제 — 호버 시 제목 끝 위에 흰 배경으로 떠서 덮는다(레이아웃 이동 없음).
+   right:100%로 우측 컨트롤 바로 왼쪽에 붙고, 왼쪽 가장자리는 그라데이션으로 부드럽게. */
+.todoActionBtns {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
+  gap: 2px;
+  padding-left: 12px;
+  background: linear-gradient(to right, transparent, var(--color-surface) 12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+
+.todoAccordionRow:hover .todoActionBtns {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .todoActionBtn {

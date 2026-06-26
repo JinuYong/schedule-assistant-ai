@@ -58,21 +58,23 @@ function TodoGroups({
                       <div className={styles.todoAccordionMain}>
                         <div className={styles.todoAccordionTopLine}>
                           <p className={styles.todoAccordionText}>{todo.title}</p>
-                          <div className={styles.todoActionBtns}>
-                            <button className={styles.todoActionBtn} onClick={(e) => onEditTodo(e, todo)} title="수정">
-                              <IconPencil/>
+                          <div className={styles.todoRightControls}>
+                            <div className={styles.todoActionBtns}>
+                              <button className={styles.todoActionBtn} onClick={(e) => onEditTodo(e, todo)} title="수정">
+                                <IconPencil/>
+                              </button>
+                              <button className={`${styles.todoActionBtn} ${styles.todoDeleteBtn}`}
+                                      onClick={(e) => onDeleteTodo(e, todo)} title="삭제">
+                                <IconTrash/>
+                              </button>
+                            </div>
+                            {todo.recurrence && <IconRepeat/>}
+                            <button className={styles.todoStarBtn} onClick={(e) => onToggleImportance(e, todo)}
+                                    title={todo.importance === "high" ? "즐겨찾기 해제" : "즐겨찾기"}>
+                              <IconStar filled={todo.importance === "high"}/>
                             </button>
-                            <button className={`${styles.todoActionBtn} ${styles.todoDeleteBtn}`}
-                                    onClick={(e) => onDeleteTodo(e, todo)} title="삭제">
-                              <IconTrash/>
-                            </button>
+                            <span className={styles.todoChevronSlot}>{hasAccordion && <IconChevron open={isOpen}/>}</span>
                           </div>
-                          {todo.recurrence && <IconRepeat/>}
-                          <button className={styles.todoStarBtn} onClick={(e) => onToggleImportance(e, todo)}
-                                  title={todo.importance === "high" ? "즐겨찾기 해제" : "즐겨찾기"}>
-                            <IconStar filled={todo.importance === "high"}/>
-                          </button>
-                          <span className={styles.todoChevronSlot}>{hasAccordion && <IconChevron open={isOpen}/>}</span>
                         </div>
                         <div className={styles.todoAccordionMeta}>
                           {due && <span className={`${styles.todoDue}${due.isPast ? ` ${styles.todoDueOverdue}` : ""}`}>{due.label}</span>}
