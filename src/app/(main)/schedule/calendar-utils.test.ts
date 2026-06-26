@@ -82,10 +82,12 @@ describe("buildMonthLayout", () => {
     expect(d3.isStart).toBe(true);    // 실제 시작일
     expect(d3.isEnd).toBe(false);     // 아직 안 끝남
     expect(d3.showTitle).toBe(true);
+    expect(d3.span).toBe(4);          // week0에서 6/3~6/6 = 4칸 가로지름
+    expect(d3.covered).toBe(false);
 
     const d5 = layout.slotsByDate.get("2026-06-05")![0]!;
-    expect(d5.isStart).toBe(false);   // 중간 → 양쪽 연결
-    expect(d5.isEnd).toBe(false);
+    expect(d5.covered).toBe(true);    // 시작 칸 막대에 덮인 칸
+    expect(d5.span).toBe(0);
     expect(d5.showTitle).toBe(false);
 
     // 같은 레인(0)을 6/3~6/6 모두 차지

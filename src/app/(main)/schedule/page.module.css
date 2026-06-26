@@ -442,7 +442,8 @@
   font-weight: 700;
 }
 
-/* 멀티데이 막대 — 레인별로 같은 세로 위치를 차지해 가로 정렬. 시작/종료 칸만 둥글게. */
+/* 일정 막대. 멀티데이는 시작 칸에서 span개 칸을 가로질러 덮으며(폭은 인라인 지정),
+   다음 칸 배경 위로 보이도록 z-index를 둔다. 시작/종료 칸만 모서리를 둥글게. */
 .eventBar {
   display: block;
   box-sizing: border-box;
@@ -451,7 +452,7 @@
   font-size: 12px;
   font-weight: 500;
   padding: 0 5px;
-  margin: 0 -1px 2px 0; /* 오른쪽 1px 칸 경계를 덮어 다음 칸 막대와 이어짐 */
+  margin: 0 0 2px 0;
   border-radius: 0;
   background: var(--color-accent);
   color: #fff;
@@ -459,6 +460,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: grab;
+  position: relative;
+  z-index: 1;
 }
 
 .eventBar:active {
@@ -466,15 +469,18 @@
 }
 
 .barStart {
-  margin-left: 2px;
   border-top-left-radius: 3px;
   border-bottom-left-radius: 3px;
 }
 
 .barEnd {
-  margin-right: 2px;
   border-top-right-radius: 3px;
   border-bottom-right-radius: 3px;
+}
+
+/* 이어진(멀티데이) 일정 → 텍스트 가운데 정렬 */
+.barSpan {
+  text-align: center;
 }
 
 /* 빈 레인 — 같은 주 칸끼리 막대 세로 위치를 맞추기 위한 자리채움 */

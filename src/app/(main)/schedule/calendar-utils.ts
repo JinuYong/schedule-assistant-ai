@@ -61,12 +61,14 @@ export function buildCells(year: number, month: number): CalCell[] {
 
 // ── 월간 레이아웃(멀티데이 연속 막대) ──────────────────────
 
-/** 달력 한 칸에 들어가는 막대 한 조각 */
+/** 달력 한 칸의 레인 슬롯. 막대는 시작 칸에서 span개 칸을 가로질러 덮고, 나머지 칸은 covered(투명 자리채움). */
 export interface LaneSlot {
   event: CalendarEvent;
-  isStart: boolean;   // 이 칸이 일정의 실제 시작일 → 왼쪽 모서리 둥글게
-  isEnd: boolean;     // 이 칸이 일정의 실제 종료일 → 오른쪽 모서리 둥글게
-  showTitle: boolean; // 주의 첫 칸이거나 시작일 → 제목 표시
+  span: number;       // 시작 칸이 가로로 차지하는 칸 수(>=1). covered 칸은 0
+  isStart: boolean;   // 일정의 실제 시작일 → 왼쪽 모서리 둥글게
+  isEnd: boolean;     // 일정의 실제 종료일 → 오른쪽 모서리 둥글게
+  showTitle: boolean; // 막대가 시작되는 칸 → 제목 표시(가로로 펼쳐짐)
+  covered: boolean;   // 앞 칸에서 시작한 막대에 덮인 칸 → 투명 자리채움만
 }
 
 export interface MonthLayout {
@@ -147,18 +149,28 @@ export function buildMonthLayout(cells: CalCell[], events: CalendarEvent[], maxL
 
     for (const seg of segs) {
       const lane = laneOf.get(seg)!;
-      for (let c = seg.startCol; c <= seg.endCol; c++) {
-        const date = weekDates[c];
-        if (lane < usedLanes) {
-          slotsByDate.get(date)![lane] = {
-            event: seg.event,
-            isStart: seg.isStart && c === seg.startCol,
-            isEnd: seg.isEnd && c === seg.endCol,
-            showTitle: c === seg.startCol,
-          };
-        } else {
+      if (lane >= usedLanes) {
+        // 레인 한도 초과 → 걸친 날마다 overflow 집계
+        for (let c = seg.startCol; c <= seg.endCol; c++) {
+          const date = weekDates[c];
           overflowByDate.set(date, (overflowByDate.get(date) ?? 0) + 1);
         }
+        continue;
+      }
+      // 시작 칸: span개 칸을 가로지르는 막대(제목 표시)
+      slotsByDate.get(weekDates[seg.startCol])![lane] = {
+        event: seg.event,
+        span: seg.endCol - seg.startCol + 1,
+        isStart: seg.isStart,
+        isEnd: seg.isEnd,
+        showTitle: true,
+        covered: false,
+      };
+      // 이어지는 칸: 막대가 위로 덮으므로 투명 자리채움(레인 높이만 확보)
+      for (let c = seg.startCol + 1; c <= seg.endCol; c++) {
+        slotsByDate.get(weekDates[c])![lane] = {
+          event: seg.event, span: 0, isStart: false, isEnd: false, showTitle: false, covered: true,
+        };
       }
     }
   }

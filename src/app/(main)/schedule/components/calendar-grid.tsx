@@ -103,24 +103,32 @@ function CalendarGrid({
                 </button>
               )}
               {slots.map((slot, i) => {
-                if (!slot) return <span key={`e${i}`} className={styles.eventBarEmpty} aria-hidden />;
+                // 빈 레인 또는 앞 칸 막대에 덮인 칸 → 투명 자리채움(높이만 확보)
+                if (!slot || slot.covered) return <span key={`e${i}`} className={styles.eventBarEmpty} aria-hidden />;
                 const ev = slot.event;
+                const spanning = slot.span >= 2;
                 const barCls = [
                   styles.eventBar,
                   slot.isStart ? styles.barStart : "",
                   slot.isEnd ? styles.barEnd : "",
+                  spanning ? styles.barSpan : "",
                   draggingEvent?.id === ev.id ? styles.draggingChip : "",
                 ].filter(Boolean).join(" ");
+                const barStyle: React.CSSProperties = ev.calendarColor
+                  ? {background: ev.description === "공휴일" ? "#c44343" : ev.calendarColor, color: "#fff"}
+                  : {};
+                // 막대가 span개 칸을 가로로 덮도록 폭 지정(칸 사이 1px 경계 포함)
+                if (spanning) barStyle.width = `calc(${slot.span} * 100% + ${slot.span - 1}px)`;
                 return (
                   <span
                     key={ev.id}
                     className={barCls}
-                    style={ev.calendarColor ? {background: ev.description === "공휴일" ? "#c44343" : ev.calendarColor, color: "#fff"} : undefined}
+                    style={barStyle}
                     title={ev.title}
                     onClick={(e) => { e.stopPropagation(); onEventChipClick(ev, date); }}
                     onMouseDown={(e) => onEventMouseDown(ev, e)}
                   >
-                    {slot.showTitle ? <>{ev.isAllDay ? "" : `${formatTime(ev.startTime)} `}{ev.title}</> : " "}
+                    {ev.isAllDay ? "" : `${formatTime(ev.startTime)} `}{ev.title}
                   </span>
                 );
               })}
