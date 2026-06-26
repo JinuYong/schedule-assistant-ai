@@ -379,13 +379,13 @@
 
 .dayCell {
   min-height: 96px;
-  padding: 5px 3px;
+  padding: 5px 0;
   border-right: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
   background: var(--color-surface);
   transition: background 0.1s;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 
@@ -432,6 +432,7 @@
   color: var(--color-text-primary);
   border-radius: 50%;
   margin-bottom: 3px;
+  margin-left: 4px;
 }
 
 .todayCell .dayNumber {
@@ -449,7 +450,7 @@
   font-size: 12px;
   font-weight: 500;
   padding: 0 5px;
-  margin: 0 0 2px 0;
+  margin: 0 -1px 2px 0; /* 오른쪽 1px 칸 경계를 덮어 다음 칸 막대와 이어짐 */
   border-radius: 0;
   background: var(--color-accent);
   color: #fff;

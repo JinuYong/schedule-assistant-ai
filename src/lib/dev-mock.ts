@@ -47,6 +47,9 @@ export const MOCK_EVENTS: CalendarEvent[] = MOCK_ENABLED
       { id: "m4", title: "치과 예약", startTime: at(1, 14), endTime: at(1, 15), isAllDay: false, calendarColor: "#ec91d3", calendarId: "primary", location: "강남" },
       { id: "m5", title: "프로젝트 마감", startTime: dayKey(3), endTime: dayKey(3), isAllDay: true, calendarColor: "#5b9bd5", calendarId: "work" },
       { id: "m6", title: "주간 회고", startTime: at(5, 17), endTime: at(5, 18), isAllDay: false, calendarColor: "#5b9bd5", calendarId: "work" },
+      // 멀티데이 일정 (연속 막대 확인용) — 종일 end.date는 배타적이라 하루 더 줌
+      { id: "m7", title: "워크샵 출장", startTime: dayKey(-1), endTime: dayKey(4), isAllDay: true, calendarColor: "#5b9bd5", calendarId: "work" },
+      { id: "m8", title: "전사 행사", startTime: dayKey(1), endTime: dayKey(3), isAllDay: true, calendarColor: "#ec91d3", calendarId: "primary" },
     ]
   : [];
 
