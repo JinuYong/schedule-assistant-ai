@@ -95,6 +95,12 @@
   padding: 10px;
 }
 
+/* 이모지 글리프가 advance 박스 안에서 오른쪽으로 약간 치우쳐 렌더되므로(레이아웃은 정중앙),
+   아이콘 전용 모드에서 광학적으로 1px 왼쪽 보정 */
+.iconOnly .navIcon {
+  transform: translateX(-1px);
+}
+
 .iconOnly .navLabel {
   display: none;
 }
