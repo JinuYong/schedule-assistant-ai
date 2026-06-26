@@ -65,7 +65,7 @@ export const MOCK_TASKLISTS: { id: string; displayName: string }[] = MOCK_ENABLE
 
 export const MOCK_TODOS: TodoItem[] = MOCK_ENABLED
   ? [
-      { id: "t1", listId: "tasks", listName: "작업", title: "보고서 작성", importance: "high", status: "notStarted", dueDateTime: { dateTime: `${dayKey(0)}T00:00:00.0000000`, timeZone: "UTC" } },
+      { id: "t1", listId: "tasks", listName: "작업", title: "분기 보고서 작성 및 팀 리뷰 미팅 자료 정리하기", importance: "high", status: "notStarted", dueDateTime: { dateTime: `${dayKey(0)}T00:00:00.0000000`, timeZone: "UTC" } },
       { id: "t2", listId: "tasks", listName: "작업", title: "이메일 회신", importance: "normal", status: "notStarted" },
       {
         id: "t3", listId: "tasks", listName: "작업", title: "주간 미팅 준비", importance: "normal", status: "notStarted",

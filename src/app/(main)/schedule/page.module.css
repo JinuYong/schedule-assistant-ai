@@ -816,17 +816,17 @@
   min-width: 0;
 }
 
+/* 호버 전에는 공간을 차지하지 않도록 display:none → 제목이 가용 폭 전체 사용.
+   호버 시에만 나타난다(이때 제목이 줄어 자리 양보). */
 .todoActionBtns {
   flex-shrink: 0;
-  display: flex;
+  display: none;
   gap: 2px;
-  opacity: 0;
-  transition: opacity 0.15s;
 }
 
 .todoAccordionTopLine:hover .todoActionBtns,
 .todoAccordionRow:hover .todoActionBtns {
-  opacity: 1;
+  display: flex;
 }
 
 .todoActionBtn {
