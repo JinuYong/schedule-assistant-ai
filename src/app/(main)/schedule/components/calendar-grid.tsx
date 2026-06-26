@@ -117,8 +117,13 @@ function CalendarGrid({
                 const barStyle: React.CSSProperties = ev.calendarColor
                   ? {background: ev.description === "공휴일" ? "#c44343" : ev.calendarColor, color: "#fff"}
                   : {};
-                // 막대가 span개 칸을 가로로 덮도록 폭 지정(칸 사이 1px 경계 포함)
-                if (spanning) barStyle.width = `calc(${slot.span} * 100% + ${slot.span - 1}px)`;
+                // span개 칸을 가로로 덮되, 실제 시작/끝 칸에만 안쪽 여백(GAP)을 줘 격자선과 떨어뜨림
+                // (이어지는 칸 경계에는 여백 없이 연속)
+                const GAP = 3;
+                const left = slot.isStart ? GAP : 0;
+                const right = slot.isEnd ? GAP : 0;
+                barStyle.width = `calc(${slot.span} * 100% + ${slot.span - 1}px - ${left + right}px)`;
+                if (left) barStyle.marginLeft = `${left}px`;
                 return (
                   <span
                     key={ev.id}
