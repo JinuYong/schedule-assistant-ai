@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { createSingleFlight } from "@/lib/promise-cache";
 import { scheduleNotification, cancelNotification, cancelNotificationsByPrefix } from "@/lib/notifications";
 import { graphDateTimeToMs } from "@/lib/date-utils";
-import { MOCK_ENABLED, MOCK_TODOS } from "@/lib/dev-mock";
+import { MOCK_ENABLED, MOCK_TODOS, MOCK_TASKLISTS } from "@/lib/dev-mock";
 import { showToast } from "./toast";
 import {
   getTaskLists, getTasks,
@@ -27,6 +27,7 @@ export interface TodoItem extends TodoTask {
 
 interface TodosStore {
   todos: TodoItem[];
+  taskLists: { id: string; displayName: string }[]; // 실제 작업 목록(빈 목록도 카테고리·추가버튼 유지용)
   isLoading: boolean;
   error: string | null;
   lastFetchedAt: number;
@@ -94,6 +95,7 @@ async function syncChecklistItems(
 
 export const useTodosStore = create<TodosStore>((set, get) => ({
   todos: MOCK_TODOS,
+  taskLists: MOCK_TASKLISTS,
   isLoading: false,
   error: null,
   lastFetchedAt: 0,
@@ -137,7 +139,7 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
           return da.localeCompare(db);
         });
 
-        set({ todos: results, lastFetchedAt: Date.now() });
+        set({ todos: results, taskLists: lists, lastFetchedAt: Date.now() });
         scheduleTodoNotifications(results);
       } catch (err) {
         const retryAfter = (err as { retryAfter?: number }).retryAfter;

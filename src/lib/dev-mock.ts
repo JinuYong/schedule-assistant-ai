@@ -55,6 +55,14 @@ export const MOCK_EVENTS: CalendarEvent[] = MOCK_ENABLED
     ]
   : [];
 
+export const MOCK_TASKLISTS: { id: string; displayName: string }[] = MOCK_ENABLED
+  ? [
+      { id: "tasks", displayName: "작업" },
+      { id: "personal", displayName: "개인" },
+      { id: "shopping", displayName: "쇼핑" }, // 미완료 할일 없는 목록(빈 카테고리 확인용)
+    ]
+  : [];
+
 export const MOCK_TODOS: TodoItem[] = MOCK_ENABLED
   ? [
       { id: "t1", listId: "tasks", listName: "작업", title: "보고서 작성", importance: "high", status: "notStarted", dueDateTime: { dateTime: `${dayKey(0)}T00:00:00.0000000`, timeZone: "UTC" } },

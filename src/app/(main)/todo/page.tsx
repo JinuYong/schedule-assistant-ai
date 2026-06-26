@@ -19,6 +19,7 @@ export default function TodoPage() {
   // 필드별 셀렉터 구독 — 미사용 필드(lastFetchedAt 등) 변경 시 리렌더 방지
   const microsoftTokens = useAuthStore((s) => s.microsoftTokens);
   const todos = useTodosStore((s) => s.todos);
+  const taskLists = useTodosStore((s) => s.taskLists);
   const isLoading = useTodosStore((s) => s.isLoading);
   const error = useTodosStore((s) => s.error);
   const fetchTodos = useTodosStore((s) => s.fetchTodos);
@@ -53,11 +54,10 @@ export default function TodoPage() {
     });
   }, []);
 
-  const todoLists = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const t of todos) map.set(t.listId, t.listName);
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [todos]);
+  const todoLists = useMemo(
+    () => taskLists.map((l) => ({ id: l.id, name: l.displayName })),
+    [taskLists]
+  );
 
   const openCreate = useCallback((listId: string) => {
     setForm({ ...EMPTY_TODO_FORM, open: true, mode: "create", listId });
@@ -88,14 +88,20 @@ export default function TodoPage() {
     }
   }, [ form, microsoftTokens, createTodo, updateTodo, closeForm ]);
 
+  // 카테고리는 실제 작업 목록(taskLists) 기준으로 항상 표시 → 미완료 할일이 없어도
+  // 목록·추가버튼이 사라지지 않게 한다. 각 목록의 미완료 할일만 채운다.
   const grouped = useMemo(() => {
-    const map = new Map<string, { listId: string; listName: string; items: TodoItem[] }>();
+    const itemsByList = new Map<string, TodoItem[]>();
     for (const todo of todos) {
-      if (!map.has(todo.listId)) map.set(todo.listId, { listId: todo.listId, listName: todo.listName, items: [] });
-      map.get(todo.listId)!.items.push(todo);
+      if (!itemsByList.has(todo.listId)) itemsByList.set(todo.listId, []);
+      itemsByList.get(todo.listId)!.push(todo);
     }
-    return Array.from(map.values());
-  }, [ todos ]);
+    return taskLists.map((l) => ({
+      listId: l.id,
+      listName: l.displayName,
+      items: itemsByList.get(l.id) ?? [],
+    }));
+  }, [ todos, taskLists ]);
 
   if (!microsoftTokens) {
     return (
@@ -118,18 +124,19 @@ export default function TodoPage() {
       </div>
 
       { error && <p className={ styles.error }>{ error }</p> }
-      { isLoading && todos.length === 0 && <p className={ styles.loading }>불러오는 중...</p> }
-      { !isLoading && todos.length === 0 && !error && <p className={ styles.empty }>미완료 할일이 없습니다.</p> }
+      { isLoading && grouped.length === 0 && <p className={ styles.loading }>불러오는 중...</p> }
+      { !isLoading && grouped.length === 0 && !error && <p className={ styles.empty }>작업 목록이 없습니다.</p> }
 
       <div className={ styles.lists }>
         { grouped.map(({ listId, listName, items }) => (
-          <section key={ listName } className={ styles.listSection }>
+          <section key={ listId } className={ styles.listSection }>
             <div className={ styles.listHeader }>
               <h2 className={ styles.listName }>{ listName }</h2>
               <button className={ styles.addBtn } onClick={ () => openCreate(listId) }>
                 <IconPlus size={ 11 } /> 추가
               </button>
             </div>
+            { items.length === 0 && <p className={ styles.empty }>미완료 할일이 없습니다.</p> }
             <ul className={ styles.todoList }>
               { items.map((todo: TodoItem) => {
                 const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime, todo.dueDateTime.timeZone) : null;
