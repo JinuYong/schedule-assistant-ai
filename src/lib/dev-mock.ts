@@ -69,6 +69,7 @@ export const MOCK_TODOS: TodoItem[] = MOCK_ENABLED
       { id: "t2", listId: "tasks", listName: "작업", title: "이메일 회신", importance: "normal", status: "notStarted" },
       {
         id: "t3", listId: "tasks", listName: "작업", title: "주간 미팅 준비", importance: "normal", status: "notStarted",
+        dueDateTime: { dateTime: `${dayKey(2)}T00:00:00.0000000`, timeZone: "UTC" },
         recurrence: { pattern: { type: "weekly", interval: 1 }, range: { type: "noEnd" } },
         checklistItems: [
           { id: "c1", displayName: "자료 정리", isChecked: true },
