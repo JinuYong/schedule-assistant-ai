@@ -1,8 +1,8 @@
 import { memo } from "react";
 import { TodoItem } from "@/store/todos";
-import { sortChecklistByDone } from "@/lib/todo-form";
-import { formatDue } from "@/lib/date-utils";
-import { IconPencil, IconTrash, IconStar, IconRepeat, IconChevron } from "@/components/icons";
+import { sortChecklistByDone, recurrenceLabel } from "@/lib/todo-form";
+import { formatDue, formatDateTimeLabel, graphDateTimeToMs } from "@/lib/date-utils";
+import { IconPencil, IconTrash, IconStar, IconRepeat, IconBell, IconChevron } from "@/components/icons";
 import styles from "../page.module.css";
 
 export interface TodoGroup {
@@ -43,7 +43,12 @@ function TodoGroups({
             <ul className={styles.todoAccordionList}>
               {items.map((todo) => {
                 const due = todo.dueDateTime ? formatDue(todo.dueDateTime.dateTime, todo.dueDateTime.timeZone) : null;
-                const hasAccordion = (todo.checklistItems?.length ?? 0) > 0 || !!todo.body?.content?.trim();
+                const hasReminder = !!todo.isReminderOn && !!todo.reminderDateTime?.dateTime;
+                const hasAccordion =
+                  (todo.checklistItems?.length ?? 0) > 0 ||
+                  !!todo.body?.content?.trim() ||
+                  hasReminder ||
+                  !!todo.recurrence;
                 const isOpen = expandedTodos.has(todo.id);
                 return (
                   <li key={todo.id} className={styles.todoAccordionItem}>
@@ -83,6 +88,22 @@ function TodoGroups({
                     </div>
                     {hasAccordion && isOpen && (
                       <div className={styles.todoAccordionBody}>
+                        {(hasReminder || todo.recurrence) && (
+                          <div className={styles.todoDetailRows}>
+                            {hasReminder && (
+                              <span className={styles.todoDetailRow}>
+                                <IconBell/>
+                                {formatDateTimeLabel(graphDateTimeToMs(todo.reminderDateTime!.dateTime, todo.reminderDateTime!.timeZone))}
+                              </span>
+                            )}
+                            {todo.recurrence && (
+                              <span className={styles.todoDetailRow}>
+                                <IconRepeat/>
+                                {recurrenceLabel(todo.recurrence.pattern.type as Parameters<typeof recurrenceLabel>[0])} 반복
+                              </span>
+                            )}
+                          </div>
+                        )}
                         {todo.body?.content?.trim() && (
                           todo.body.contentType === "html"
                             ? <div className={styles.todoBodyNote} dangerouslySetInnerHTML={{__html: todo.body.content}}/>

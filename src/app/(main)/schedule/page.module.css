@@ -896,6 +896,27 @@
   gap: 10px;
 }
 
+/* 펼침 영역의 부가 정보(알림·반복) — 텍스트와 아이콘 모두 보조색으로 통일 */
+.todoDetailRows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.todoDetailRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.todoDetailRow svg {
+  flex-shrink: 0;
+  color: inherit; /* .iconRepeat의 고정 accent 색을 덮어 보조색으로 */
+  opacity: 1;
+}
+
 .todoBodyNote {
   font-size: 13px;
   color: var(--color-text-secondary);

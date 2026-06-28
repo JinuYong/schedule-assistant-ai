@@ -61,3 +61,11 @@ export function formatDateLabel(dateStr: string): string {
     month: "long", day: "numeric", weekday: "short",
   });
 }
+
+/** Unix ms → "6월 28일 오전 9시" (정시는 분 생략) — 알림 시각 표시용 */
+export function formatDateTimeLabel(ms: number): string {
+  const d = new Date(ms);
+  const datePart = d.toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
+  const timePart = d.toLocaleTimeString("ko-KR", d.getMinutes() === 0 ? { hour: "numeric" } : { hour: "numeric", minute: "2-digit" });
+  return `${datePart} ${timePart}`;
+}
