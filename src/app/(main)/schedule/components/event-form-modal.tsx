@@ -35,29 +35,44 @@ export default function EventFormModal({ form, setForm, calendars, onClose, onSu
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label className={styles.formLabel}>날짜</label>
+              <label className={styles.formLabel}>시작 날짜</label>
               <input
                 className={styles.formInput}
                 type="date"
                 value={form.date}
-                onChange={(e) => setForm((f) => ({...f, date: e.target.value}))}
+                onChange={(e) => setForm((f) => {
+                  const date = e.target.value;
+                  // 시작일이 종료일보다 뒤로 가면 종료일도 함께 맞춤
+                  return {...f, date, endDate: f.endDate && f.endDate >= date ? f.endDate : date};
+                })}
               />
             </div>
             <div className={styles.formGroup}>
-              <label className={styles.formLabel}>캘린더</label>
-              <select
+              <label className={styles.formLabel}>종료 날짜</label>
+              <input
                 className={styles.formInput}
-                value={form.calendarId}
-                onChange={(e) => setForm((f) => ({...f, calendarId: e.target.value}))}
-              >
-                {calendars.length > 0
-                  ? calendars.map((cal) => (
-                    <option key={cal.id} value={cal.id}>{cal.summary}</option>
-                  ))
-                  : <option value="primary">기본 캘린더</option>
-                }
-              </select>
+                type="date"
+                value={form.endDate || form.date}
+                min={form.date}
+                onChange={(e) => setForm((f) => ({...f, endDate: e.target.value}))}
+              />
             </div>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>캘린더</label>
+            <select
+              className={styles.formInput}
+              value={form.calendarId}
+              onChange={(e) => setForm((f) => ({...f, calendarId: e.target.value}))}
+            >
+              {calendars.length > 0
+                ? calendars.map((cal) => (
+                  <option key={cal.id} value={cal.id}>{cal.summary}</option>
+                ))
+                : <option value="primary">기본 캘린더</option>
+              }
+            </select>
           </div>
 
           <div className={styles.allDayRow}>

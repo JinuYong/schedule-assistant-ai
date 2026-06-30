@@ -214,7 +214,8 @@ export interface EventForm {
   editEventId: string | null; // null = 새 일정, string = 수정
   editCalendarId: string | null; // 수정 시 원본 캘린더 ID
   title: string;
-  date: string;
+  date: string;     // 시작 날짜 (YYYY-MM-DD)
+  endDate: string;  // 종료 날짜 (포함, YYYY-MM-DD) — 단일 일정이면 date와 동일
   isAllDay: boolean;
   startTime: string;
   endTime: string;
@@ -225,6 +226,41 @@ export interface EventForm {
 
 export const EMPTY_FORM: EventForm = {
   open: false, editEventId: null, editCalendarId: null,
-  title: "", date: "", isAllDay: false,
+  title: "", date: "", endDate: "", isAllDay: false,
   startTime: "09:00", endTime: "10:00", location: "", calendarId: "primary", submitting: false,
 };
+
+/** 폼 날짜/시간 → Google start/end 필드. 종일은 end.date가 배타적이라 종료일+1.
+ *  endDate가 비었거나 시작일보다 앞이면 시작일(단일)로 간주. */
+export function buildEventTimeFields(
+  form: Pick<EventForm, "isAllDay" | "date" | "endDate" | "startTime" | "endTime">
+) {
+  const start = form.date;
+  const end = form.endDate && form.endDate >= form.date ? form.endDate : form.date;
+  if (form.isAllDay) {
+    const [y, m, d] = end.split("-").map(Number);
+    const ex = new Date(y, m - 1, d + 1); // end.date 배타적 → 종료일 다음 날
+    return {
+      start: { date: start },
+      end: { date: isoDate(ex.getFullYear(), ex.getMonth(), ex.getDate()) },
+    };
+  }
+  return {
+    start: { dateTime: `${start}T${form.startTime}:00`, timeZone: "Asia/Seoul" },
+    end: { dateTime: `${end}T${form.endTime}:00`, timeZone: "Asia/Seoul" },
+  };
+}
+
+/** 기존 일정 → 폼의 종료 날짜(포함). 종일은 end.date 배타적이라 -1일, 시간 일정은 종료 일시의 날짜. */
+export function eventEndDateForForm(
+  ev: { isAllDay: boolean; startTime: string; endTime?: string }
+): string {
+  const startDate = ev.startTime?.slice(0, 10) ?? "";
+  if (!ev.endTime) return startDate;
+  const endRaw = ev.endTime.slice(0, 10);
+  if (!ev.isAllDay) return endRaw; // 시간 일정: 종료 일시의 날짜 그대로
+  const [y, m, d] = endRaw.split("-").map(Number);
+  const inc = new Date(y, m - 1, d - 1); // 종일: 배타적 end → 하루 빼서 포함 종료일
+  const incStr = isoDate(inc.getFullYear(), inc.getMonth(), inc.getDate());
+  return incStr >= startDate ? incStr : startDate;
+}

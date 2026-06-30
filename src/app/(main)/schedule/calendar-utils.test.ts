@@ -7,6 +7,8 @@ import {
   msUntilNextDay,
   buildMovedTimeFields,
   buildMonthLayout,
+  buildEventTimeFields,
+  eventEndDateForForm,
 } from "./calendar-utils";
 
 function mkEv(o: { id?: string; startTime: string; endTime?: string; isAllDay?: boolean; title?: string }): CalendarEvent {
@@ -123,6 +125,60 @@ describe("buildMonthLayout", () => {
     const layout = buildMonthLayout(cells, sameDay, 3);
     expect(layout.slotsByDate.get("2026-06-10")).toHaveLength(3);
     expect(layout.overflowByDate.get("2026-06-10")).toBe(1);
+  });
+});
+
+describe("buildEventTimeFields", () => {
+  const base = { startTime: "09:00", endTime: "10:00" };
+
+  it("종일 단일: end.date는 다음 날(배타적)", () => {
+    expect(buildEventTimeFields({ ...base, isAllDay: true, date: "2026-06-03", endDate: "2026-06-03" }))
+      .toEqual({ start: { date: "2026-06-03" }, end: { date: "2026-06-04" } });
+  });
+
+  it("종일 범위: 종료일+1을 end.date로", () => {
+    expect(buildEventTimeFields({ ...base, isAllDay: true, date: "2026-06-03", endDate: "2026-06-05" }))
+      .toEqual({ start: { date: "2026-06-03" }, end: { date: "2026-06-06" } });
+  });
+
+  it("종일: 종료일이 시작일보다 앞이면 단일로 간주", () => {
+    expect(buildEventTimeFields({ ...base, isAllDay: true, date: "2026-06-03", endDate: "2026-06-01" }))
+      .toEqual({ start: { date: "2026-06-03" }, end: { date: "2026-06-04" } });
+  });
+
+  it("시간 일정 같은 날", () => {
+    expect(buildEventTimeFields({ isAllDay: false, date: "2026-06-03", endDate: "2026-06-03", startTime: "09:00", endTime: "10:30" }))
+      .toEqual({
+        start: { dateTime: "2026-06-03T09:00:00", timeZone: "Asia/Seoul" },
+        end: { dateTime: "2026-06-03T10:30:00", timeZone: "Asia/Seoul" },
+      });
+  });
+
+  it("시간 일정 자정 넘김(다른 날)", () => {
+    expect(buildEventTimeFields({ isAllDay: false, date: "2026-06-03", endDate: "2026-06-04", startTime: "22:00", endTime: "02:00" }))
+      .toEqual({
+        start: { dateTime: "2026-06-03T22:00:00", timeZone: "Asia/Seoul" },
+        end: { dateTime: "2026-06-04T02:00:00", timeZone: "Asia/Seoul" },
+      });
+  });
+});
+
+describe("eventEndDateForForm", () => {
+  it("종일: end.date 배타적이라 -1일(포함 종료일)", () => {
+    expect(eventEndDateForForm({ isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-05" })).toBe("2026-06-04");
+  });
+
+  it("종일 단일(end=start+1) → 시작일", () => {
+    expect(eventEndDateForForm({ isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-04" })).toBe("2026-06-03");
+  });
+
+  it("시간 일정: 종료 일시의 날짜", () => {
+    expect(eventEndDateForForm({ isAllDay: false, startTime: "2026-06-03T10:00", endTime: "2026-06-03T11:00" })).toBe("2026-06-03");
+    expect(eventEndDateForForm({ isAllDay: false, startTime: "2026-06-03T23:00", endTime: "2026-06-04T01:00" })).toBe("2026-06-04");
+  });
+
+  it("endTime 없으면 시작일", () => {
+    expect(eventEndDateForForm({ isAllDay: true, startTime: "2026-06-03" })).toBe("2026-06-03");
   });
 });
 

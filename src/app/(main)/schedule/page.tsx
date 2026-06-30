@@ -20,7 +20,7 @@ import Divider from "@/components/divider";
 import {IconChevronLeft, IconChevronRight, IconRefresh, IconPlus} from "@/components/icons";
 import styles from "./page.module.css";
 import UnavailableContent from '@/components/unavailable-content'
-import { buildCells, buildMonthLayout, daysInMonth, buildMovedTimeFields, EMPTY_FORM, type EventForm } from "./calendar-utils";
+import { buildCells, buildMonthLayout, daysInMonth, buildMovedTimeFields, buildEventTimeFields, eventEndDateForForm, EMPTY_FORM, type EventForm } from "./calendar-utils";
 import { getEventDateKeys, eventShortLabel } from "@/lib/event-match";
 import { buildTodoTaskFromForm, todoEditFormState, EMPTY_TODO_FORM, type TodoFormState } from "@/lib/todo-form";
 import {useTodayInfo} from "./hooks/use-today-info";
@@ -196,7 +196,7 @@ export default function SchedulePage() {
   }, [currentMonth, currentYear, selectedDate]);
 
   const openEventForm = useCallback((date: string) => {
-    setEventForm({...EMPTY_FORM, open: true, date, calendarId: defaultCalendarId});
+    setEventForm({...EMPTY_FORM, open: true, date, endDate: date, calendarId: defaultCalendarId});
   }, [defaultCalendarId]);
 
   const openEditForm = useCallback((ev: CalendarEvent) => {
@@ -214,7 +214,7 @@ export default function SchedulePage() {
     const calId = ev.calendarId ?? defaultCalendarId;
     setEventForm({
       open: true, editEventId: ev.id, editCalendarId: calId,
-      title: ev.title, date: dateStr, isAllDay: ev.isAllDay,
+      title: ev.title, date: dateStr, endDate: eventEndDateForForm(ev), isAllDay: ev.isAllDay,
       startTime: startT, endTime: endT,
       location: ev.location ?? "", calendarId: calId, submitting: false,
     });
@@ -278,12 +278,7 @@ export default function SchedulePage() {
     try {
       const tokens = await refreshGoogle();
       if (!tokens?.access_token) throw new Error("Google 계정 연결이 필요합니다.");
-      const timeFields = eventForm.isAllDay
-        ? {start: {date: eventForm.date}, end: {date: eventForm.date}}
-        : {
-          start: {dateTime: `${eventForm.date}T${eventForm.startTime}:00`, timeZone: "Asia/Seoul"},
-          end: {dateTime: `${eventForm.date}T${eventForm.endTime}:00`, timeZone: "Asia/Seoul"},
-        };
+      const timeFields = buildEventTimeFields(eventForm);
 
       if (eventForm.editEventId) {
         // 수정
