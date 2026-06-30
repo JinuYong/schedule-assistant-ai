@@ -33,7 +33,11 @@ export async function parseScheduleText(
   const apiKey = await getApiKey();
 
   const calendarContext = calendarNames && calendarNames.length > 0
-    ? `\n\n사용 가능한 캘린더 목록:\n${calendarNames.map((n) => `- ${n}`).join("\n")}\n입력에서 특정 캘린더가 언급되면 calendarName 필드에 목록 중 가장 가까운 캘린더명을 정확히 반환하세요. 언급이 없으면 calendarName을 비워두세요.`
+    ? `\n\n사용 가능한 캘린더 목록:\n${calendarNames.map((n) => `- ${n}`).join("\n")}\n` +
+      `calendarName은 사용자가 일정을 특정 캘린더에 넣으라고 **명시적으로 지시**한 경우에만 반환하세요. ` +
+      `보통 "○○ 캘린더에", "○○에 추가해줘"처럼 캘린더를 가리키는 표현이 있어야 합니다. ` +
+      `**일정 제목·내용에 들어간 단어(사람 이름 등)가 캘린더 이름과 우연히 일치하는 것은 캘린더 지정이 아닙니다** — ` +
+      `그 단어는 제목의 일부로 두고 calendarName은 비워두세요. 애매하면 비워두세요.`
     : "";
 
   const body = {
@@ -54,7 +58,7 @@ export async function parseScheduleText(
             isAllDay: { type: "boolean" },
             calendarName: {
               type: "string",
-              description: "추가할 캘린더 이름. 입력에서 언급된 경우에만 반환",
+              description: "사용자가 일정을 넣을 캘린더를 명시적으로 지시한 경우에만 반환(예: '회사 캘린더에'). 제목에 우연히 캘린더명과 같은 단어가 있어도 지정이 아니면 비워둘 것.",
             },
           },
           required: ["title", "startTime", "endTime", "isAllDay"],
