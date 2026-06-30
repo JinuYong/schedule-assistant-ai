@@ -183,7 +183,18 @@ export function buildMonthLayout(cells: CalCell[], events: CalendarEvent[], maxL
 /** 이벤트를 다른 날짜로 이동할 때 시간 보존 */
 export function buildMovedTimeFields(ev: CalendarEvent, newDate: string) {
   if (ev.isAllDay) {
-    return {start: {date: newDate}, end: {date: newDate}};
+    // 종일 일정: 일수(end.date 배타적)를 보존하며 통째로 이동
+    const startDate = ev.startTime?.slice(0, 10) ?? "";
+    const endDate = ev.endTime?.slice(0, 10) ?? "";
+    const spanDays = startDate && endDate
+      ? Math.max(1, Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86_400_000))
+      : 1;
+    const [y, m, d] = newDate.split("-").map(Number);
+    const end = new Date(y, m - 1, d + spanDays);
+    return {
+      start: {date: newDate},
+      end: {date: isoDate(end.getFullYear(), end.getMonth(), end.getDate())},
+    };
   }
   const origStart = new Date(ev.startTime);
   const durationMs = new Date(ev.endTime).getTime() - origStart.getTime();

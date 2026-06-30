@@ -127,11 +127,20 @@ describe("buildMonthLayout", () => {
 });
 
 describe("buildMovedTimeFields", () => {
-  it("종일 일정은 start/end를 date로", () => {
-    const e = { isAllDay: true } as unknown as CalendarEvent;
+  it("종일 일정은 일수(span)를 보존하며 이동한다", () => {
+    // 2일짜리 종일 일정(end.date 배타적: 6/3~6/4 → end 6/5)
+    const e = { isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-05" } as unknown as CalendarEvent;
     expect(buildMovedTimeFields(e, "2026-06-20")).toEqual({
       start: { date: "2026-06-20" },
-      end: { date: "2026-06-20" },
+      end: { date: "2026-06-22" }, // 2일 유지
+    });
+  });
+
+  it("단일 종일 일정은 1일을 유지한다", () => {
+    const e = { isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-04" } as unknown as CalendarEvent;
+    expect(buildMovedTimeFields(e, "2026-06-20")).toEqual({
+      start: { date: "2026-06-20" },
+      end: { date: "2026-06-21" },
     });
   });
 
