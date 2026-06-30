@@ -18,6 +18,7 @@ const BASE_HEIGHT = 64;
 export default function FloatingPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const refreshGoogle = useAuthStore((s) => s.refreshGoogle);
+  const loadFromStore = useAuthStore((s) => s.loadFromStore);
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [calendars, setCalendars] = useState<CalendarListItem[]>([]);
@@ -42,7 +43,11 @@ export default function FloatingPage() {
     events,
     calendars,
     primaryCalendarId,
-    getToken: useCallback(async () => (await refreshGoogle())?.access_token ?? null, [refreshGoogle]),
+    getToken: useCallback(async () => {
+      // 플로팅창은 메인 창과 별개 스토어라, 토큰이 비어 있으면 tauri-store에서 하이드레이트
+      if (!useAuthStore.getState().googleTokens) await loadFromStore();
+      return (await refreshGoogle())?.access_token ?? null;
+    }, [refreshGoogle, loadFromStore]),
     onMutated: useCallback(async () => {
       await emit("calendar-mutated");
       setTimeout(async () => {
@@ -53,6 +58,7 @@ export default function FloatingPage() {
 
   // 자동완성용 데이터: 캐시 즉시 반영 후 토큰 있으면 최신 이벤트로 갱신
   const loadMatchData = useCallback(async () => {
+    await loadFromStore(); // 메인 창에서 로그인한 최신 토큰을 플로팅창 스토어로 반영
     const cached = await storeGet<CalendarEvent[]>("events.cache");
     if (cached?.length) setEvents(cached);
     const token = (await refreshGoogle())?.access_token;
@@ -67,7 +73,7 @@ export default function FloatingPage() {
     } catch {
       /* 로드 실패 시 캐시 데이터 유지 */
     }
-  }, [refreshGoogle]);
+  }, [refreshGoogle, loadFromStore]);
 
   // 후보 드롭다운 노출 시 창 높이 확장, 닫히면 원복 (Rust setFrame 경유)
   useEffect(() => {
