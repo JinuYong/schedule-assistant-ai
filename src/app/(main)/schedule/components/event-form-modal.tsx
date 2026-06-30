@@ -33,6 +33,22 @@ export default function EventFormModal({ form, setForm, calendars, onClose, onSu
             />
           </div>
 
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>캘린더</label>
+            <select
+              className={styles.formInput}
+              value={form.calendarId}
+              onChange={(e) => setForm((f) => ({...f, calendarId: e.target.value}))}
+            >
+              {calendars.length > 0
+                ? calendars.map((cal) => (
+                  <option key={cal.id} value={cal.id}>{cal.summary}</option>
+                ))
+                : <option value="primary">기본 캘린더</option>
+              }
+            </select>
+          </div>
+
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label className={styles.formLabel}>시작 날짜</label>
@@ -57,22 +73,6 @@ export default function EventFormModal({ form, setForm, calendars, onClose, onSu
                 onChange={(e) => setForm((f) => ({...f, endDate: e.target.value}))}
               />
             </div>
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.formLabel}>캘린더</label>
-            <select
-              className={styles.formInput}
-              value={form.calendarId}
-              onChange={(e) => setForm((f) => ({...f, calendarId: e.target.value}))}
-            >
-              {calendars.length > 0
-                ? calendars.map((cal) => (
-                  <option key={cal.id} value={cal.id}>{cal.summary}</option>
-                ))
-                : <option value="primary">기본 캘린더</option>
-              }
-            </select>
           </div>
 
           <div className={styles.allDayRow}>
