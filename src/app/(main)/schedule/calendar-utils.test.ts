@@ -184,15 +184,16 @@ describe("eventEndDateForForm", () => {
 });
 
 describe("formatEventWhen", () => {
-  it("종일 단일: 범위(–) 없이 (종일)", () => {
+  it("종일 단일: 범위(–)·(종일) 텍스트 없이 날짜만", () => {
     const s = formatEventWhen({ isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-04" });
-    expect(s).toContain("(종일)");
+    expect(s).not.toContain("종일");
     expect(s).not.toContain("–");
+    expect(s).toContain("일"); // 날짜 라벨
   });
 
-  it("종일 여러 날: 시작–종료 범위 표시", () => {
+  it("종일 여러 날: 시작–종료 범위 표시(종일 텍스트 없음)", () => {
     const s = formatEventWhen({ isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-08" });
-    expect(s).toContain("(종일)");
+    expect(s).not.toContain("종일");
     expect(s).toContain("–");
   });
 

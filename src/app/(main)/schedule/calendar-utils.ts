@@ -274,9 +274,8 @@ export function formatEventWhen(ev: { isAllDay: boolean; startTime: string; endT
     const startKey = ev.startTime.slice(0, 10);
     const endKey = eventEndDateForForm(ev); // 포함 종료일
     const startLabel = formatDateLabel(startKey);
-    return startKey === endKey
-      ? `${startLabel} (종일)`
-      : `${startLabel} – ${formatDateLabel(endKey)} (종일)`;
+    // 종일은 시간이 없는 것 자체가 표시이므로 "(종일)" 텍스트 생략
+    return startKey === endKey ? startLabel : `${startLabel} – ${formatDateLabel(endKey)}`;
   }
   const s = new Date(ev.startTime);
   const e = new Date(ev.endTime);
