@@ -19,6 +19,23 @@ pub async fn call_claude(
         .await
         .map_err(|e| e.to_string())?;
 
+    // HTTP 에러 응답 처리 (401 잘못된 키, 404 잘못된 모델, 400 잘못된 요청 등)
+    // — 안 하면 에러 JSON이 "성공"으로 넘어가 프론트에서 파싱 실패로만 보인다.
+    if !response.status().is_success() {
+        let status = response.status().as_u16();
+        let body = response.text().await.unwrap_or_default();
+        let msg = serde_json::from_str::<serde_json::Value>(&body)
+            .ok()
+            .and_then(|j| {
+                j.get("error")
+                    .and_then(|e| e.get("message"))
+                    .and_then(|m| m.as_str())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_else(|| format!("HTTP {status}"));
+        return Err(msg);
+    }
+
     response
         .json::<serde_json::Value>()
         .await

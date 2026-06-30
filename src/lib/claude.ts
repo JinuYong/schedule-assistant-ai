@@ -61,7 +61,8 @@ export async function parseScheduleText(
         },
       },
     ],
-    tool_choice: { type: "auto" },
+    // 반드시 도구를 호출하도록 강제 (auto면 모델이 텍스트로 답해 파싱 실패할 수 있음)
+    tool_choice: { type: "tool", name: "create_schedule_event" },
     messages: [
       {
         role: "user",
@@ -71,10 +72,19 @@ export async function parseScheduleText(
   };
 
   const result = await invoke<Record<string, unknown>>("call_claude", { apiKey, body });
+  throwIfClaudeError(result);
   const content = result.content as Array<{ type: string; input?: unknown }> | undefined;
   const toolUse = content?.find((c) => c.type === "tool_use");
   if (!toolUse?.input) return null;
   return toolUse.input as ParsedEvent;
+}
+
+/** call_claude 응답이 Claude API 에러 형태면 메시지를 던져 표면화 (Rust가 상태코드를 놓쳐도 안전) */
+function throwIfClaudeError(result: Record<string, unknown>): void {
+  if (result?.type === "error" || result?.error) {
+    const m = (result.error as { message?: string } | undefined)?.message;
+    throw new Error(m ? `Claude API: ${m}` : "Claude API 오류가 발생했습니다.");
+  }
 }
 
 /** 자동완성에서 선택한 기존 일정에 대한 명령(삭제/수정) */
@@ -152,6 +162,7 @@ export async function parseEditCommand(
   };
 
   const result = await invoke<Record<string, unknown>>("call_claude", { apiKey, body });
+  throwIfClaudeError(result);
   const content = result.content as Array<{ type: string; name?: string; input?: unknown }> | undefined;
   const toolUse = content?.find((c) => c.type === "tool_use");
   if (!toolUse) return null;

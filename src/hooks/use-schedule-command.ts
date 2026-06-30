@@ -155,6 +155,7 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
         setTimeout(() => setStatus("idle"), 1500);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "처리에 실패했습니다.";
+        console.error("[schedule-command] 수정/삭제 실패:", e);
         onError?.(msg);
         setStatus("error");
         setTimeout(() => setStatus("idle"), 2000);
@@ -179,6 +180,7 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
       setTimeout(() => setStatus("idle"), 1500);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "일정 추가에 실패했습니다.";
+      console.error("[schedule-command] 생성 실패:", e);
       onError?.(msg);
       setStatus("error");
       setTimeout(() => setStatus("idle"), 2000);
