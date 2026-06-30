@@ -28,6 +28,7 @@ import {useSidePanelWidth} from "./hooks/use-side-panel-width";
 import {useEventDrag} from "./hooks/use-event-drag";
 import {useTodoActions} from "@/hooks/use-todo-actions";
 import {useScheduleCommand} from "@/hooks/use-schedule-command";
+import {useDefaultCalendarId} from "@/hooks/use-default-calendar";
 import CalendarGrid from "./components/calendar-grid";
 import EventList from "./components/event-list";
 import TodoGroups from "./components/todo-groups";
@@ -143,6 +144,8 @@ export default function SchedulePage() {
     () => calendars.find((c) => c.primary)?.id ?? "primary",
     [calendars]
   );
+  // 설정의 기본 캘린더(없으면 primary) — 모달 기본 선택·자연어 추가 폴백에 사용
+  const [defaultCalendarId] = useDefaultCalendarId(calendars, primaryCalendarId);
 
   /** 현재 그리드에 실제로 표시되는 날짜 범위 (RFC 3339, UTC ISO) */
   const gridRange = useMemo(() => ({
@@ -193,8 +196,8 @@ export default function SchedulePage() {
   }, [currentMonth, currentYear, selectedDate]);
 
   const openEventForm = useCallback((date: string) => {
-    setEventForm({...EMPTY_FORM, open: true, date, calendarId: primaryCalendarId});
-  }, [primaryCalendarId]);
+    setEventForm({...EMPTY_FORM, open: true, date, calendarId: defaultCalendarId});
+  }, [defaultCalendarId]);
 
   const openEditForm = useCallback((ev: CalendarEvent) => {
     const dateStr = ev.startTime.split("T")[0];
@@ -208,14 +211,14 @@ export default function SchedulePage() {
       minute: "2-digit",
       hour12: false
     });
-    const calId = ev.calendarId ?? primaryCalendarId;
+    const calId = ev.calendarId ?? defaultCalendarId;
     setEventForm({
       open: true, editEventId: ev.id, editCalendarId: calId,
       title: ev.title, date: dateStr, isAllDay: ev.isAllDay,
       startTime: startT, endTime: endT,
       location: ev.location ?? "", calendarId: calId, submitting: false,
     });
-  }, [primaryCalendarId]);
+  }, [defaultCalendarId]);
 
   const closeEventForm = useCallback(() => setEventForm(EMPTY_FORM), []);
 
@@ -251,7 +254,7 @@ export default function SchedulePage() {
   } = useScheduleCommand({
     events,
     calendars,
-    primaryCalendarId,
+    defaultCalendarId,
     getToken: useCallback(async () => (await refreshGoogle())?.access_token ?? null, [refreshGoogle]),
     onMutated: useCallback(async () => {
       invalidateCache();

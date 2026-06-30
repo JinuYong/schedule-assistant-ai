@@ -22,7 +22,8 @@ export interface ScheduleCommandDeps {
   events: CalendarEvent[];
   /** 신규 생성 시 캘린더 매칭에 사용 */
   calendars: CalendarListItem[];
-  primaryCalendarId: string;
+  /** 캘린더 미지정 시 사용할 기본 캘린더 ID (설정의 기본 캘린더 또는 primary) */
+  defaultCalendarId: string;
   /** 유효한 Google access token 확보 (없으면 null) */
   getToken: () => Promise<string | null>;
   /** 생성/수정/삭제 성공 후 갱신 처리 */
@@ -41,7 +42,7 @@ export interface ScheduleCommandDeps {
  * - 대상 미지정 상태에서 Enter → 신규 생성
  */
 export function useScheduleCommand(deps: ScheduleCommandDeps) {
-  const { events, calendars, primaryCalendarId, getToken, onMutated, onError } = deps;
+  const { events, calendars, defaultCalendarId, getToken, onMutated, onError } = deps;
   const [input, setInputState] = useState("");
   const [status, setStatus] = useState<CommandStatus>("idle");
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -173,7 +174,7 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
       const parsed = await parseScheduleText(text, now, calendars.map((c) => c.summary));
       if (!parsed) throw new Error("파싱 실패");
       const matched = parsed.calendarName ? matchCalendar(parsed.calendarName, calendars) : undefined;
-      await createEvent(token, buildEventFromParsed(parsed), matched?.id ?? primaryCalendarId);
+      await createEvent(token, buildEventFromParsed(parsed), matched?.id ?? defaultCalendarId);
       reset();
       setStatus("done");
       await onMutated("create");
@@ -185,7 +186,7 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
       setStatus("error");
       setTimeout(() => setStatus("idle"), 2000);
     }
-  }, [input, status, lockedTarget, getToken, calendars, primaryCalendarId, onMutated, onError, reset]);
+  }, [input, status, lockedTarget, getToken, calendars, defaultCalendarId, onMutated, onError, reset]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {

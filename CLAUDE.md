@@ -218,6 +218,7 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 | `google.clientId` | Google OAuth Client ID |
 | `google.clientSecret` | Google OAuth Client Secret |
 | `google.tokens` | Google 액세스/리프레시 토큰 |
+| `google.defaultCalendarId` | 기본 캘린더 ID (모달 기본 선택·자연어 추가 폴백, 없으면 primary) |
 | `microsoft.clientId` | Microsoft OAuth Client ID |
 | `microsoft.clientSecret` | Microsoft OAuth Client Secret |
 | `microsoft.tokens` | Microsoft 액세스/리프레시 토큰 |

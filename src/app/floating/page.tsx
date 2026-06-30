@@ -10,6 +10,7 @@ import { getCalendarList, listEventsInRange, type CalendarListItem } from "@/lib
 import { useAuthStore } from "@/store/auth";
 import { CalendarEvent, mapGCalEvent } from "@/store/events";
 import { useScheduleCommand } from "@/hooks/use-schedule-command";
+import { useDefaultCalendarId } from "@/hooks/use-default-calendar";
 import { eventShortLabel } from "@/lib/event-match";
 import styles from "./page.module.css";
 
@@ -23,6 +24,7 @@ export default function FloatingPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [calendars, setCalendars] = useState<CalendarListItem[]>([]);
   const primaryCalendarId = calendars.find((c) => c.primary)?.id ?? "primary";
+  const [defaultCalendarId, reloadDefaultCal] = useDefaultCalendarId(calendars, primaryCalendarId);
 
   const {
     input,
@@ -42,7 +44,7 @@ export default function FloatingPage() {
   } = useScheduleCommand({
     events,
     calendars,
-    primaryCalendarId,
+    defaultCalendarId,
     getToken: useCallback(async () => {
       // 플로팅창은 메인 창과 별개 스토어라, 토큰이 비어 있으면 tauri-store에서 하이드레이트
       if (!useAuthStore.getState().googleTokens) await loadFromStore();
@@ -59,6 +61,7 @@ export default function FloatingPage() {
   // 자동완성용 데이터: 캐시 즉시 반영 후 토큰 있으면 최신 이벤트로 갱신
   const loadMatchData = useCallback(async () => {
     await loadFromStore(); // 메인 창에서 로그인한 최신 토큰을 플로팅창 스토어로 반영
+    reloadDefaultCal();    // 설정에서 바뀐 기본 캘린더 반영
     const cached = await storeGet<CalendarEvent[]>("events.cache");
     if (cached?.length) setEvents(cached);
     const token = (await refreshGoogle())?.access_token;
@@ -73,7 +76,7 @@ export default function FloatingPage() {
     } catch {
       /* 로드 실패 시 캐시 데이터 유지 */
     }
-  }, [refreshGoogle, loadFromStore]);
+  }, [refreshGoogle, loadFromStore, reloadDefaultCal]);
 
   // 후보 드롭다운 노출 시 창 높이 확장, 닫히면 원복 (Rust setFrame 경유)
   useEffect(() => {

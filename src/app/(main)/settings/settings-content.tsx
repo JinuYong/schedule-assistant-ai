@@ -5,13 +5,15 @@ import { useAuthStore } from "@/store/auth";
 import { useThemeStore, THEME_COLORS } from "@/store/theme";
 import { storeGet, storeSet, isTauri } from "@/lib/tauri-store";
 import { startGoogleOAuth, startMicrosoftOAuth } from "@/lib/oauth";
+import { getCalendarList, type CalendarListItem } from "@/lib/google-calendar";
 import { useOAuthConnection } from "@/hooks/use-oauth-connection";
+import { DEFAULT_CALENDAR_KEY } from "@/hooks/use-default-calendar";
 import { DEFAULT_SHORTCUT } from "@/lib/hotkey";
 import { fireNotification } from "@/lib/notifications";
 import styles from "./page.module.css";
 
 export default function SettingsContent() {
-  const { googleTokens, setGoogleTokens, microsoftTokens, setMicrosoftTokens } = useAuthStore();
+  const { googleTokens, setGoogleTokens, microsoftTokens, setMicrosoftTokens, refreshGoogle } = useAuthStore();
   const { accentColor, setTheme } = useThemeStore();
 
   const [anthropicKey, setAnthropicKey] = useState("");
@@ -19,6 +21,9 @@ export default function SettingsContent() {
   const [isRecording, setIsRecording] = useState(false);
   const [shortcutError, setShortcutError] = useState("");
   const isRecordingRef = useRef(false);
+
+  const [calendars, setCalendars] = useState<CalendarListItem[]>([]);
+  const [defaultCal, setDefaultCal] = useState("");
 
   const [mounted, setMounted] = useState(false);
   const [savedKeys, setSavedKeys] = useState(false);
@@ -50,6 +55,26 @@ export default function SettingsContent() {
     await storeSet("anthropic.apiKey", anthropicKey);
     setSavedKeys(true);
     setTimeout(() => setSavedKeys(false), 2000);
+  };
+
+  // Google 연결 시 캘린더 목록 + 저장된 기본 캘린더 로드
+  useEffect(() => {
+    if (!googleTokens) { setCalendars([]); return; }
+    let cancelled = false;
+    (async () => {
+      const token = (await refreshGoogle())?.access_token;
+      if (!token || cancelled) return;
+      const list = await getCalendarList(token).catch(() => []);
+      if (cancelled) return;
+      setCalendars(list);
+      setDefaultCal((await storeGet<string>(DEFAULT_CALENDAR_KEY)) ?? "");
+    })();
+    return () => { cancelled = true; };
+  }, [googleTokens, refreshGoogle]);
+
+  const saveDefaultCal = (id: string) => {
+    setDefaultCal(id);
+    void storeSet(DEFAULT_CALENDAR_KEY, id);
   };
 
   useEffect(() => {
@@ -158,9 +183,29 @@ export default function SettingsContent() {
         </p>
         {google.error && <p className={styles.errorText}>{google.error}</p>}
         {googleTokens ? (
-          <button className={styles.dangerBtn} onClick={() => setGoogleTokens(null)}>
-            연결 해제
-          </button>
+          <>
+            {calendars.length > 0 && (
+              <div className={styles.fieldGroup} style={{ marginBottom: 12 }}>
+                <label className={styles.label}>기본 캘린더</label>
+                <select
+                  className={styles.shortcutInput}
+                  value={defaultCal}
+                  onChange={(e) => saveDefaultCal(e.target.value)}
+                >
+                  <option value="">Google 기본 캘린더</option>
+                  {calendars.map((c) => (
+                    <option key={c.id} value={c.id}>{c.summary}</option>
+                  ))}
+                </select>
+                <p className={styles.hint}>
+                  일정 추가 모달에서 기본으로 선택되고, 자연어로 캘린더를 지정하지 않으면 여기에 추가됩니다.
+                </p>
+              </div>
+            )}
+            <button className={styles.dangerBtn} onClick={() => setGoogleTokens(null)}>
+              연결 해제
+            </button>
+          </>
         ) : (
           <button
             className={styles.connectBtn}
