@@ -9,6 +9,7 @@ import {
   buildMonthLayout,
   buildEventTimeFields,
   eventEndDateForForm,
+  formatEventWhen,
 } from "./calendar-utils";
 
 function mkEv(o: { id?: string; startTime: string; endTime?: string; isAllDay?: boolean; title?: string }): CalendarEvent {
@@ -179,6 +180,33 @@ describe("eventEndDateForForm", () => {
 
   it("endTime 없으면 시작일", () => {
     expect(eventEndDateForForm({ isAllDay: true, startTime: "2026-06-03" })).toBe("2026-06-03");
+  });
+});
+
+describe("formatEventWhen", () => {
+  it("종일 단일: 범위(–) 없이 (종일)", () => {
+    const s = formatEventWhen({ isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-04" });
+    expect(s).toContain("(종일)");
+    expect(s).not.toContain("–");
+  });
+
+  it("종일 여러 날: 시작–종료 범위 표시", () => {
+    const s = formatEventWhen({ isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-08" });
+    expect(s).toContain("(종일)");
+    expect(s).toContain("–");
+  });
+
+  it("시간 일정 같은 날: 시작–종료 시간", () => {
+    const s = formatEventWhen({ isAllDay: false, startTime: "2026-06-03T13:00:00", endTime: "2026-06-03T15:00:00" });
+    expect(s).toContain("–");
+    expect(s).not.toContain("(종일)");
+  });
+
+  it("시간 일정 자정 넘김: 종료 날짜도 포함", () => {
+    const s = formatEventWhen({ isAllDay: false, startTime: "2026-06-03T22:00:00", endTime: "2026-06-04T02:00:00" });
+    expect(s).toContain("–");
+    // 시작·종료 날짜가 다르므로 "일"이 두 번 등장(날짜 라벨 2개)
+    expect((s.match(/일/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 });
 

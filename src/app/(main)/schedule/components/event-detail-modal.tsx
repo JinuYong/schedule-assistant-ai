@@ -1,6 +1,7 @@
 import { CalendarEvent } from "@/store/events";
 import { CalendarListItem } from "@/lib/google-calendar";
 import { IconClose } from "@/components/icons";
+import { formatEventWhen } from "../calendar-utils";
 import styles from "../page.module.css";
 
 interface EventDetailModalProps {
@@ -28,25 +29,7 @@ export default function EventDetailModal({
         </div>
         <div className={styles.detailBody}>
           <p className={styles.detailRow}>
-            <span className={styles.detailIcon}>🕐</span>{event.isAllDay
-            ? new Date(event.startTime + "T00:00:00").toLocaleDateString("ko-KR", {
-            month: "long",
-            day: "numeric",
-            weekday: "short"
-          }) + " (종일)"
-            : (() => {
-              const s = new Date(event.startTime);
-              const e2 = new Date(event.endTime);
-              return `${s.toLocaleDateString("ko-KR", {
-                month: "long",
-                day: "numeric",
-                weekday: "short"
-              })} ${s.toLocaleTimeString("ko-KR", {
-                hour: "2-digit",
-                minute: "2-digit"
-              })} – ${e2.toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit"})}`;
-            })()
-          }
+            <span className={styles.detailIcon}>🕐</span>{formatEventWhen(event)}
           </p>
           {event.location && (
             <p className={styles.detailRow}><span className={styles.detailIcon}>📍</span>{event.location}</p>

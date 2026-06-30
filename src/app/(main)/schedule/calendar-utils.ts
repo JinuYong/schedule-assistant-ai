@@ -1,5 +1,5 @@
 import { CalendarEvent } from "@/store/events";
-import { isoDate } from "@/lib/date-utils";
+import { isoDate, formatDateLabel } from "@/lib/date-utils";
 import { getEventDateKeys } from "@/lib/event-match";
 
 // ── 달력 그리드 계산 ────────────────────────────────────────
@@ -263,4 +263,29 @@ export function eventEndDateForForm(
   const inc = new Date(y, m - 1, d - 1); // 종일: 배타적 end → 하루 빼서 포함 종료일
   const incStr = isoDate(inc.getFullYear(), inc.getMonth(), inc.getDate());
   return incStr >= startDate ? incStr : startDate;
+}
+
+const WHEN_DATE_OPTS = { month: "long", day: "numeric", weekday: "short" } as const;
+const WHEN_TIME_OPTS = { hour: "2-digit", minute: "2-digit" } as const;
+
+/** 상세 표시용 일시 라벨 — 종일/시간, 단일/여러 날(범위)을 모두 처리. */
+export function formatEventWhen(ev: { isAllDay: boolean; startTime: string; endTime: string }): string {
+  if (ev.isAllDay) {
+    const startKey = ev.startTime.slice(0, 10);
+    const endKey = eventEndDateForForm(ev); // 포함 종료일
+    const startLabel = formatDateLabel(startKey);
+    return startKey === endKey
+      ? `${startLabel} (종일)`
+      : `${startLabel} – ${formatDateLabel(endKey)} (종일)`;
+  }
+  const s = new Date(ev.startTime);
+  const e = new Date(ev.endTime);
+  const sDate = s.toLocaleDateString("ko-KR", WHEN_DATE_OPTS);
+  const sTime = s.toLocaleTimeString("ko-KR", WHEN_TIME_OPTS);
+  const eTime = e.toLocaleTimeString("ko-KR", WHEN_TIME_OPTS);
+  if (s.toDateString() === e.toDateString()) {
+    return `${sDate} ${sTime} – ${eTime}`;
+  }
+  // 자정 넘겨 다른 날 종료 → 종료 날짜도 표시
+  return `${sDate} ${sTime} – ${e.toLocaleDateString("ko-KR", WHEN_DATE_OPTS)} ${eTime}`;
 }
