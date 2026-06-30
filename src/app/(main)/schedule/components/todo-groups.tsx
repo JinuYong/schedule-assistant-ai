@@ -74,11 +74,11 @@ function TodoGroups({
                               </button>
                             </div>
                             {todo.recurrence && <IconRepeat/>}
-                            {hasAccordion && <span className={styles.todoChevronSlot}><IconChevron open={isOpen}/></span>}
                             <button className={styles.todoStarBtn} onClick={(e) => onToggleImportance(e, todo)}
                                     title={todo.importance === "high" ? "즐겨찾기 해제" : "즐겨찾기"}>
                               <IconStar filled={todo.importance === "high"}/>
                             </button>
+                            <span className={styles.todoChevronSlot}>{hasAccordion && <IconChevron open={isOpen}/>}</span>
                           </div>
                         </div>
                         <div className={styles.todoAccordionMeta}>
