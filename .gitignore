@@ -6,6 +6,9 @@ node_modules/
 .next/
 out/
 
+# ── 릴리스 산출물 (release 워크플로가 생성) ──────────────────
+dist/
+
 # ── TypeScript ─────────────────────────────────────────────
 *.tsbuildinfo
 

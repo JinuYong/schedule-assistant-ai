@@ -1,0 +1,219 @@
+name: release
+
+# main에 push하면 버전을 자동으로 올리고 macOS universal .dmg를 빌드해 릴리스한다.
+# 워크플로는 커밋이 아니라 push 단위로 실행된다 — 커밋 5개를 한 번에 push하면 버전도 한 칸만 오른다.
+#
+# 에셋 이름은 반드시 Cali.dmg 로 고정한다 —
+# 포트폴리오 사이트가 /releases/latest/download/Cali.dmg 로 직접 링크하기 때문.
+on:
+  push:
+    branches:
+      - main
+    # 문서만 고친 push로 15분짜리 빌드를 돌리지 않는다.
+    # 이 목록의 파일'만' 바뀐 push는 무시된다.
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+      - ".github/**"
+      - "scripts/**"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "버전 상승 폭"
+        required: true
+        default: auto
+        type: choice
+        options: [auto, patch, minor, major]
+
+permissions:
+  contents: write
+
+# 연달아 push하면 이전 빌드를 취소하고 최신 것만 릴리스한다.
+concurrency:
+  group: release-main
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: macos-14
+    timeout-minutes: 60
+    # 워크플로가 스스로 push한 버전 커밋에 다시 반응하지 않도록 하는 안전장치.
+    # (GITHUB_TOKEN으로 push하면 원래 재트리거되지 않지만, PAT로 바꿀 경우를 대비)
+    # (문자열 안에 콜론이 있어 전체를 따옴표로 감싼다 — 안 그러면 YAML 매핑으로 오인됨)
+    if: "${{ !startsWith(github.event.head_commit.message, 'chore: 버전 ') }}"
+    # step의 if: 는 secrets 컨텍스트를 읽지 못하므로 env로 올려둔다
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+    steps:
+      # 항상 main의 최신 상태를 기준으로 빌드한다.
+      # fetch-depth: 0 — 마지막 태그 이후 커밋을 읽어 버전을 계산하려면 전체 이력이 필요.
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      # OAuth credentials는 빌드 시점에 정적 번들로 구워진다(src/lib/oauth.ts).
+      # 비어 있으면 로그인 자체가 불가능한 앱이 배포되므로 여기서 끊는다.
+      - name: 필수 시크릿 확인
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}
+          MICROSOFT_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_ID }}
+          MICROSOFT_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          for NAME in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET; do
+            [ -n "${!NAME:-}" ] || MISSING="$MISSING NEXT_PUBLIC_$NAME"
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::리포지토리 시크릿이 비어 있습니다:$MISSING"
+            echo "Settings → Secrets and variables → Actions 에서 등록하세요."
+            exit 1
+          fi
+
+      # 마지막 태그 이후 커밋 타입으로 다음 버전을 정한다.
+      #   feat: 포함 → minor / 그 외 → patch / BREAKING → (0.x이므로) minor
+      - name: 다음 버전 계산
+        id: version
+        run: |
+          set -euo pipefail
+          BUMP="${{ github.event.inputs.bump || 'auto' }}"
+          VERSION=$(./scripts/next-version.sh "$BUMP")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          {
+            echo "### 릴리스 v$VERSION"
+            echo ""
+            echo "\`$(jq -r .version package.json)\` → \`$VERSION\` (bump: $BUMP)"
+            echo ""
+            echo "포함된 커밋:"
+            echo '```'
+            git log "$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo HEAD~10)..HEAD" --no-merges --pretty='- %s' | head -50
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: 의존성 설치
+        run: bun install --frozen-lockfile
+
+      - name: 검증 (typecheck / lint / test)
+        run: |
+          bun run typecheck
+          bun run lint
+          bun run test
+
+      # 빌드 전에 파일에 버전을 써넣는다 (앱에 표시되는 버전이 릴리스와 일치하도록).
+      # 커밋·태그는 빌드가 성공한 뒤에만 한다 — 실패한 빌드가 태그를 남기지 않도록.
+      - name: 버전 반영
+        run: ./scripts/bump-version.sh "${{ steps.version.outputs.version }}" --files-only
+
+      # 아래 시크릿이 없으면 통째로 건너뛰고 서명 없는 dmg가 나온다.
+      # (서명 없는 dmg는 사용자가 우클릭 → 열기로만 실행 가능)
+      - name: 코드 서명 인증서 임포트
+        id: signing
+        if: ${{ env.APPLE_CERTIFICATE != '' }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo -n "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain
+          rm -f "$RUNNER_TEMP/cert.p12"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Tauri 빌드 (universal)
+        env:
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}
+          NEXT_PUBLIC_MICROSOFT_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_ID }}
+          NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET }}
+          # 서명/공증 — 시크릿이 없으면 빈 값이라 tauri가 무시한다
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bunx tauri build --target universal-apple-darwin --bundles dmg
+
+      # tauri는 Cali_0.2.0_universal.dmg 처럼 버전이 박힌 이름으로 만든다.
+      # latest/download 링크가 깨지지 않도록 Cali.dmg 로 복사하고,
+      # 버전이 남는 사본도 함께 올려 어떤 빌드인지 추적 가능하게 한다.
+      - name: dmg 수집 및 이름 고정
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          BUNDLE_DIR=src-tauri/target/universal-apple-darwin/release/bundle/dmg
+          SRC=$(find "$BUNDLE_DIR" -maxdepth 1 -name "*.dmg" -print -quit)
+          if [ -z "$SRC" ]; then
+            echo "::error::$BUNDLE_DIR 에서 dmg를 찾지 못했습니다"
+            ls -R src-tauri/target/universal-apple-darwin/release/bundle || true
+            exit 1
+          fi
+          mkdir -p dist
+          cp "$SRC" "dist/Cali.dmg"
+          cp "$SRC" "dist/Cali_${VERSION}_universal.dmg"
+          shasum -a 256 dist/*.dmg | tee dist/SHA256SUMS.txt
+          echo "원본: $SRC"
+
+      - name: 서명 확인
+        if: ${{ steps.signing.outputs.signed == 'true' }}
+        run: |
+          hdiutil attach dist/Cali.dmg -mountpoint /tmp/cali -nobrowse -quiet
+          codesign --verify --deep --strict --verbose=2 /tmp/cali/Cali.app
+          hdiutil detach /tmp/cali -quiet
+
+      # 빌드가 성공한 지금에서야 버전 커밋 + 태그를 남긴다.
+      # 빌드 중 main이 움직였을 수 있으므로 rebase 후 한 번 재시도한다.
+      - name: 버전 커밋 및 태그 push
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+          [ -f src-tauri/Cargo.lock ] && git add src-tauri/Cargo.lock
+          git commit -m "chore: 버전 $VERSION"
+          git tag -a "$TAG" -m "Cali $TAG"
+
+          if ! git push origin HEAD:main --follow-tags; then
+            echo "main이 움직였습니다. rebase 후 재시도합니다."
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main --follow-tags
+          fi
+
+      - name: 릴리스 생성 및 업로드
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            dist/Cali.dmg dist/Cali_*.dmg dist/SHA256SUMS.txt \
+            --title "Cali $TAG" \
+            --generate-notes \
+            --latest
+          echo "다운로드 링크: https://github.com/${{ github.repository }}/releases/latest/download/Cali.dmg" >> "$GITHUB_STEP_SUMMARY"

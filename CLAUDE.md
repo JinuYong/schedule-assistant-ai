@@ -357,6 +357,103 @@ bun run build:tauri
 
 ---
 
+## 릴리스 (자동화)
+
+**main에 push하면 끝이다.** 버전 상승·빌드·릴리스가 전부 자동으로 진행된다
+(`.github/workflows/release.yml`).
+
+```bash
+git push origin main    # → 버전 자동 상승 + dmg 빌드 + 릴리스 발행 (약 15분)
+```
+
+### 커밋 단위가 아니라 push 단위다
+
+GitHub Actions는 push 이벤트마다 1회 실행된다. 커밋 5개를 모아 한 번에 push하면
+워크플로도 1번 돌고 버전도 **한 칸만** 오른다. 상승 폭은 커밋 개수가 아니라
+그 push에 포함된 커밋 중 가장 높은 등급의 타입으로 정해진다.
+
+| push에 포함된 커밋 | 상승 폭 | 예시 |
+|---|---|---|
+| `feat:` 가 하나라도 있음 | minor | 0.2.0 → 0.3.0 |
+| `fix:` / `design:` / `refactor:` 등만 | patch | 0.2.0 → 0.2.1 |
+| `feat!:` 또는 `BREAKING CHANGE` | minor (0.x 구간이므로) | 0.2.0 → 0.3.0 |
+
+계산 로직은 `scripts/next-version.sh`에 있고 로컬에서도 미리 확인할 수 있다.
+
+```bash
+./scripts/next-version.sh          # 다음 버전이 무엇이 될지 출력
+./scripts/next-version.sh minor    # 강제 지정했을 때의 값
+```
+
+### 릴리스가 나가지 않는 경우
+
+- **문서만 고친 push** — `**.md`, `.gitignore`, `.github/**`, `scripts/**` 만 바뀐 push는 무시된다 (`paths-ignore`)
+- **워크플로가 만든 버전 커밋** — `chore: 버전 x.y.z` 로 시작하는 커밋은 건너뛴다 (무한 루프 방지)
+- **검증 실패** — typecheck / lint / test 중 하나라도 깨지면 빌드 전에 중단
+
+연달아 push하면 이전 빌드는 취소되고(`cancel-in-progress`) 마지막 것만 릴리스된다.
+
+### 버전을 직접 고르고 싶을 때
+
+Actions → release → **Run workflow** → `bump`에서 `patch` / `minor` / `major` 선택.
+
+### 워크플로 순서
+
+1. main 최신 상태 checkout (전체 이력 — 마지막 태그 이후 커밋을 읽어야 함)
+2. OAuth 시크릿 존재 확인
+3. 다음 버전 계산
+4. typecheck / lint / test
+5. 버전을 파일 3곳에 반영 (앱에 표시되는 버전과 릴리스를 일치시키기 위해 **빌드 전**)
+6. `tauri build --target universal-apple-darwin` (Intel + Apple Silicon 통합)
+7. dmg를 **`Cali.dmg`로 리네임** + 버전이 박힌 사본 + `SHA256SUMS.txt`
+8. **빌드 성공 후에야** `chore: 버전 x.y.z` 커밋 + 태그를 push
+9. `gh release create --latest`
+
+8번을 마지막에 두는 이유: 빌드가 실패했는데 태그만 남는 상황을 막기 위해서다.
+
+### ⚠️ 에셋 이름을 `Cali.dmg`로 고정하는 이유
+
+포트폴리오 사이트(`portfolio/src/data/portfolio.ts`)가 아래 URL을 직접 링크한다.
+
+```
+https://github.com/JinuYong/schedule-assistant-ai/releases/latest/download/Cali.dmg
+```
+
+`/releases/latest/download/`는 최신 릴리스를 자동으로 따라가므로 **포트폴리오 코드는 수정할 필요가 없다.**
+단, 다음 조건이 깨지면 링크가 404가 된다.
+
+- 에셋 파일명이 정확히 `Cali.dmg`가 아님 (tauri 기본 출력은 `Cali_0.2.0_universal.dmg`)
+- 릴리스가 draft 또는 pre-release 상태 (latest로 잡히지 않음)
+
+### 버전 파일은 워크플로가 단독으로 관리한다
+
+`package.json` / `src-tauri/tauri.conf.json` / `src-tauri/Cargo.toml` 세 곳의 버전을
+**로컬에서 직접 올리지 않는다.** 로컬에서 `chore: 버전 …` 커밋을 만들어 push하면
+재트리거 가드에 걸려 릴리스가 아예 나가지 않는다.
+`scripts/bump-version.sh`는 파일만 고치고 커밋/태그는 하지 않으며, 워크플로가 호출한다.
+
+### 필요한 리포지토리 시크릿
+
+Settings → Secrets and variables → Actions
+
+| 시크릿 | 필수 | 용도 |
+|--------|------|------|
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | ✅ | 빌드 시 정적 번들에 주입 |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET` | ✅ | 〃 |
+| `NEXT_PUBLIC_MICROSOFT_CLIENT_ID` | ✅ | 〃 |
+| `NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET` | ✅ | 〃 |
+| `APPLE_CERTIFICATE` | ⬜ | Developer ID 인증서(.p12) base64 |
+| `APPLE_CERTIFICATE_PASSWORD` | ⬜ | 〃 비밀번호 |
+| `APPLE_SIGNING_IDENTITY` | ⬜ | 예: `Developer ID Application: Name (TEAMID)` |
+| `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` | ⬜ | 공증(notarization)용 |
+
+필수 시크릿이 하나라도 비면 워크플로가 빌드 전에 중단된다
+(`src/lib/oauth.ts`가 빌드 타임 env를 정적 번들에 굽기 때문에, 비면 로그인 불가 앱이 배포됨).
+`APPLE_*`가 없으면 서명 단계를 건너뛰고 **서명 없는 dmg**가 나오며,
+사용자는 Gatekeeper 때문에 우클릭 → 열기로만 실행할 수 있다.
+
+---
+
 ## 환경 변수
 
 OAuth credentials는 `.env.local`에 설정하며 `bun run build` 시 정적 번들에 포함됩니다.
