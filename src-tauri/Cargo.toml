@@ -1,6 +1,6 @@
 [package]
 name = "schedule-assistant-ai"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI 기반 일정 비서"
 authors = ["Jinu"]
 edition = "2024"
