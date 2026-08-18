@@ -41,10 +41,6 @@ jobs:
     # (GITHUB_TOKEN으로 push하면 원래 재트리거되지 않지만, PAT로 바꿀 경우를 대비)
     # (문자열 안에 콜론이 있어 전체를 따옴표로 감싼다 — 안 그러면 YAML 매핑으로 오인됨)
     if: "${{ !startsWith(github.event.head_commit.message, 'chore: 버전 ') }}"
-    # step의 if: 는 secrets 컨텍스트를 읽지 못하므로 env로 올려둔다
-    env:
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
 
     steps:
       # 항상 main의 최신 상태를 기준으로 빌드한다.
@@ -121,24 +117,44 @@ jobs:
       - name: 버전 반영
         run: ./scripts/bump-version.sh "${{ steps.version.outputs.version }}" --files-only
 
-      # 아래 시크릿이 없으면 통째로 건너뛰고 서명 없는 dmg가 나온다.
-      # (서명 없는 dmg는 사용자가 우클릭 → 열기로만 실행 가능)
-      - name: 코드 서명 인증서 임포트
+      # tauri는 APPLE_CERTIFICATE가 "존재하기만 하면" 서명을 시도한다.
+      # 그래서 빈 값이라도 흘러들어가면 안 되고, 시크릿이 있을 때만
+      # $GITHUB_ENV로 다음 스텝에 노출한다. 없으면 서명 없는 dmg가 나온다.
+      - name: 코드 서명 설정
         id: signing
-        if: ${{ env.APPLE_CERTIFICATE != '' }}
+        env:
+          CERT: ${{ secrets.APPLE_CERTIFICATE }}
+          CERT_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          NOTARY_ID: ${{ secrets.APPLE_ID }}
+          NOTARY_PW: ${{ secrets.APPLE_PASSWORD }}
+          NOTARY_TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
-          KEYCHAIN=$RUNNER_TEMP/build.keychain
-          KEYCHAIN_PASSWORD=$(uuidgen)
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          echo -n "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" \
-            -T /usr/bin/codesign -T /usr/bin/security
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
-          security list-keychain -d user -s "$KEYCHAIN" login.keychain
-          rm -f "$RUNNER_TEMP/cert.p12"
+
+          if [ -z "$CERT" ]; then
+            echo "APPLE_CERTIFICATE 시크릿이 없어 서명 없이 빌드합니다."
+            echo "::notice::서명 없는 dmg입니다. 사용자는 우클릭 → 열기로 실행해야 합니다."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "APPLE_CERTIFICATE=$CERT" >> "$GITHUB_ENV"
+          echo "APPLE_CERTIFICATE_PASSWORD=$CERT_PW" >> "$GITHUB_ENV"
+
+          if [ -n "$IDENTITY" ]; then
+            echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          fi
+
+          # 공증은 3개가 모두 있을 때만 켠다 — 일부만 넘기면 tauri가 실패한다
+          if [ -n "$NOTARY_ID" ] && [ -n "$NOTARY_PW" ] && [ -n "$NOTARY_TEAM" ]; then
+            echo "APPLE_ID=$NOTARY_ID" >> "$GITHUB_ENV"
+            echo "APPLE_PASSWORD=$NOTARY_PW" >> "$GITHUB_ENV"
+            echo "APPLE_TEAM_ID=$NOTARY_TEAM" >> "$GITHUB_ENV"
+          else
+            echo "::warning::공증(notarization) 시크릿이 불완전해 공증을 건너뜁니다."
+          fi
+
           echo "signed=true" >> "$GITHUB_OUTPUT"
 
       - name: Tauri 빌드 (universal)
@@ -147,11 +163,8 @@ jobs:
           NEXT_PUBLIC_GOOGLE_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}
           NEXT_PUBLIC_MICROSOFT_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_ID }}
           NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET }}
-          # 서명/공증 — 시크릿이 없으면 빈 값이라 tauri가 무시한다
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # APPLE_* 는 여기에 두지 않는다 — 빈 값이 들어가면 tauri가 서명을 시도해 실패한다.
+          # 서명이 필요할 때만 위 "코드 서명 설정" 스텝이 $GITHUB_ENV로 넘긴다.
         run: bunx tauri build --target universal-apple-darwin --bundles dmg
 
       # tauri는 Cali_0.2.0_universal.dmg 처럼 버전이 박힌 이름으로 만든다.
