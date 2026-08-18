@@ -45,6 +45,8 @@ export const MOCK_EVENTS: CalendarEvent[] = MOCK_ENABLED
       { id: "m2", title: "점심 약속", startTime: at(0, 12, 30), endTime: at(0, 13, 30), isAllDay: false, calendarColor: "#ec91d3", calendarId: "primary" },
       { id: "m3", title: "코드 리뷰", startTime: at(0, 15), endTime: at(0, 16), isAllDay: false, calendarColor: "#5b9bd5", calendarId: "work" },
       { id: "m4", title: "치과 예약", startTime: at(1, 14), endTime: at(1, 15), isAllDay: false, calendarColor: "#ec91d3", calendarId: "primary", location: "강남" },
+      // 장소 표시 확인용 — 주소가 있는 장소는 상세에서 지도 링크가 뜨고, 리스트에는 상호명만 보인다
+      { id: "m10", title: "카페 미팅", startTime: at(0, 16, 30), endTime: at(0, 17, 30), isAllDay: false, calendarColor: "#ec91d3", calendarId: "primary", location: "스타벅스 역삼역점, 서울특별시 강남구 테헤란로 123" },
       { id: "m5", title: "프로젝트 마감", startTime: dayKey(3), endTime: dayKey(3), isAllDay: true, calendarColor: "#5b9bd5", calendarId: "work" },
       { id: "m6", title: "주간 회고", startTime: at(5, 17), endTime: at(5, 18), isAllDay: false, calendarColor: "#5b9bd5", calendarId: "work" },
       // 멀티데이 일정 (연속 막대 확인용) — 종일 end.date는 배타적이라 하루 더 줌

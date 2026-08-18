@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { useThemeStore, THEME_COLORS } from "@/store/theme";
 import { storeGet, storeSet, isTauri } from "@/lib/tauri-store";
+import { NAVER_CLIENT_ID_KEY, NAVER_CLIENT_SECRET_KEY } from "@/lib/naver-place";
 import { startGoogleOAuth, startMicrosoftOAuth } from "@/lib/oauth";
 import { getCalendarList, type CalendarListItem } from "@/lib/google-calendar";
 import { useOAuthConnection } from "@/hooks/use-oauth-connection";
@@ -17,6 +18,8 @@ export default function SettingsContent() {
   const { accentColor, setTheme } = useThemeStore();
 
   const [anthropicKey, setAnthropicKey] = useState("");
+  const [naverId, setNaverId] = useState("");
+  const [naverSecret, setNaverSecret] = useState("");
   const [shortcut, setShortcut] = useState(DEFAULT_SHORTCUT);
   const [isRecording, setIsRecording] = useState(false);
   const [shortcutError, setShortcutError] = useState("");
@@ -47,12 +50,16 @@ export default function SettingsContent() {
     setMounted(true);
     (async () => {
       setAnthropicKey((await storeGet<string>("anthropic.apiKey")) ?? "");
+      setNaverId((await storeGet<string>(NAVER_CLIENT_ID_KEY)) ?? "");
+      setNaverSecret((await storeGet<string>(NAVER_CLIENT_SECRET_KEY)) ?? "");
       setShortcut((await storeGet<string>("hotkey")) ?? DEFAULT_SHORTCUT);
     })();
   }, []);
 
   const saveKeys = async () => {
     await storeSet("anthropic.apiKey", anthropicKey);
+    await storeSet(NAVER_CLIENT_ID_KEY, naverId);
+    await storeSet(NAVER_CLIENT_SECRET_KEY, naverSecret);
     setSavedKeys(true);
     setTimeout(() => setSavedKeys(false), 2000);
   };
@@ -162,6 +169,26 @@ export default function SettingsContent() {
             value={anthropicKey}
             onChange={(e) => setAnthropicKey(e.target.value)}
             placeholder="sk-ant-..."
+          />
+        </div>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>네이버 검색 Client ID</label>
+          <input
+            className={styles.shortcutInput}
+            type="password"
+            value={naverId}
+            onChange={(e) => setNaverId(e.target.value)}
+            placeholder="일정 폼의 장소 검색에 사용"
+          />
+        </div>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>네이버 검색 Client Secret</label>
+          <input
+            className={styles.shortcutInput}
+            type="password"
+            value={naverSecret}
+            onChange={(e) => setNaverSecret(e.target.value)}
+            placeholder="developers.naver.com → 애플리케이션 등록"
           />
         </div>
         <button className={styles.saveBtn} onClick={saveKeys} style={{ marginTop: 12 }}>

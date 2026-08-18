@@ -3,6 +3,7 @@ import { listUpcomingEvents, listEventsInRange, GCalEvent } from "@/lib/google-c
 import { storeSet } from "@/lib/tauri-store";
 import { scheduleNotification, cancelNotificationsByPrefix } from "@/lib/notifications";
 import { MOCK_ENABLED, MOCK_EVENTS } from "@/lib/dev-mock";
+import { parseLocationLabel } from "@/lib/location";
 import { showToast } from "./toast";
 
 export interface CalendarEvent {
@@ -47,7 +48,8 @@ async function scheduleEventNotifications(events: CalendarEvent[]) {
       await scheduleNotification({
         id: `event-${ev.id}`,
         title: ev.title,
-        body: `15분 후 ${timeStr}에 시작${ev.location ? ` · ${ev.location}` : ""}`,
+        // 알림 본문은 짧아야 잘리지 않으므로 원본 주소가 아닌 간결 라벨을 쓴다
+        body: `15분 후 ${timeStr}에 시작${ev.location ? ` · ${parseLocationLabel(ev.location)}` : ""}`,
         time: notifyAt,
       });
     }

@@ -1,6 +1,7 @@
 import { CalendarEvent } from "@/store/events";
 import { CalendarListItem } from "@/lib/google-calendar";
-import { IconClose } from "@/components/icons";
+import { openNaverMap, isMappableLocation } from "@/lib/location";
+import { IconClose, IconNavigate } from "@/components/icons";
 import { formatEventWhen } from "../calendar-utils";
 import styles from "../page.module.css";
 
@@ -32,7 +33,19 @@ export default function EventDetailModal({
             <span className={styles.detailIcon}>🕐</span>{formatEventWhen(event)}
           </p>
           {event.location && (
-            <p className={styles.detailRow}><span className={styles.detailIcon}>📍</span>{event.location}</p>
+            <p className={`${styles.detailRow} ${styles.detailRowLoc}`}>
+              <span className={styles.detailIcon}>📍</span>
+              <span className={styles.detailLocText}>{event.location}</span>
+              {isMappableLocation(event.location) && (
+                <button
+                  className={styles.detailLocBtn}
+                  onClick={() => openNaverMap(event.location!)}
+                  title="네이버지도에서 보기"
+                >
+                  <IconNavigate size={14}/>
+                </button>
+              )}
+            </p>
           )}
           <p className={styles.detailRow}>
             <span className={styles.detailIcon}>🗂</span>{calendars.find((c) => c.id === event.calendarId)?.summary ?? "기본 캘린더"}

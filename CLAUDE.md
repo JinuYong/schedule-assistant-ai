@@ -75,6 +75,7 @@ schedule-assistant-ai/
 │   │   ├── lib.rs               # run() 빌더 (setup·invoke_handler·run-event)
 │   │   ├── claude.rs            # call_claude / stream_chat
 │   │   ├── oauth.rs             # Google/Microsoft 토큰 교환·갱신
+│   │   ├── places.rs           # 네이버 지역검색 (장소명 → 주소)
 │   │   ├── floating_macos.rs    # 플로팅 창 (NSPanel) + 전역 단축키
 │   │   └── error.rs             # auth_error/oauth_error 문자열 헬퍼
 │   ├── capabilities/
@@ -110,6 +111,8 @@ schedule-assistant-ai/
 │   │   ├── microsoft-todo.ts    # Microsoft Graph REST API (직접 fetch)
 │   │   ├── todo-form.ts         # 할일 폼 상태/빌더 (TodoFormState·buildTodoTaskFromForm 등, 공유)
 │   │   ├── event-match.ts       # 이벤트 자동완성·매칭 (matchEventsByText·parseDateHint·matchCalendar, 공유)
+│   │   ├── location.ts          # 장소 라벨·지도 가능 판별·네이버지도 열기
+│   │   ├── naver-place.ts       # 네이버 지역검색 래퍼 (invoke "search_places")
 │   │   ├── dev-mock.ts          # 개발용 더미데이터 (NEXT_PUBLIC_MOCK=1)
 │   │   ├── oauth.ts             # Google/Microsoft OAuth 흐름 (provider 팩토리)
 │   │   ├── authenticated-fetch.ts # 공통 인증 fetch 골격 (401 재시도·429 처리)
@@ -207,6 +210,7 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 | `show_floating` | floating_macos.rs | 플로팅 창 표시 (macOS NSPanel: orderFrontRegardless + makeKeyAndOrderFront) |
 | `hide_floating` | floating_macos.rs | 플로팅 창 숨김 (`restore` 인자로 이전 앱 복원 여부 결정) |
 | `set_global_shortcut` | floating_macos.rs | 전역 단축키 동적 재등록 |
+| `search_places` | places.rs | 네이버 지역검색 (상호명 → 주소, CORS 우회 + secret 보호) |
 
 ---
 
@@ -222,6 +226,8 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 | `microsoft.clientId` | Microsoft OAuth Client ID |
 | `microsoft.clientSecret` | Microsoft OAuth Client Secret |
 | `microsoft.tokens` | Microsoft 액세스/리프레시 토큰 |
+| `naver.searchClientId` | 네이버 검색 API Client ID (일정 폼 장소 검색) |
+| `naver.searchClientSecret` | 네이버 검색 API Client Secret |
 | `hotkey` | 플로팅 창 단축키 문자열 |
 | `theme.accent` | 저장된 테마 색상 |
 | `events.cache` | 마지막으로 fetch한 이벤트 캐시 |

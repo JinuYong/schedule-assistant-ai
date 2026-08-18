@@ -2,6 +2,7 @@ import { Dispatch, SetStateAction } from "react";
 import { CalendarListItem } from "@/lib/google-calendar";
 import { IconClose } from "@/components/icons";
 import { EventForm } from "../calendar-utils";
+import LocationField from "./location-field";
 import styles from "../page.module.css";
 
 interface EventFormModalProps {
@@ -110,11 +111,9 @@ export default function EventFormModal({ form, setForm, calendars, onClose, onSu
 
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>장소 (선택)</label>
-            <input
-              className={styles.formInput}
+            <LocationField
               value={form.location}
-              onChange={(e) => setForm((f) => ({...f, location: e.target.value}))}
-              placeholder="장소"
+              onChange={(location) => setForm((f) => ({...f, location}))}
             />
           </div>
           </div>

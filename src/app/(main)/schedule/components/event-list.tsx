@@ -2,6 +2,7 @@ import { memo } from "react";
 import { CalendarEvent } from "@/store/events";
 import { formatTime } from "@/lib/date-utils";
 import { IconPencil, IconClose } from "@/components/icons";
+import LocationLabel from "./location-label";
 import styles from "../page.module.css";
 
 interface EventListProps {
@@ -32,7 +33,15 @@ function EventList({
           </span>
             <div className={styles.eventBody}>
               <p className={styles.eventTitle}>{ev.title}</p>
-              {ev.location && <p className={styles.eventMeta}>📍 {ev.location}</p>}
+              {ev.location && (
+                <p className={styles.eventLoc}>
+                  <LocationLabel
+                    location={ev.location}
+                    className={styles.eventLocText}
+                    withPin
+                  />
+                </p>
+              )}
             </div>
             <button className={styles.editBtn} onClick={(e) => {
               e.stopPropagation();

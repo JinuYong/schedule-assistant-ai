@@ -643,6 +643,22 @@
   margin-top: 2px;
 }
 
+.eventLoc {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  min-width: 0;
+}
+
+.eventLocText {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .editBtn {
   flex-shrink: 0;
   width: 26px;
@@ -1117,6 +1133,67 @@
   gap: 8px;
 }
 
+/* ── 장소 검색 (일정 폼) ───────────────────────────────── */
+
+.locationInputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.placeHint,
+.placeError {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.placeHint {
+  color: var(--color-text-secondary);
+}
+
+.placeError {
+  color: #e5484d;
+}
+
+.placeList {
+  margin-top: 6px;
+  max-height: 168px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.placeItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.placeItem:hover {
+  background: var(--color-accent-ultra-soft);
+}
+
+.placeList li + li .placeItem {
+  border-top: 1px solid var(--color-border);
+}
+
+.placeName {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.placeAddr {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
 /* 인접한 아이콘 버튼끼리(반복↔알림)만 더 붙임 — 입력↔버튼 간격은 유지 */
 .todoModalIconBtn + .todoModalIconBtn {
   margin-left: -5px;
@@ -1358,6 +1435,33 @@ select.formInput {
 
 .detailIcon {
   flex-shrink: 0;
+}
+
+/* 장소 행: 📍·주소·지도버튼을 세로 가운데로 정렬 */
+.detailRowLoc {
+  align-items: center;
+}
+
+.detailLocText {
+  word-break: break-all;
+}
+
+.detailLocBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 2px;
+  border-radius: 50%;
+  color: var(--color-text-secondary);
+  transition: background 0.15s, color 0.15s;
+}
+
+.detailLocBtn:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 
 .detailDesc {
