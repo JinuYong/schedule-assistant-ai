@@ -64,7 +64,9 @@
 .connectBtn {
   display: inline-flex;
   align-items: center;
-  padding: 8px 16px;
+  justify-content: center;
+  height: var(--control-h);
+  padding: 0 16px;
   background: var(--color-accent);
   color: #fff;
   border-radius: var(--radius-sm);
@@ -85,7 +87,9 @@
 .dangerBtn {
   display: inline-flex;
   align-items: center;
-  padding: 8px 16px;
+  justify-content: center;
+  height: var(--control-h);
+  padding: 0 16px;
   background: transparent;
   color: var(--color-danger);
   border: 1px solid var(--color-danger);
@@ -155,19 +159,42 @@
 
 .shortcutRow {
   display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.shortcutInput {
+/* 가로 배치일 때만 남는 폭을 채운다 (세로 flex인 .fieldGroup에서 flex:1을 주면
+   주축이 높이가 되어 height 선언이 무시된다) */
+.shortcutRow .shortcutInput {
   flex: 1;
+}
+
+.shortcutInput {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: var(--control-h);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  font-size: 14px;
+  padding: 0 12px;
+  font-size: var(--control-font);
   outline: none;
   color: var(--color-text-primary);
   background: var(--color-surface);
   transition: border-color 0.15s;
+}
+
+/* select 전용: 네이티브 화살표를 지웠으니 직접 그려 넣는다.
+   캘린더 이름은 짧아서 입력칸만큼 넓을 필요가 없다. */
+select.shortcutInput {
+  width: 100%;
+  max-width: 280px;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%236e6e73' stroke-width='1.5' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
 }
 
 .shortcutInput:focus {
@@ -181,11 +208,15 @@
 }
 
 .saveBtn {
-  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-h);
+  padding: 0 16px;
   background: var(--color-accent);
   color: #fff;
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: var(--control-font);
   font-weight: 500;
   white-space: nowrap;
   transition: background 0.15s;

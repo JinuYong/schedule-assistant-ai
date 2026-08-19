@@ -44,7 +44,9 @@
 }
 
 .refreshBtn {
-  padding: 4px;
+  height: var(--control-h-sm);
+  width: var(--control-h-sm);
+  padding: 0;
   aspect-ratio: 1;
   display: flex;
   align-items: center;
@@ -196,8 +198,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   border-radius: 4px;
   background: transparent;
   color: var(--color-text-secondary);
@@ -208,10 +210,11 @@
 
 /* 리스트 헤더 추가 버튼 */
 .addBtn {
-  font-size: 13px;
+  height: var(--control-h-sm);
+  font-size: var(--control-font-sm);
   font-weight: 500;
   color: var(--color-accent);
-  padding: 3px 10px;
+  padding: 0 10px;
   border-radius: var(--radius-sm);
   transition: background 0.15s;
 }

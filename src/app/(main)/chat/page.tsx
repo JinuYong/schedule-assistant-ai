@@ -71,12 +71,16 @@ export default function ChatPage() {
     return () => { cleanupRef.current?.(); };
   }, []);
 
-  // textarea 자동 높이
+  // textarea 자동 높이.
+  // box-sizing이 border-box라 scrollHeight(= content + padding)만 넣으면
+  // 테두리 두께만큼 모자라 여러 줄에서 스크롤바가 생긴다. border를 더해 보정한다.
+  // 한 줄일 때는 CSS의 min-height(= --control-h)가 받쳐 전송 버튼과 높이가 맞는다.
   const adjustHeight = () => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+    const border = el.offsetHeight - el.clientHeight;
+    el.style.height = `${Math.min(el.scrollHeight + border, 160)}px`;
   };
 
   const sendMessage = useCallback(async () => {

@@ -23,6 +23,13 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* 컨트롤 규격 — 입력·버튼·셀렉트는 이 두 가지 높이 중 하나만 쓴다.
+     체크박스·별표처럼 글자 없이 아이콘만 있는 토글은 예외(아이콘 크기를 따른다). */
+  --control-h: 36px;       /* 일반: 폼 입력, 주요 버튼 */
+  --control-h-sm: 28px;    /* 작게: 리스트 인라인 버튼, 보조 액션 */
+  --control-font: 14px;
+  --control-font-sm: 13px;
 }
 
 body {

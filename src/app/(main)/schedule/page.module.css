@@ -68,9 +68,11 @@
   align-items: center;
   gap: 6px;
   box-sizing: border-box;
+  /* 테두리를 가진 이 래퍼가 실제 컨트롤 박스다 (안쪽 input은 투명) */
+  height: var(--control-h);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 4px 6px;
+  padding: 0 6px;
   background: var(--color-surface);
   transition: border-color 0.15s;
 }
@@ -132,11 +134,15 @@
 }
 
 .quickAddBtn {
-  padding: 8px 16px;
+  height: var(--control-h);
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+  padding: 0 16px;
   background: var(--color-accent);
   color: #fff;
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: var(--control-font);
   font-weight: 500;
   white-space: nowrap;
   transition: background 0.15s;
@@ -252,7 +258,9 @@
 }
 
 .refreshBtn {
-  padding: 4px;
+  height: var(--control-h-sm);
+  width: var(--control-h-sm);
+  padding: 0;
   aspect-ratio: 1;
   display: flex;
   align-items: center;
@@ -285,8 +293,8 @@
 }
 
 .navBtn {
-  width: 30px;
-  height: 30px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -303,10 +311,14 @@
 }
 
 .todayBtn {
-  font-size: 13px;
+  height: var(--control-h-sm);
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+  font-size: var(--control-font-sm);
   font-weight: 500;
   color: var(--color-text-secondary);
-  padding: 4px 10px;
+  padding: 0 10px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -577,10 +589,11 @@
 }
 
 .dayAddBtn {
-  font-size: 13px;
+  height: var(--control-h-sm);
+  font-size: var(--control-font-sm);
   font-weight: 500;
   color: var(--color-accent);
-  padding: 3px 10px;
+  padding: 0 10px;
   border-radius: var(--radius-sm);
   transition: background 0.15s;
 }
@@ -866,8 +879,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   border-radius: 4px;
   background: transparent;
   color: var(--color-text-secondary);
@@ -875,7 +888,7 @@
 }
 
 .todoActionBtn:hover {
-  background: var(--color-accent-soft);
+  background: var(--color-accent-ultra-soft);
   color: var(--color-accent);
 }
 
@@ -1061,8 +1074,8 @@
 }
 
 .modalClose {
-  width: 28px;
-  height: 28px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   border-radius: 50%;
   font-size: 13px;
   color: var(--color-text-secondary);
@@ -1101,11 +1114,11 @@
   -webkit-appearance: none;
   appearance: none;
   box-sizing: border-box;
-  height: 36px;
+  height: var(--control-h);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0 10px;
-  font-size: 14px;
+  font-size: var(--control-font);
   font-family: inherit;
   color: var(--color-text-primary);
   background: var(--color-surface);
@@ -1223,7 +1236,7 @@
 .todoModalIconBtn {
   flex-shrink: 0;
   width: 30px;
-  height: 36px;
+  height: var(--control-h);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1282,8 +1295,8 @@
 
 /* 알림·반복 패널 인풋은 체크리스트 인풋과 같은 높이로 (32px) */
 .repeatControls .formInput {
-  height: 32px;
-  font-size: 13px;
+  height: var(--control-h-sm);
+  font-size: var(--control-font-sm);
 }
 
 .repeatIntervalControl {
@@ -1303,10 +1316,12 @@
 }
 
 .checklistAddBtn {
+  height: var(--control-h-sm);
+  justify-content: center;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 0 10px;
   border-radius: var(--radius-sm);
   color: var(--color-accent);
   font-size: 12px;
@@ -1333,13 +1348,13 @@
 .checklistEditorInput {
   flex: 1;
   min-width: 0;
-  height: 32px;
+  height: var(--control-h-sm);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 0 9px;
+  padding: 0 10px;
   background: var(--color-surface);
   color: var(--color-text-primary);
-  font-size: 13px;
+  font-size: var(--control-font-sm);
   outline: none;
 }
 
@@ -1349,8 +1364,8 @@
 
 .checklistRemoveBtn {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1394,10 +1409,14 @@ select.formInput {
 }
 
 .cancelBtn {
-  padding: 8px 16px;
+  height: var(--control-h);
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+  padding: 0 16px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: var(--control-font);
   color: var(--color-text-secondary);
   background: var(--color-surface);
   transition: background 0.15s;
@@ -1408,11 +1427,15 @@ select.formInput {
 }
 
 .submitBtn {
-  padding: 8px 18px;
+  height: var(--control-h);
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+  padding: 0 18px;
   background: var(--color-accent);
   color: #fff;
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: var(--control-font);
   font-weight: 500;
   transition: background 0.15s;
 }
@@ -1472,8 +1495,8 @@ select.formInput {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   margin-left: 2px;
   border-radius: 50%;
   color: var(--color-text-secondary);
@@ -1494,10 +1517,14 @@ select.formInput {
 }
 
 .dangerOutlineBtn {
-  padding: 8px 16px;
+  height: var(--control-h);
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+  padding: 0 16px;
   border: 1px solid var(--color-danger);
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: var(--control-font);
   color: var(--color-danger);
   background: transparent;
   transition: background 0.15s;
