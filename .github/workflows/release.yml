@@ -50,19 +50,26 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      # OAuth credentials는 빌드 시점에 정적 번들로 구워진다(src/lib/oauth.ts).
-      # 비어 있으면 로그인 자체가 불가능한 앱이 배포되므로 여기서 끊는다.
+      # OAuth credentials는 빌드 시점에 정적 번들로 구워지고(src/lib/oauth.ts),
+      # NAVER 인증키는 Rust 바이너리로 구워진다(src-tauri/build.rs).
+      # 비어 있으면 로그인 불가 / 장소 검색 불가 앱이 배포되므로 여기서 끊는다.
+      # (NAVER 쪽은 build.rs도 빌드를 실패시키지만, 15분짜리 빌드 전에 알려주는 편이 낫다)
       - name: 필수 시크릿 확인
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}
           MICROSOFT_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_ID }}
           MICROSOFT_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET }}
+          NAVER_SEARCH_CLIENT_ID: ${{ secrets.NAVER_SEARCH_CLIENT_ID }}
+          NAVER_SEARCH_CLIENT_SECRET: ${{ secrets.NAVER_SEARCH_CLIENT_SECRET }}
         run: |
           set -euo pipefail
           MISSING=""
           for NAME in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET; do
             [ -n "${!NAME:-}" ] || MISSING="$MISSING NEXT_PUBLIC_$NAME"
+          done
+          for NAME in NAVER_SEARCH_CLIENT_ID NAVER_SEARCH_CLIENT_SECRET; do
+            [ -n "${!NAME:-}" ] || MISSING="$MISSING $NAME"
           done
           if [ -n "$MISSING" ]; then
             echo "::error::리포지토리 시크릿이 비어 있습니다:$MISSING"
@@ -163,6 +170,9 @@ jobs:
           NEXT_PUBLIC_GOOGLE_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}
           NEXT_PUBLIC_MICROSOFT_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_ID }}
           NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET }}
+          # 네이버 키는 JS 번들이 아니라 Rust 바이너리로 구워진다(src-tauri/build.rs).
+          NAVER_SEARCH_CLIENT_ID: ${{ secrets.NAVER_SEARCH_CLIENT_ID }}
+          NAVER_SEARCH_CLIENT_SECRET: ${{ secrets.NAVER_SEARCH_CLIENT_SECRET }}
           # APPLE_* 는 여기에 두지 않는다 — 빈 값이 들어가면 tauri가 서명을 시도해 실패한다.
           # 서명이 필요할 때만 위 "코드 서명 설정" 스텝이 $GITHUB_ENV로 넘긴다.
         run: bunx tauri build --target universal-apple-darwin --bundles dmg

@@ -75,12 +75,13 @@ schedule-assistant-ai/
 │   │   ├── lib.rs               # run() 빌더 (setup·invoke_handler·run-event)
 │   │   ├── claude.rs            # call_claude / stream_chat
 │   │   ├── oauth.rs             # Google/Microsoft 토큰 교환·갱신
-│   │   ├── places.rs           # 네이버 지역검색 (장소명 → 주소)
+│   │   ├── places.rs           # NAVER API HUB 지역검색 (장소명 → 주소, 인증키 컴파일 타임 주입)
 │   │   ├── floating_macos.rs    # 플로팅 창 (NSPanel) + 전역 단축키
 │   │   └── error.rs             # auth_error/oauth_error 문자열 헬퍼
 │   ├── capabilities/
 │   │   └── default.json         # 플러그인 권한 설정
 │   ├── icons/                   # 앱 아이콘 (ICO, PNG, ICNS)
+│   ├── build.rs                 # tauri_build + NAVER 인증키 컴파일 타임 주입
 │   ├── Cargo.toml
 │   └── tauri.conf.json          # Tauri 설정 (창 구성, frontendDist 등)
 ├── src/
@@ -112,7 +113,7 @@ schedule-assistant-ai/
 │   │   ├── todo-form.ts         # 할일 폼 상태/빌더 (TodoFormState·buildTodoTaskFromForm 등, 공유)
 │   │   ├── event-match.ts       # 이벤트 자동완성·매칭 (matchEventsByText·parseDateHint·matchCalendar, 공유)
 │   │   ├── location.ts          # 장소 라벨·지도 가능 판별·네이버지도 열기
-│   │   ├── naver-place.ts       # 네이버 지역검색 래퍼 (invoke "search_places")
+│   │   ├── naver-place.ts       # NAVER API HUB 지역검색 래퍼 (invoke "search_places")
 │   │   ├── dev-mock.ts          # 개발용 더미데이터 (NEXT_PUBLIC_MOCK=1)
 │   │   ├── oauth.ts             # Google/Microsoft OAuth 흐름 (provider 팩토리)
 │   │   ├── authenticated-fetch.ts # 공통 인증 fetch 골격 (401 재시도·429 처리)
@@ -210,7 +211,7 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 | `show_floating` | floating_macos.rs | 플로팅 창 표시 (macOS NSPanel: orderFrontRegardless + makeKeyAndOrderFront) |
 | `hide_floating` | floating_macos.rs | 플로팅 창 숨김 (`restore` 인자로 이전 앱 복원 여부 결정) |
 | `set_global_shortcut` | floating_macos.rs | 전역 단축키 동적 재등록 |
-| `search_places` | places.rs | 네이버 지역검색 (상호명 → 주소, CORS 우회 + secret 보호) |
+| `search_places` | places.rs | NAVER API HUB 지역검색 (상호명 → 주소, CORS 우회 + 인증키 내장) |
 
 ---
 
@@ -226,8 +227,6 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 | `microsoft.clientId` | Microsoft OAuth Client ID |
 | `microsoft.clientSecret` | Microsoft OAuth Client Secret |
 | `microsoft.tokens` | Microsoft 액세스/리프레시 토큰 |
-| `naver.searchClientId` | 네이버 검색 API Client ID (일정 폼 장소 검색) |
-| `naver.searchClientSecret` | 네이버 검색 API Client Secret |
 | `hotkey` | 플로팅 창 단축키 문자열 |
 | `theme.accent` | 저장된 테마 색상 |
 | `events.cache` | 마지막으로 fetch한 이벤트 캐시 |
@@ -448,13 +447,16 @@ Settings → Secrets and variables → Actions
 | `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET` | ✅ | 〃 |
 | `NEXT_PUBLIC_MICROSOFT_CLIENT_ID` | ✅ | 〃 |
 | `NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET` | ✅ | 〃 |
+| `NAVER_SEARCH_CLIENT_ID` | ✅ | 장소 검색 인증키 (Rust 바이너리에 주입) |
+| `NAVER_SEARCH_CLIENT_SECRET` | ✅ | 〃 |
 | `APPLE_CERTIFICATE` | ⬜ | Developer ID 인증서(.p12) base64 |
 | `APPLE_CERTIFICATE_PASSWORD` | ⬜ | 〃 비밀번호 |
 | `APPLE_SIGNING_IDENTITY` | ⬜ | 예: `Developer ID Application: Name (TEAMID)` |
 | `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` | ⬜ | 공증(notarization)용 |
 
 필수 시크릿이 하나라도 비면 워크플로가 빌드 전에 중단된다
-(`src/lib/oauth.ts`가 빌드 타임 env를 정적 번들에 굽기 때문에, 비면 로그인 불가 앱이 배포됨).
+(`src/lib/oauth.ts`가 빌드 타임 env를 정적 번들에 굽기 때문에, 비면 로그인 불가 앱이 배포됨.
+`NAVER_SEARCH_*`도 마찬가지로 비면 장소 검색이 죽은 앱이 나가므로 `build.rs`가 빌드를 끊는다).
 `APPLE_*`가 없으면 서명 단계를 건너뛰고 **서명 없는 dmg**가 나오며,
 사용자는 Gatekeeper 때문에 우클릭 → 열기로만 실행할 수 있다.
 
@@ -473,7 +475,28 @@ NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
 # Microsoft OAuth (Azure Portal → 앱 등록)
 NEXT_PUBLIC_MICROSOFT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# NAVER API HUB 지역검색 (ncloud.com → NAVER API HUB → 인증키)
+# NEXT_PUBLIC_ 접두사가 없다 — JS 번들이 아니라 Rust 바이너리에 구워진다
+NAVER_SEARCH_CLIENT_ID=xxxxxxxxxxxxxxxxxxxx
+NAVER_SEARCH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
+
+### NAVER 인증키를 Rust에 굽는 이유
+
+장소 검색 키는 **사용자에게 입력받지 않는다.** 사용자에게 ncloud 가입과 API 신청을 시키는 건
+"장소 자동완성" 하나에 비해 대가가 너무 커서, OAuth credentials와 같이 개발자 키 하나로 전체
+사용자를 커버한다.
+
+`src-tauri/build.rs`가 빌드 시점에 환경변수 또는 `.env.local`을 읽어
+`cargo:rustc-env`으로 주입하고, `places.rs`가 `env!()`로 받는다.
+`NEXT_PUBLIC_*`(JS 번들 평문)보다 노출이 덜하지만 **`strings`로 추출 가능한 건 마찬가지다.**
+숨겨진 비밀이 아니라 "유출되면 호출량이 소진되는 값"으로 취급하고,
+**ncloud 콘솔에서 호출량 임계치를 걸어 손실 상한을 고정해 둔다.**
+
+**키가 비어 있으면 `build.rs`가 빌드를 실패시킨다.** 사용자가 키를 입력할 통로가 없으므로,
+키 없이 빌드하면 장소 검색이 조용히 죽은 앱이 배포된다. 릴리스 워크플로도 빌드 전에
+시크릿 존재를 먼저 확인한다.
 
 ---
 

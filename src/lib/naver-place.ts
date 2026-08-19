@@ -1,8 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { storeGet, isTauri } from "./tauri-store";
-
-export const NAVER_CLIENT_ID_KEY = "naver.searchClientId";
-export const NAVER_CLIENT_SECRET_KEY = "naver.searchClientSecret";
+import { isTauri } from "./tauri-store";
 
 export interface PlaceResult {
   /** 상호명 (강조 태그·엔티티 정리됨) */
@@ -66,8 +63,8 @@ export function parsePlaceItems(raw: unknown): PlaceResult[] {
 /**
  * 상호명/장소명으로 네이버 지역검색.
  *
- * 키는 설정 화면에서 입력해 tauri-store에 저장된 값을 쓴다.
- * 키가 없으면 안내 메시지를 담은 Error를 던진다.
+ * 인증키는 앱 빌드 시 Rust 바이너리에 구워지므로(`src-tauri/build.rs`) 프론트엔드는
+ * 검색어만 넘긴다. 사용자가 키를 발급받거나 입력할 필요가 없다.
  */
 export async function searchPlaces(query: string): Promise<PlaceResult[]> {
   const q = query.trim();
@@ -76,15 +73,6 @@ export async function searchPlaces(query: string): Promise<PlaceResult[]> {
     throw new Error("장소 검색은 앱 환경에서만 동작합니다.");
   }
 
-  const [clientId, clientSecret] = await Promise.all([
-    storeGet<string>(NAVER_CLIENT_ID_KEY),
-    storeGet<string>(NAVER_CLIENT_SECRET_KEY),
-  ]);
-
-  if (!clientId || !clientSecret) {
-    throw new Error("네이버 검색 API 키가 없습니다. 설정 → API 키 설정에서 입력하세요.");
-  }
-
-  const raw = await invoke("search_places", { clientId, clientSecret, query: q });
+  const raw = await invoke("search_places", { query: q });
   return parsePlaceItems(raw);
 }
