@@ -38,6 +38,8 @@ export function stripHtmlTags(raw: string): string {
  * 상세에서는 전체가 보이며, 지도 검색은 상호명까지 포함해 정확히 그 지점에 떨어진다.
  */
 export function toLocationString(place: PlaceResult): string {
+  // 층·호수("지상1층 102호")도 그대로 남긴다 — 실제로 찾아갈 때 필요한 정보다.
+  // 네이버지도 검색을 깨뜨리는 문제는 링크를 만드는 naverMapSearchUrl에서 처리한다.
   const addr = place.roadAddress || place.address;
   if (!place.name) return addr;
   if (!addr) return place.name;

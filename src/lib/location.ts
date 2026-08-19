@@ -48,9 +48,33 @@ export function isMappableLocation(raw: string): boolean {
   return false;
 }
 
-/** 장소 문자열에 대한 네이버지도 검색 URL. */
+/**
+ * 주소 끝에 붙은 층·호수를 떼어낸다.
+ *
+ * 네이버 지역검색은 roadAddress를 "…강남대로58길 12 지상1층 102호"처럼 상세 위치까지
+ * 붙여서 준다. 이 문자열 그대로 네이버지도에서 검색하면 "조건에 맞는 업체가 없습니다"가
+ * 뜨므로, 건물 주소까지만 남긴다.
+ *
+ * 행정동("도곡동")과 도로명("강남대로58길")은 건드리지 않는다 —
+ * `층`/`호` 글자가 있는 꼬리만 잘라내기 때문이다.
+ */
+export function stripAddressDetail(location: string): string {
+  return location
+    // 층이 나오면 그 뒤는 전부 상세다: "지상1층 102호", "1층 B호", "지하2층"
+    .replace(/\s+(지상|지하)?\s*B?\d+\s*층.*$/i, "")
+    // 층 없이 호수만 붙는 경우: "…12 102호"
+    .replace(/\s+[A-Za-z]?\d+(-\d+)?\s*호$/, "")
+    .trim();
+}
+
+/**
+ * 장소 문자열에 대한 네이버지도 검색 URL.
+ *
+ * 이미 저장된 일정에도 층·호수가 남아 있을 수 있어 여기서 한 번 더 걷어낸다.
+ */
 export function naverMapSearchUrl(query: string): string {
-  return `https://map.naver.com/p/search/${encodeURIComponent(query.trim())}`;
+  const cleaned = stripAddressDetail(query.trim());
+  return `https://map.naver.com/p/search/${encodeURIComponent(cleaned)}`;
 }
 
 /** 장소 문자열로 네이버지도 검색을 시스템 브라우저에서 연다. */

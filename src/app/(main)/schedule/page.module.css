@@ -1141,27 +1141,47 @@
   gap: 8px;
 }
 
+/* 드롭다운의 기준점 — 결과 목록이 이 박스에 붙어 뜬다 */
+.locationField {
+  position: relative;
+}
+
 .placeHint,
 .placeError {
-  margin-top: 6px;
   font-size: 12px;
 }
 
 .placeHint {
+  padding: 10px;
   color: var(--color-text-secondary);
 }
 
 .placeError {
+  margin-top: 6px;
   color: #e5484d;
 }
 
-.placeList {
-  margin-top: 6px;
-  max-height: 168px;
+/* 폼 흐름에 끼어들지 않도록 띄운다. 아래 필드가 밀리면 모달 높이가 출렁인다.
+   top/left/width는 포털이 입력창 좌표를 계산해 인라인으로 넣는다. */
+.placeDropdown {
+  position: fixed;
+  /* 모달 오버레이(1000) 위 */
+  z-index: 1100;
+  /* 3건(49px×3 + 테두리)까지 펼치고 나머지는 스크롤
+     — 네이버 지역검색은 최대 5건을 준다 */
+  max-height: 149px;
   overflow-y: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
+  /* 자연어 입력 자동완성(.quickDropdown)과 같은 그림자 */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.placeList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .placeItem {
@@ -1176,8 +1196,9 @@
   transition: background 0.12s;
 }
 
-.placeItem:hover {
-  background: var(--color-accent-ultra-soft);
+.placeItem:hover,
+.placeItemActive {
+  background: var(--color-accent-soft);
 }
 
 .placeList li + li .placeItem {

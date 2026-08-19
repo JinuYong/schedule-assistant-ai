@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { stripHtmlTags, toLocationString, parsePlaceItems } from "./naver-place";
-import { parseLocationLabel, isMappableLocation } from "./location";
+import { parseLocationLabel, isMappableLocation, stripAddressDetail, naverMapSearchUrl } from "./location";
 
 describe("stripHtmlTags", () => {
   it("검색어 강조 태그를 제거한다", () => {
@@ -122,5 +122,68 @@ describe("장소 검색 결과가 표시·지도링크와 맞물리는지", () =
     });
     expect(nameOnly).toBe("동네카페");
     expect(isMappableLocation(nameOnly)).toBe(false);
+  });
+});
+
+describe("toLocationString + 지도 링크의 역할 분담", () => {
+  const place = {
+    name: "레뽀커피",
+    roadAddress: "서울특별시 강남구 강남대로58길 12 지상1층 102호",
+    address: "서울특별시 강남구 도곡동 945-1 지상1층 102호",
+    category: "카페",
+  };
+
+  it("저장값에는 층·호수를 남긴다 — 찾아갈 때 필요한 정보다", () => {
+    expect(toLocationString(place))
+      .toBe("레뽀커피, 서울특별시 강남구 강남대로58길 12 지상1층 102호");
+  });
+
+  it("지도 링크에서만 층·호수를 걷어낸다", () => {
+    expect(decodeURIComponent(naverMapSearchUrl(toLocationString(place))))
+      .toBe("https://map.naver.com/p/search/레뽀커피, 서울특별시 강남구 강남대로58길 12");
+  });
+});
+
+describe("stripAddressDetail", () => {
+  it("도로명주소 뒤의 층·호수를 떼어낸다", () => {
+    expect(stripAddressDetail("서울특별시 강남구 강남대로58길 12 지상1층 102호"))
+      .toBe("서울특별시 강남구 강남대로58길 12");
+    expect(stripAddressDetail("서울특별시 강남구 남부순환로359길 16 1층 B호"))
+      .toBe("서울특별시 강남구 남부순환로359길 16");
+  });
+
+  it("지번주소에서도 동작한다", () => {
+    expect(stripAddressDetail("서울특별시 강남구 도곡동 945-1 지상1층 102호"))
+      .toBe("서울특별시 강남구 도곡동 945-1");
+  });
+
+  it("지하층·호수만 있는 경우도 처리한다", () => {
+    expect(stripAddressDetail("서울특별시 중구 세종대로 110 지하2층")).toBe("서울특별시 중구 세종대로 110");
+    expect(stripAddressDetail("서울특별시 중구 세종대로 110 302호")).toBe("서울특별시 중구 세종대로 110");
+  });
+
+  it("상호명이 앞에 붙어 있어도 주소 꼬리만 자른다", () => {
+    expect(stripAddressDetail("레뽀커피, 서울특별시 강남구 강남대로58길 12 지상1층 102호"))
+      .toBe("레뽀커피, 서울특별시 강남구 강남대로58길 12");
+  });
+
+  it("층·호수가 없으면 그대로 둔다", () => {
+    const addr = "서울특별시 강남구 강남대로94길 10";
+    expect(stripAddressDetail(addr)).toBe(addr);
+  });
+
+  it("행정동과 도로명의 숫자를 건드리지 않는다", () => {
+    // "58길"·"도곡동"이 층·호수로 오인되면 안 된다
+    expect(stripAddressDetail("서울특별시 강남구 도곡동 945-1")).toBe("서울특별시 강남구 도곡동 945-1");
+    expect(stripAddressDetail("서울특별시 강남구 강남대로58길 12")).toBe("서울특별시 강남구 강남대로58길 12");
+  });
+});
+
+describe("naverMapSearchUrl", () => {
+  it("이미 저장된 장소의 층·호수도 걷어내고 링크를 만든다", () => {
+    const url = naverMapSearchUrl("레뽀커피, 서울특별시 강남구 강남대로58길 12 지상1층 102호");
+    expect(decodeURIComponent(url)).toBe(
+      "https://map.naver.com/p/search/레뽀커피, 서울특별시 강남구 강남대로58길 12"
+    );
   });
 });
