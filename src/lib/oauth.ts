@@ -16,6 +16,25 @@ interface RefreshResponse {
   refresh_token?: string;
 }
 
+/**
+ * 응답 scope에서 필수 권한 중 빠진 것을 찾는다.
+ *
+ * Google 동의 화면은 캘린더 같은 민감한 범위를 사용자가 개별적으로 해제할 수 있고,
+ * 그래도 토큰은 정상 발급된다. 그래서 요청한 스코프가 아니라 **승인된 스코프**를 봐야 한다.
+ *
+ * 스코프 표기가 provider마다 달라("Tasks.ReadWrite" vs "https://graph.microsoft.com/Tasks.ReadWrite")
+ * 마지막 경로 세그먼트를 소문자로 맞춰 비교한다.
+ *
+ * `granted`가 비어 있으면 판별할 근거가 없으므로 통과시킨다 —
+ * 응답에 scope가 없다는 이유로 로그인을 막으면 오탐이 더 치명적이다.
+ */
+export function findMissingScopes(granted: string | undefined, required: string[]): string[] {
+  if (!granted?.trim()) return [];
+  const tail = (scope: string) => scope.split("/").pop()?.toLowerCase() ?? "";
+  const grantedTails = new Set(granted.trim().split(/\s+/).map(tail));
+  return required.filter((scope) => !grantedTails.has(tail(scope)));
+}
+
 /** provider별 OAuth 설정 (exchange/refresh 커맨드, 인증 URL, invoke 인자) */
 interface OAuthProvider {
   clientId: string;
@@ -26,6 +45,10 @@ interface OAuthProvider {
   buildAuthUrl: (port: number) => string;
   exchangeArgs: (code: string, port: number) => Record<string, unknown>;
   refreshArgs: (refreshToken: string) => Record<string, unknown>;
+  /** 이게 없으면 앱의 핵심 기능이 동작하지 않는 스코프 */
+  requiredScopes: string[];
+  /** 필수 스코프 누락 시 사용자에게 보일 안내 */
+  missingScopeError: string;
 }
 
 const redirectUri = (port: number) => `http://localhost:${port}`;
@@ -54,6 +77,9 @@ const googleProvider: OAuthProvider = {
     clientId: GOOGLE_CLIENT_ID,
     clientSecret: GOOGLE_CLIENT_SECRET,
   }),
+  requiredScopes: ["https://www.googleapis.com/auth/calendar"],
+  missingScopeError:
+    "캘린더 접근 권한이 없어 연결하지 못했습니다. 다시 로그인한 뒤 동의 화면에서 캘린더 관련 항목을 모두 체크해 주세요.",
 };
 
 const microsoftProvider: OAuthProvider = {
@@ -81,6 +107,9 @@ const microsoftProvider: OAuthProvider = {
     clientSecret: MICROSOFT_CLIENT_SECRET,
     tenant: "common",
   }),
+  requiredScopes: ["Tasks.ReadWrite"],
+  missingScopeError:
+    "할일 접근 권한이 없어 연결하지 못했습니다. 다시 로그인한 뒤 동의 화면에서 할일 관련 항목을 체크해 주세요.",
 };
 
 /** 로컬 OAuth 서버 시작 → 시스템 브라우저 인증 → code 교환 공통 흐름 */
@@ -120,6 +149,15 @@ async function startOAuth(
 
       try {
         const tokens = await invoke<BaseTokens>(provider.exchangeCommand, provider.exchangeArgs(code, port));
+
+        // 권한이 빠진 토큰을 저장하면 "연결됨"으로 보이면서 정작 데이터는 비어 있는
+        // 원인 불명 상태가 된다. 저장하지 않고 다시 로그인하도록 안내한다.
+        const missing = findMissingScopes(tokens.scope, provider.requiredScopes);
+        if (missing.length > 0) {
+          onError(provider.missingScopeError);
+          return;
+        }
+
         onTokens(tokens);
       } catch (e) {
         onError(String(e));

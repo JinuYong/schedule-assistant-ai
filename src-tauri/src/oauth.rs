@@ -26,6 +26,13 @@ pub async fn exchange_google_token(
         .await
         .map_err(|e| e.to_string())?;
 
+    // 상태 코드를 보지 않으면 400 응답 본문(access_token 없는 에러 JSON)이
+    // 성공처럼 프론트로 넘어가 그대로 저장된다.
+    if !response.status().is_success() {
+        let body: serde_json::Value = response.json().await.unwrap_or_default();
+        return Err(oauth_error(&body, "token exchange failed"));
+    }
+
     response
         .json::<serde_json::Value>()
         .await

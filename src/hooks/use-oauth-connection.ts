@@ -25,6 +25,9 @@ export function useOAuthConnection(start: StartOAuth, setTokens: (tokens: BaseTo
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token,
           expires_in: tokens.expires_in,
+          // 승인된 권한을 함께 남긴다 — 나중에 "권한이 빠진 채 저장된 토큰"을
+          // 판별해 재로그인을 안내할 근거가 된다.
+          scope: tokens.scope,
           expiresAt: Date.now() + (tokens.expires_in ?? 3600) * 1000,
         });
         setStatus("idle");
