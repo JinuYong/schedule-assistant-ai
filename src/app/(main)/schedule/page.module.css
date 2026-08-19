@@ -610,9 +610,10 @@
 }
 
 .eventItem {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 9px 2px 9px 9px;
+  padding: 9px 9px 9px 9px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-left: 3px solid var(--color-border);
@@ -623,6 +624,37 @@
 
 .eventItem:hover {
   box-shadow: var(--shadow-sm);
+}
+
+/* 수정/삭제 — 호버 시 카드 오른쪽 끝에 떠서 제목 끝을 덮는다(레이아웃 이동 없음).
+   배경은 살짝 투명해 아래 제목이 은은히 비친다. 페이드 구간은 %가 아니라 좌우 padding과
+   같은 px로 잡는다 — %로 잡으면 아이콘 위에서 투명해지기 시작해 그 자리의 글자(말줄임표 등)만
+   유독 선명하게 드러난다. 아이콘이 놓인 구간은 끝까지 불투명해야 한다.
+   흐름에서 빠져 있으므로 호버 전에는 제목·장소가 버튼 자리까지 사용한다.
+   할일 목록의 .todoActionBtns와 같은 방식. */
+.eventActions {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 2px;
+  padding: 0 4px 0 18px;
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    color-mix(in srgb, var(--color-surface) 95%, transparent) 18px,
+    color-mix(in srgb, var(--color-surface) 95%, transparent) calc(100% - 4px),
+    transparent 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+
+.eventItem:hover .eventActions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .eventTime {
@@ -674,20 +706,15 @@
 
 .editBtn {
   flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  border-radius: 4px;
   font-size: 13px;
   color: var(--color-text-secondary);
-  opacity: 0;
-  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  transition: background 0.12s, color 0.12s;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.eventItem:hover .editBtn {
-  opacity: 1;
 }
 
 .editBtn:hover {
@@ -697,24 +724,19 @@
 
 .deleteBtn {
   flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  border-radius: 4px;
   font-size: 11px;
   color: var(--color-text-secondary);
-  opacity: 0;
-  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  transition: background 0.12s, color 0.12s;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.eventItem:hover .deleteBtn {
-  opacity: 1;
-}
-
 .deleteBtn:hover {
-  background: #fff0ef;
+  background: rgba(255, 59, 48, 0.08);
   color: var(--color-danger);
 }
 
@@ -863,8 +885,14 @@
   transform: translateY(-50%);
   display: flex;
   gap: 2px;
-  padding-left: 12px;
-  background: linear-gradient(to right, transparent, var(--color-surface) 12px);
+  padding: 0 4px 0 18px;
+  background: linear-gradient(
+    to right,
+    transparent 0,
+    color-mix(in srgb, var(--color-surface) 95%, transparent) 18px,
+    color-mix(in srgb, var(--color-surface) 95%, transparent) calc(100% - 4px),
+    transparent 100%
+  );
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s;

@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { CalendarEvent } from "@/store/events";
 import { formatTime } from "@/lib/date-utils";
-import { IconPencil, IconClose } from "@/components/icons";
+import { IconPencil, IconTrash } from "@/components/icons";
 import LocationLabel from "./location-label";
 import styles from "../page.module.css";
 
@@ -43,16 +43,19 @@ function EventList({
                 </p>
               )}
             </div>
-            <button className={styles.editBtn} onClick={(e) => {
-              e.stopPropagation();
-              onEdit(ev);
-            }} title="일정 수정"><IconPencil/></button>
-            <button className={styles.deleteBtn} onClick={(e) => {
-              e.stopPropagation();
-              onDelete(ev);
-            }} disabled={deletingId === ev.id} title="일정 삭제">
-              {deletingId === ev.id ? "..." : <IconClose/>}
-            </button>
+            {/* 호버 시에만 뜨는 오버레이 — 흐름에서 빠져 있어 평소엔 제목·장소가 카드 폭을 다 쓴다 */}
+            <div className={styles.eventActions}>
+              <button className={styles.editBtn} onClick={(e) => {
+                e.stopPropagation();
+                onEdit(ev);
+              }} title="일정 수정"><IconPencil/></button>
+              <button className={styles.deleteBtn} onClick={(e) => {
+                e.stopPropagation();
+                onDelete(ev);
+              }} disabled={deletingId === ev.id} title="일정 삭제">
+                {deletingId === ev.id ? "..." : <IconTrash/>}
+              </button>
+            </div>
           </li>
         ))}
     </ul>
