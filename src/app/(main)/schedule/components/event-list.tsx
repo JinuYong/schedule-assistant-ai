@@ -4,6 +4,7 @@ import { formatTime } from "@/lib/date-utils";
 import { IconPencil, IconTrash } from "@/components/icons";
 import LocationLabel from "./location-label";
 import styles from "../page.module.css";
+import { eventColor } from "@/lib/event-color";
 
 interface EventListProps {
   isLoading: boolean;
@@ -25,10 +26,10 @@ function EventList({
           <li
             key={ev.id}
             className={styles.eventItem}
-            style={ev.calendarColor ? {borderLeftColor: ev.calendarColor} : undefined}
+            style={eventColor(ev) ? {borderLeftColor: eventColor(ev)} : undefined}
             onClick={() => onEventClick(ev)}
           >
-          <span className={styles.eventTime} style={ev.calendarColor ? {color: ev.calendarColor} : undefined}>
+          <span className={styles.eventTime} style={eventColor(ev) ? {color: eventColor(ev)} : undefined}>
             {ev.isAllDay ? "종일" : formatTime(ev.startTime)}
           </span>
             <div className={styles.eventBody}>

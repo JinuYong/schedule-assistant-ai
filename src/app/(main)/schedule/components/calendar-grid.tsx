@@ -4,6 +4,7 @@ import { formatTime } from "@/lib/date-utils";
 import { IconPlus } from "@/components/icons";
 import { CalCell, LaneSlot } from "../calendar-utils";
 import styles from "../page.module.css";
+import { eventColor } from "@/lib/event-color";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -114,9 +115,8 @@ function CalendarGrid({
                   spanning ? styles.barSpan : "",
                   draggingEvent?.id === ev.id ? styles.draggingChip : "",
                 ].filter(Boolean).join(" ");
-                const barStyle: React.CSSProperties = ev.calendarColor
-                  ? {background: ev.description === "공휴일" ? "#c44343" : ev.calendarColor, color: "#fff"}
-                  : {};
+                const color = eventColor(ev);
+                const barStyle: React.CSSProperties = color ? {background: color, color: "#fff"} : {};
                 // span개 칸을 가로로 덮되, 실제 시작/끝 칸에만 안쪽 여백(GAP)을 줘 격자선과 떨어뜨림
                 // (이어지는 칸 경계에는 여백 없이 연속)
                 const GAP = 3;

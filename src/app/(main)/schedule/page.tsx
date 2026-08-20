@@ -15,6 +15,7 @@ import {
 import {listen} from "@tauri-apps/api/event";
 import {formatMonthYear, formatDateLabel, isoDate} from "@/lib/date-utils";
 import {isTauri} from "@/lib/tauri-store";
+import {eventColor} from "@/lib/event-color";
 import {showToast} from "@/store/toast";
 import Divider from "@/components/divider";
 import {IconChevronLeft, IconChevronRight, IconRefresh, IconPlus} from "@/components/icons";
@@ -459,7 +460,7 @@ export default function SchedulePage() {
                   className={`${styles.quickDropdownItem} ${i === quickActiveIndex ? styles.quickDropdownItemActive : ""}`}
                   onMouseEnter={() => setQuickActiveIndex(i)}
                   onMouseDown={(e) => { e.preventDefault(); lockQuickTarget(ev); }}
-                  style={ev.calendarColor ? {borderLeftColor: ev.calendarColor} : undefined}
+                  style={eventColor(ev) ? {borderLeftColor: eventColor(ev)} : undefined}
                 >
                   <span className={styles.quickDropdownTitle}>{ev.title}</span>
                   <span className={styles.quickDropdownMeta}>{eventShortLabel(ev)}</span>

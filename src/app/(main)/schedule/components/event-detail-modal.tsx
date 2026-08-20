@@ -4,6 +4,7 @@ import { openNaverMap, isMappableLocation } from "@/lib/location";
 import { IconClose, IconNavigate } from "@/components/icons";
 import { formatEventWhen } from "../calendar-utils";
 import styles from "../page.module.css";
+import { eventColor } from "@/lib/event-color";
 
 interface EventDetailModalProps {
   event: CalendarEvent;
@@ -23,7 +24,7 @@ export default function EventDetailModal({
         <div className={styles.modalHeader}>
           <span
             className={styles.detailDot}
-            style={event.calendarColor ? {background: event.calendarColor} : undefined}
+            style={eventColor(event) ? {background: eventColor(event)} : undefined}
           />
           <h2 className={styles.modalTitle}>{event.title}</h2>
           <button className={styles.modalClose} onClick={onClose}><IconClose/></button>
