@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useEffect, useRef } from "react";
 import { IconClose, IconStar, IconRepeat, IconBell, IconPlus } from "@/components/icons";
 import { TodoFormState, recurrenceLabel } from "@/lib/todo-form";
 import styles from "../page.module.css";
@@ -13,6 +13,27 @@ interface TodoFormModalProps {
 }
 
 export default function TodoFormModal({ form, setForm, todoLists, submitting, onClose, onSubmit }: TodoFormModalProps) {
+  const checklistInputs = useRef<(HTMLInputElement | null)[]>([]);
+  /** 새로 만든 항목에 커서를 옮길 위치. 렌더가 끝나야 focus할 수 있어 한 박자 미룬다 */
+  const pendingFocus = useRef<number | null>(null);
+
+  useEffect(() => {
+    const index = pendingFocus.current;
+    if (index === null) return;
+    pendingFocus.current = null;
+    checklistInputs.current[index]?.focus();
+  }, [form.checklistItems.length]);
+
+  /** 지정 위치에 빈 항목을 넣고 커서를 옮긴다 */
+  const insertChecklistItem = (at: number) => {
+    setForm((f) => {
+      const items = [...f.checklistItems];
+      items.splice(at, 0, { displayName: "", isChecked: false });
+      return { ...f, checklistItems: items };
+    });
+    pendingFocus.current = at;
+  };
+
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -142,10 +163,7 @@ export default function TodoFormModal({ form, setForm, todoLists, submitting, on
               <button
                 type="button"
                 className={styles.checklistAddBtn}
-                onClick={() => setForm((f) => ({
-                  ...f,
-                  checklistItems: [...f.checklistItems, {displayName: "", isChecked: false}],
-                }))}
+                onClick={() => insertChecklistItem(form.checklistItems.length)}
               >
                 <IconPlus/> 항목 추가
               </button>
@@ -166,6 +184,7 @@ export default function TodoFormModal({ form, setForm, todoLists, submitting, on
                       title={item.isChecked ? "완료 취소" : "완료"}
                     />
                     <input
+                      ref={(el) => { checklistInputs.current[index] = el; }}
                       className={styles.checklistEditorInput}
                       value={item.displayName}
                       onChange={(e) => setForm((f) => ({
@@ -174,6 +193,14 @@ export default function TodoFormModal({ form, setForm, todoLists, submitting, on
                           i === index ? {...current, displayName: e.target.value} : current
                         ),
                       }))}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        // 폼 안이라 Enter가 할일 저장으로 새는 것을 막는다
+                        e.preventDefault();
+                        // 빈 칸에서 또 누르면 빈 항목만 쌓이므로 무시한다
+                        if (!item.displayName.trim()) return;
+                        insertChecklistItem(index + 1);
+                      }}
                       placeholder="체크리스트 항목"
                     />
                     <button
