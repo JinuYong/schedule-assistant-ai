@@ -49,6 +49,7 @@ export default function SchedulePage() {
   const error = useEventsStore((s) => s.error);
   const fetchEvents = useEventsStore((s) => s.fetchEvents);
   const prefetchEvents = useEventsStore((s) => s.prefetchEvents);
+  const syncEventNotifications = useEventsStore((s) => s.syncEventNotifications);
   const invalidateCache = useEventsStore((s) => s.invalidateCache);
 
   const todos = useTodosStore((s) => s.todos);
@@ -91,6 +92,21 @@ export default function SchedulePage() {
       }
     })();
   }, [googleTokens?.access_token]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존(객체 재생성 시 재실행 방지), 나머지 누락 deps는 안정적 액션
+
+  // 알림 동기화 — 보고 있는 달과 무관하게 "향후 7일"을 건다.
+  // 앱을 오래 켜두면 그 창이 밀리므로 한 시간마다 다시 건다.
+  useEffect(() => {
+    if (!googleTokens) return;
+    let cancelled = false;
+    const sync = async () => {
+      const tokens = await refreshGoogle();
+      if (!tokens?.access_token || cancelled) return;
+      await syncEventNotifications(tokens.access_token);
+    };
+    void sync();
+    const timer = setInterval(() => void sync(), 60 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [googleTokens?.access_token]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존
 
   // 월별 이벤트 로드 + 인접 달 백그라운드 프리페치
   useEffect(() => {
@@ -298,6 +314,7 @@ export default function SchedulePage() {
       }
       invalidateCache();
       await fetchEvents(tokens.access_token, gridRange.timeMin, gridRange.timeMax);
+      void syncEventNotifications(tokens.access_token);
       setSelectedDate(eventForm.date);
       closeEventForm();
     } catch (e) {
@@ -305,7 +322,7 @@ export default function SchedulePage() {
       showToast(msg);
       setEventForm((f) => ({...f, submitting: false}));
     }
-  }, [eventForm, refreshGoogle, fetchEvents, invalidateCache, gridRange, closeEventForm]);
+  }, [eventForm, refreshGoogle, fetchEvents, syncEventNotifications, invalidateCache, gridRange, closeEventForm]);
 
   const handleDeleteEvent = useCallback(async (ev: CalendarEvent) => {
     setDeletingId(ev.id);
@@ -315,13 +332,14 @@ export default function SchedulePage() {
       await deleteEvent(tokens.access_token, ev.id, ev.calendarId ?? "primary");
       invalidateCache();
       await fetchEvents(tokens.access_token, gridRange.timeMin, gridRange.timeMax);
+      void syncEventNotifications(tokens.access_token);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "일정 삭제에 실패했습니다.";
       showToast(msg);
     } finally {
       setDeletingId(null);
     }
-  }, [refreshGoogle, fetchEvents, invalidateCache, gridRange]);
+  }, [refreshGoogle, fetchEvents, syncEventNotifications, invalidateCache, gridRange]);
 
   const handleDropEvent = useCallback(async (ev: CalendarEvent, targetDate: string) => {
     try {
@@ -330,12 +348,13 @@ export default function SchedulePage() {
       await updateEvent(tokens.access_token, ev.id, buildMovedTimeFields(ev, targetDate), ev.calendarId ?? "primary");
       invalidateCache();
       await fetchEvents(tokens.access_token, gridRange.timeMin, gridRange.timeMax);
+      void syncEventNotifications(tokens.access_token);
       setSelectedDate(targetDate);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "일정 이동에 실패했습니다.";
       showToast(msg);
     }
-  }, [refreshGoogle, fetchEvents, invalidateCache, gridRange]);
+  }, [refreshGoogle, fetchEvents, syncEventNotifications, invalidateCache, gridRange]);
 
   // 드래그-이동 + 클릭(상세) 구분 (document 레벨 마우스 이벤트)
   const {draggingEvent, dragOverDate, ghostPos, startDrag} = useEventDrag({

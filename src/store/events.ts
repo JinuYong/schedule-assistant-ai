@@ -34,6 +34,14 @@ export function mapGCalEvent(e: GCalEvent): CalendarEvent {
 
 const NOTIFY_BEFORE_MS = 15 * 60 * 1000; // 15분 전
 
+/**
+ * 알림을 미리 걸어둘 기간.
+ *
+ * 일정 알림은 "시작 15분 전" 고정이라 멀리까지 예약해 둘 이유가 없다.
+ * 짧게 잡을수록 살아 있는 타이머 수도 줄어든다.
+ */
+const NOTIFY_WINDOW_DAYS = 7;
+
 async function scheduleEventNotifications(events: CalendarEvent[]) {
   cancelNotificationsByPrefix("event-");
   for (const ev of events) {
@@ -69,6 +77,7 @@ interface EventsStore {
   isLoading: boolean;
   error: string | null;
   fetchEvents: (accessToken: string, timeMin?: string, timeMax?: string) => Promise<void>;
+  syncEventNotifications: (accessToken: string) => Promise<void>;
   prefetchEvents: (accessToken: string, timeMin: string, timeMax: string) => Promise<void>;
   invalidateCache: () => void;
   setEvents: (events: CalendarEvent[]) => void;
@@ -83,6 +92,24 @@ export const useEventsStore = create<EventsStore>((set) => ({
 
   /** 캐시 전체 삭제 (이벤트 추가/삭제 후 stale 방지) */
   invalidateCache: () => _eventCache.clear(),
+
+  /**
+   * 알림 스케줄 동기화 — 화면에 보이는 달과 무관하게 "지금부터 NOTIFY_WINDOW_DAYS일"을 건다.
+   *
+   * 예전에는 fetchEvents가 알림까지 걸어서, 다른 달로 넘어가면 이번 주 일정 알림이
+   * 통째로 취소됐다. 화면 이동과 알림은 아무 상관이 없어야 한다.
+   */
+  syncEventNotifications: async (accessToken) => {
+    if (MOCK_ENABLED) return;
+    const now = new Date();
+    const until = new Date(now.getTime() + NOTIFY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    try {
+      const raw = await listEventsInRange(accessToken, now.toISOString(), until.toISOString());
+      await scheduleEventNotifications(raw.map(mapGCalEvent));
+    } catch {
+      // 알림 동기화 실패는 화면에 영향을 주지 않으므로 조용히 넘어간다
+    }
+  },
 
   /** 이벤트 조회 — 캐시가 있으면 즉시 표시 후 백그라운드 갱신 */
   fetchEvents: async (accessToken, timeMin, timeMax) => {
@@ -107,7 +134,6 @@ export const useEventsStore = create<EventsStore>((set) => ({
       if (key) _eventCache.set(key, mapped);
       set({ events: mapped });
       await storeSet("events.cache", mapped);
-      await scheduleEventNotifications(mapped).catch(() => {});
     } catch (err) {
       const msg = err instanceof Error ? err.message : "일정 조회에 실패했습니다.";
       set({ error: msg });
