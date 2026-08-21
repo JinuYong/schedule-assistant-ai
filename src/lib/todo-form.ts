@@ -102,6 +102,18 @@ function resolveRecurrence(form: TodoFormState): TodoTask["recurrence"] | null |
 }
 
 /** 할일 폼 → Graph task 본문 (생성·수정 공통) */
+/**
+ * 저장 전 체크리스트 정리.
+ *
+ * 폼에서 항목을 추가하면 빈 칸이 먼저 생기므로, 채우지 않은 칸은 저장하지 않는다.
+ * 앞뒤 공백도 함께 다듬는다.
+ */
+export function cleanChecklistItems(items: ChecklistDraftItem[]): ChecklistDraftItem[] {
+  return items
+    .map((item) => ({ ...item, displayName: item.displayName.trim() }))
+    .filter((item) => item.displayName);
+}
+
 export function buildTodoTaskFromForm(form: TodoFormState): TodoTaskUpdates & Pick<TodoTask, "title"> {
   const dueDateTime = form.dueDate
     ? { dateTime: `${form.dueDate}T00:00:00.0000000`, timeZone: "UTC" }

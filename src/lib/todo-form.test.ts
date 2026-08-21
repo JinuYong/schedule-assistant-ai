@@ -6,7 +6,7 @@ import {
   buildTodoTaskFromForm,
   EMPTY_TODO_FORM,
   type TodoFormState,
-} from "./todo-form";
+ cleanChecklistItems} from "./todo-form";
 
 describe("sortChecklistByDone", () => {
   it("미완료를 먼저, 완료는 완료시각 오름차순(최근 완료가 맨 아래)", () => {
@@ -84,5 +84,38 @@ describe("buildTodoTaskFromForm", () => {
       repeatBaseline: { enabled: false, type: "daily", interval: 1 },
     });
     expect("recurrence" in task).toBe(false);
+  });
+});
+
+describe("cleanChecklistItems", () => {
+  it("내용 없는 항목은 저장하지 않는다", () => {
+    // 폼에서 항목을 추가하면 빈 칸이 먼저 생긴다 — 그대로 두고 저장해도 남지 않아야 한다
+    const items = [
+      { displayName: "우유 사기", isChecked: false },
+      { displayName: "", isChecked: false },
+      { displayName: "빵 사기", isChecked: false },
+      { displayName: "   ", isChecked: false },
+    ];
+    expect(cleanChecklistItems(items).map((i) => i.displayName)).toEqual(["우유 사기", "빵 사기"]);
+  });
+
+  it("앞뒤 공백을 다듬는다", () => {
+    expect(cleanChecklistItems([{ displayName: "  우유 사기  ", isChecked: false }]))
+      .toEqual([{ displayName: "우유 사기", isChecked: false }]);
+  });
+
+  it("체크 상태와 id는 보존한다", () => {
+    const items = [{ id: "abc", displayName: "우유", isChecked: true }];
+    expect(cleanChecklistItems(items)).toEqual([{ id: "abc", displayName: "우유", isChecked: true }]);
+  });
+
+  it("빈 배열은 빈 배열", () => {
+    expect(cleanChecklistItems([])).toEqual([]);
+  });
+
+  it("원본을 건드리지 않는다", () => {
+    const items = [{ displayName: "  우유  ", isChecked: false }];
+    cleanChecklistItems(items);
+    expect(items[0].displayName).toBe("  우유  ");
   });
 });

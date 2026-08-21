@@ -5,8 +5,7 @@ import { useAuthStore } from "@/store/auth";
 import { useTodosStore, TodoItem } from "@/store/todos";
 import { useTodoActions } from "@/hooks/use-todo-actions";
 import {
-  EMPTY_TODO_FORM, todoEditFormState, buildTodoTaskFromForm, sortChecklistByDone, type TodoFormState,
-} from "@/lib/todo-form";
+  EMPTY_TODO_FORM, todoEditFormState, buildTodoTaskFromForm, sortChecklistByDone, cleanChecklistItems, type TodoFormState } from "@/lib/todo-form";
 import TodoFormModal from "@/app/(main)/schedule/components/todo-form-modal";
 import styles from "./page.module.css";
 import { formatDue } from "@/lib/date-utils";
@@ -76,7 +75,7 @@ export default function TodoPage() {
     setSubmitting(true);
     try {
       const task = buildTodoTaskFromForm(form);
-      const checklistItems = form.checklistItems.filter((item) => item.displayName.trim());
+      const checklistItems = cleanChecklistItems(form.checklistItems);
       if (form.mode === "create") {
         await createTodo(microsoftTokens.access_token, form.listId, task, checklistItems);
       } else if (form.taskId) {

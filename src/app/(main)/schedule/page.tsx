@@ -23,7 +23,7 @@ import styles from "./page.module.css";
 import UnavailableContent from '@/components/unavailable-content'
 import { buildCells, buildMonthLayout, daysInMonth, buildMovedTimeFields, buildEventTimeFields, eventEndDateForForm, EMPTY_FORM, type EventForm } from "./calendar-utils";
 import { getEventDateKeys, eventShortLabel } from "@/lib/event-match";
-import { buildTodoTaskFromForm, todoEditFormState, EMPTY_TODO_FORM, type TodoFormState } from "@/lib/todo-form";
+import { buildTodoTaskFromForm, todoEditFormState, EMPTY_TODO_FORM, type TodoFormState, cleanChecklistItems } from "@/lib/todo-form";
 import {useTodayInfo} from "./hooks/use-today-info";
 import {useSidePanelWidth} from "./hooks/use-side-panel-width";
 import {useEventDrag} from "./hooks/use-event-drag";
@@ -408,7 +408,7 @@ export default function SchedulePage() {
     setTodoSubmitting(true);
     try {
       const task = buildTodoTaskFromForm(todoForm);
-      const checklistItems = todoForm.checklistItems.filter((item) => item.displayName.trim());
+      const checklistItems = cleanChecklistItems(todoForm.checklistItems);
       if (todoForm.mode === "create") {
         await createTodo(microsoftTokens.access_token, todoForm.listId, task as Parameters<typeof createTodo>[2], checklistItems);
       } else if (todoForm.taskId) {
