@@ -561,3 +561,17 @@ NAVER_SEARCH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```bash
 bun run build:tauri
 ```
+
+## Agent skills
+
+### Issue tracker
+
+이슈와 스펙은 GitHub Issues(`JinuYong/schedule-assistant-ai`)에서 `gh` CLI로 관리한다. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+기본 라벨 5개를 그대로 쓴다(`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+single-context: 루트 `GLOSSARY.md` 하나와 `docs/adr/`. See `docs/agents/domain.md`.
