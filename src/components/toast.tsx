@@ -1,5 +1,3 @@
-"use client";
-
 import { useToastStore } from "@/store/toast";
 import styles from "./toast.module.css";
 

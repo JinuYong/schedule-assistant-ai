@@ -3,11 +3,11 @@ import { isTauri } from "./tauri-store";
 import { AuthError } from "./api-errors";
 import type { BaseTokens } from "@/types/tokens";
 
-// 빌드 시 번들된 OAuth credentials (개발자가 .env.local에 설정)
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
-const GOOGLE_CLIENT_SECRET = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET ?? "";
-const MICROSOFT_CLIENT_ID = process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID ?? "";
-const MICROSOFT_CLIENT_SECRET = process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET ?? "";
+// 빌드 시 번들된 OAuth credentials (개발자가 .env.local에 VITE_* 로 설정)
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
+const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET ?? "";
+const MICROSOFT_CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID ?? "";
+const MICROSOFT_CLIENT_SECRET = import.meta.env.VITE_MICROSOFT_CLIENT_SECRET ?? "";
 
 /** Rust refresh 커맨드 응답 형태 */
 interface RefreshResponse {

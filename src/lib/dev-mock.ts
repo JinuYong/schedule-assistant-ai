@@ -1,5 +1,5 @@
 // 개발용 더미데이터 모드.
-// `NEXT_PUBLIC_MOCK=1 bun run dev` 로 실행하면 로그인 없이 브라우저에서
+// `bun run dev`(VITE_MOCK=1) 로 실행하면 로그인 없이 브라우저에서
 // 화면을 더미데이터로 볼 수 있다 (네트워크 호출은 건너뜀).
 // 프로덕션/Tauri 빌드에는 영향 없음 (플래그가 꺼져 있으면 모든 값이 빈 값).
 
@@ -8,7 +8,7 @@ import type { CalendarEvent } from "@/store/events";
 import type { TodoItem } from "@/store/todos";
 import type { CalendarListItem } from "@/lib/google-calendar";
 
-export const MOCK_ENABLED = process.env.NEXT_PUBLIC_MOCK === "1";
+export const MOCK_ENABLED = import.meta.env.VITE_MOCK === "1";
 
 const mockTokens = (): BaseTokens => ({
   access_token: "mock-access-token",

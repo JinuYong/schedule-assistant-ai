@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from "react";
 import { parseScheduleText, parseEditCommand, type ParsedEventChanges } from "@/lib/claude";
 import {

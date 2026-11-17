@@ -10,7 +10,7 @@ Google Calendar / Microsoft Todo와 연동한다.
 | 영역 | 기술 |
 |------|------|
 | 데스크톱 쉘 | **Tauri v2** (Rust 백엔드, 시스템 WebView) |
-| 프론트엔드 | **Next.js 16** (App Router, `output: "export"` 정적 빌드) + TypeScript |
+| 프론트엔드 | **Vite** + React 19 + TypeScript, 라우팅은 **TanStack Router**(코드 기반, `src/router.tsx`) |
 | 스타일링 | **CSS Modules** (`.module.css`) — Tailwind 사용 **절대 금지** |
 | 상태 관리 | Zustand |
 | AI | Claude API (Rust `reqwest` 경유, CORS 우회) |
@@ -46,11 +46,12 @@ NODE_TLS_REJECT_UNAUTHORIZED=0 bun install
 
 ```bash
 # 개발
-bun run dev              # Next.js 개발 서버만 (브라우저 UI 확인용)
-bun run dev:tauri        # Tauri + Next.js 동시 실행 (메인 개발 방식)
+bun run dev              # Vite 개발 서버 + 더미데이터 (VITE_MOCK=1, 로그인 없이 브라우저 UI 확인용)
+bun run dev:web          # Vite 개발 서버 (더미데이터 없이)
+bun run dev:tauri        # Tauri + Vite 동시 실행 (메인 개발 방식)
 
 # 빌드
-bun run build            # Next.js 정적 빌드 → out/ 폴더
+bun run build            # 타입체크 + Vite 빌드 → out/ 폴더 (dist/는 릴리스가 dmg를 모으는 곳이라 안 씀)
 bun run build:tauri      # Tauri 앱 패키징 (macOS: .dmg, Windows: .exe)
 
 # 코드 품질
@@ -85,18 +86,19 @@ schedule-assistant-ai/
 │   ├── Cargo.toml
 │   └── tauri.conf.json          # Tauri 설정 (창 구성, frontendDist 등)
 ├── src/
-│   ├── app/
-│   │   ├── (main)/              # 메인 앱 UI
-│   │   │   ├── schedule/        # Google Calendar 일정 (컨테이너 page.tsx)
-│   │   │   │   ├── calendar-utils.ts  # 달력 그리드 계산 + 일정 폼 타입/상수 (schedule 로컬)
-│   │   │   │   ├── hooks/       # use-today-info / use-side-panel-width / use-event-drag
-│   │   │   │   └── components/  # calendar-grid, event-list, todo-groups, *-modal
-│   │   │   ├── chat/            # Claude AI 채팅 + 브리핑
-│   │   │   ├── todo/            # Microsoft Todo 할일 목록
-│   │   │   └── settings/        # OAuth 연동, 테마, 단축키 설정
-│   │   ├── floating/            # 플로팅 입력창 전용 라우트
-│   │   ├── layout.tsx           # 루트 레이아웃 (Providers 포함)
-│   │   └── globals.css          # CSS 변수 정의
+│   ├── main.tsx                 # 메인 창 진입 (Providers + RouterProvider)
+│   ├── router.tsx               # 라우트 트리: / → /schedule, 레이아웃 아래 schedule·todo·chat·settings
+│   ├── globals.css              # CSS 변수 정의
+│   ├── routes/                  # 메인 창 화면 (화면마다 page.tsx)
+│   │   ├── main-layout.tsx      # 사이드바 + <Outlet /> + 토스트
+│   │   ├── schedule/            # Google Calendar 일정 (컨테이너 page.tsx)
+│   │   │   ├── calendar-utils.ts  # 달력 그리드 계산 + 일정 폼 타입/상수 (schedule 로컬)
+│   │   │   ├── hooks/           # use-today-info / use-side-panel-width / use-event-drag
+│   │   │   └── components/      # calendar-grid, event-list, todo-groups, *-modal
+│   │   ├── chat/                # Claude AI 채팅 + 브리핑
+│   │   ├── todo/                # Microsoft Todo 할일 목록
+│   │   └── settings/            # OAuth 연동, 테마, 단축키 설정
+│   ├── floating/                # 플로팅 입력창 (main.tsx 진입, layout·page)
 │   ├── components/
 │   │   ├── Sidebar/             # 사이드바 네비게이션
 │   │   ├── ThemeApplier/        # CSS 변수 동적 설정 (테마)
@@ -114,7 +116,7 @@ schedule-assistant-ai/
 │   │   ├── event-match.ts       # 이벤트 자동완성·매칭 (matchEventsByText·parseDateHint·matchCalendar, 공유)
 │   │   ├── location.ts          # 장소 라벨·지도 가능 판별·네이버지도 열기
 │   │   ├── naver-place.ts       # NAVER API HUB 지역검색 래퍼 (invoke "search_places")
-│   │   ├── dev-mock.ts          # 개발용 더미데이터 (NEXT_PUBLIC_MOCK=1)
+│   │   ├── dev-mock.ts          # 개발용 더미데이터 (VITE_MOCK=1)
 │   │   ├── oauth.ts             # Google/Microsoft OAuth 흐름 (provider 팩토리)
 │   │   ├── authenticated-fetch.ts # 공통 인증 fetch 골격 (401 재시도·429 처리)
 │   │   ├── api-errors.ts        # AuthError / RateLimitError
@@ -132,7 +134,9 @@ schedule-assistant-ai/
 │       ├── todos.ts            # Microsoft Todo 할일 캐시 (Zustand)
 │       ├── toast.ts            # 토스트 알림 상태 (Zustand)
 │       └── theme.ts             # 테마 색상 (Zustand + localStorage)
-├── next.config.ts               # output: "export", distDir: "out"
+├── index.html                   # 메인 창 진입 HTML → src/main.tsx
+├── floating.html                # 플로팅 창 진입 HTML → src/floating/main.tsx
+├── vite.config.ts               # 진입점 둘, @ 별칭, 포트 3100 고정, outDir out
 ├── package.json
 ├── AGENTS.md                    # → CLAUDE.md 심볼릭 링크
 └── CLAUDE.md
@@ -143,9 +147,11 @@ schedule-assistant-ai/
 ## 핵심 아키텍처
 
 ### 1. 정적 빌드 + Tauri WebView
-- `output: "export"` → Next.js가 완전한 정적 HTML/CSS/JS를 `out/` 폴더에 생성
-- Tauri가 `out/`을 WebView에 직접 서빙 (`frontendDist: "../out"`)
-- **API Routes 사용 불가** — 모든 서버 로직은 Rust commands로 처리
+- Vite가 정적 HTML/CSS/JS를 `out/` 폴더에 생성, Tauri가 WebView에 직접 서빙 (`frontendDist: "../out"`)
+- 창마다 진입점이 따로다: 메인 창 `index.html`(라우터), 플로팅 창 `floating.html`(라우터 없음, 메인 화면 코드를 안 실음). 둘 다 `Providers`로 감싼다
+- 없는 경로는 Tauri가 `index.html`로 돌려주므로(tauri `manager/mod.rs`) `/todo`에서 새로 고쳐도 그대로 열린다
+- 서버 렌더링이 없으므로 `localStorage` 같은 브라우저 값은 `useState` 초기화 함수에서 바로 읽는다(마운트 뒤 effect로 복원할 필요 없음)
+- 모든 서버 로직은 Rust commands로 처리
 
 ### 2. 플로팅 창 메커니즘
 - `tauri.conf.json`에 두 개의 창 정의: `main` (1200×800) + `floating` (620×64, alwaysOnTop, transparent)
@@ -443,7 +449,7 @@ Settings → Secrets and variables → Actions
 
 | 시크릿 | 필수 | 용도 |
 |--------|------|------|
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | ✅ | 빌드 시 정적 번들에 주입 |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | ✅ | 워크플로가 `VITE_GOOGLE_CLIENT_ID`로 넘겨 번들에 주입 (시크릿 이름은 Next 시절 그대로) |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET` | ✅ | 〃 |
 | `NEXT_PUBLIC_MICROSOFT_CLIENT_ID` | ✅ | 〃 |
 | `NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET` | ✅ | 〃 |
@@ -469,15 +475,15 @@ OAuth credentials는 `.env.local`에 설정하며 `bun run build` 시 정적 번
 
 ```env
 # Google OAuth (GCP Console → 데스크톱 앱 타입)
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
-NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
+VITE_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
 
 # Microsoft OAuth (Azure Portal → 앱 등록)
-NEXT_PUBLIC_MICROSOFT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+VITE_MICROSOFT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+VITE_MICROSOFT_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # NAVER API HUB 지역검색 (ncloud.com → NAVER API HUB → 인증키)
-# NEXT_PUBLIC_ 접두사가 없다 — JS 번들이 아니라 Rust 바이너리에 구워진다
+# VITE_ 접두사가 없다 — JS 번들이 아니라 Rust 바이너리에 구워진다
 NAVER_SEARCH_CLIENT_ID=xxxxxxxxxxxxxxxxxxxx
 NAVER_SEARCH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
@@ -490,7 +496,7 @@ NAVER_SEARCH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 `src-tauri/build.rs`가 빌드 시점에 환경변수 또는 `.env.local`을 읽어
 `cargo:rustc-env`으로 주입하고, `places.rs`가 `env!()`로 받는다.
-`NEXT_PUBLIC_*`(JS 번들 평문)보다 노출이 덜하지만 **`strings`로 추출 가능한 건 마찬가지다.**
+`VITE_*`(JS 번들 평문)보다 노출이 덜하지만 **`strings`로 추출 가능한 건 마찬가지다.**
 숨겨진 비밀이 아니라 "유출되면 호출량이 소진되는 값"으로 취급하고,
 **ncloud 콘솔에서 호출량 임계치를 걸어 손실 상한을 고정해 둔다.**
 
@@ -519,7 +525,7 @@ NAVER_SEARCH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ### 2단계: Application ID 복사
 
 등록 완료 후 개요 페이지에서:
-- **애플리케이션(클라이언트) ID** 복사 → `.env.local`의 `NEXT_PUBLIC_MICROSOFT_CLIENT_ID`에 입력
+- **애플리케이션(클라이언트) ID** 복사 → `.env.local`의 `VITE_MICROSOFT_CLIENT_ID`에 입력
 
 ### 3단계: 공용 클라이언트 허용
 
@@ -554,7 +560,7 @@ NAVER_SEARCH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 > ⚠️ 생성 직후에만 **"값"** 열에서 확인 가능. 페이지를 벗어나면 다시 볼 수 없으니 즉시 복사.
 
-복사한 **값** → `.env.local`의 `NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET`에 입력
+복사한 **값** → `.env.local`의 `VITE_MICROSOFT_CLIENT_SECRET`에 입력
 
 ### 6단계: 빌드
 

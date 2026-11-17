@@ -1,5 +1,3 @@
-"use client";
-
 import {useEffect, useState, useCallback, useMemo, useRef} from "react";
 import {useAuthStore} from "@/store/auth";
 import {useEventsStore, CalendarEvent} from "@/store/events";

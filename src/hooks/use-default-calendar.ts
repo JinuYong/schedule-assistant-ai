@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { storeGet } from "@/lib/tauri-store";
 import type { CalendarListItem } from "@/lib/google-calendar";

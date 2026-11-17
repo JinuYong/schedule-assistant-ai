@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { streamChat } from "@/lib/claude";
 import { useEventsStore } from "@/store/events";

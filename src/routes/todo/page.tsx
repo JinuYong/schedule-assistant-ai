@@ -1,12 +1,10 @@
-"use client";
-
 import { useEffect, useCallback, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { useTodosStore, TodoItem } from "@/store/todos";
 import { useTodoActions } from "@/hooks/use-todo-actions";
 import {
   EMPTY_TODO_FORM, todoEditFormState, buildTodoTaskFromForm, sortChecklistByDone, cleanChecklistItems, type TodoFormState } from "@/lib/todo-form";
-import TodoFormModal from "@/app/(main)/schedule/components/todo-form-modal";
+import TodoFormModal from "@/routes/schedule/components/todo-form-modal";
 import styles from "./page.module.css";
 import { formatDue } from "@/lib/date-utils";
 import UnavailableContent from '@/components/unavailable-content'

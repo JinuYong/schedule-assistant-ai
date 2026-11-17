@@ -1,12 +1,14 @@
-// ESLint 9 flat config — eslint-config-next 16의 네이티브 flat config를 직접 사용.
-// (FlatCompat 경유 시 react 플러그인 순환참조로 config-validator가 크래시함)
-import next from "eslint-config-next";
+// ESLint 9 flat config.
+// Next 시절 eslint-config-next가 켜 주던 규칙 중 이 앱에 의미 있는 react-hooks(7.0.1 recommended)를 그대로 켠다.
+// typescript-eslint는 TS 문법을 읽는 파서로만 쓴다.
+// 더 엄격한 규칙(react-hooks 7.1+, @eslint/js·typescript-eslint recommended)을 켜면 9건이 걸린다 → 별도 정리 작업.
+import tseslint from "typescript-eslint";
+import reactHooks from "eslint-plugin-react-hooks";
 
-const eslintConfig = [
-  ...next,
+export default tseslint.config(
+  { ignores: ["out/**", "dist/**", "node_modules/**", "src-tauri/**"] },
   {
-    ignores: ["out/**", ".next/**", "node_modules/**", "src-tauri/**", "next-env.d.ts"],
+    files: ["**/*.{ts,tsx}"],
+    extends: [tseslint.configs.base, reactHooks.configs.flat.recommended],
   },
-];
-
-export default eslintConfig;
+);

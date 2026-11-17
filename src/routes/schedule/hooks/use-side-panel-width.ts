@@ -1,24 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 const DEFAULT_SIDE_WIDTH = 280;
 const MIN_SIDE_WIDTH = 200;
 const MAX_SIDE_WIDTH = 500;
+
+/** 저장된 너비 (없거나 잘못되면 기본값) */
+function readSavedSideWidth(): number {
+  const saved = Number(localStorage.getItem("schedule-side-width"));
+  if (!saved || !Number.isFinite(saved)) return DEFAULT_SIDE_WIDTH;
+  return Math.max(MIN_SIDE_WIDTH, Math.min(MAX_SIDE_WIDTH, saved));
+}
 
 /**
  * 우측 패널 너비 상태 + 드래그 리사이즈 핸들러.
  * localStorage("schedule-side-width")에 복원/저장한다.
  */
 export function useSidePanelWidth() {
-  const [sidePanelWidth, setSidePanelWidth] = useState(DEFAULT_SIDE_WIDTH);
+  const [sidePanelWidth, setSidePanelWidth] = useState(readSavedSideWidth);
   const sideDragRef = useRef({ x: 0, width: DEFAULT_SIDE_WIDTH });
-
-  // 너비 localStorage 복원
-  useEffect(() => {
-    const saved = localStorage.getItem("schedule-side-width");
-    // SSR 하이드레이션 일치를 위해 마운트 후 1회 복원하는 의도된 패턴
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (saved) setSidePanelWidth(Math.max(MIN_SIDE_WIDTH, Math.min(MAX_SIDE_WIDTH, Number(saved))));
-  }, []);
 
   const handleSidePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();

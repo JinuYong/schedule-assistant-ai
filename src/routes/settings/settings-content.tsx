@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { useThemeStore, THEME_COLORS } from "@/store/theme";

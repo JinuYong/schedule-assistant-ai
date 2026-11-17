@@ -1,8 +1,5 @@
-"use client";
-
-import { useState, useEffect, useCallback, useRef } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useState, useCallback, useRef } from "react";
+import { Link } from "@tanstack/react-router";
 import styles from "./sidebar.module.css";
 
 const NAV_ITEMS = [
@@ -10,7 +7,7 @@ const NAV_ITEMS = [
   { href: "/todo", label: "할일", icon: "✅" },
   { href: "/chat", label: "AI 브리핑", icon: "💬" },
   { href: "/settings", label: "설정", icon: "⚙️" },
-];
+] as const;
 
 const ICON_ONLY_THRESHOLD = 130;
 const ICON_ONLY_WIDTH = 56;
@@ -18,23 +15,21 @@ const DEFAULT_WIDTH = 180;
 const MIN_WIDTH = 56;
 const MAX_WIDTH = 320;
 
+/**
+ * 저장된 너비.
+ * 저장된 값이 없으면 Number(null) = 0 → 최소 너비(아이콘 전용)가 된다. Next 시절 동작 그대로 유지.
+ */
+function readSavedWidth(): number {
+  const saved = Number(localStorage.getItem("sidebar-width"));
+  if (!Number.isFinite(saved)) return DEFAULT_WIDTH;
+  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, saved));
+}
+
 export default function Sidebar() {
-  const pathname = usePathname();
-  const [width, setWidth] = useState(DEFAULT_WIDTH);
-  const [isIconOnly, setIsIconOnly] = useState(false);
+  const [width, setWidth] = useState(readSavedWidth);
+  const [isIconOnly, setIsIconOnly] = useState(() => width <= ICON_ONLY_WIDTH);
   // pointerdown/pointermove 간 드래그 시작값 공유 (모두 React 이벤트로 처리해 좌표계 일관성 보장)
   const dragStartRef = useRef({ x: 0, width: DEFAULT_WIDTH });
-
-  // localStorage 복원은 hydration 이후에만 수행해야 서버/클라이언트 첫 렌더가 일치한다.
-  useEffect(() => {
-    const saved = Number(localStorage.getItem("sidebar-width"));
-    if (!Number.isFinite(saved)) return;
-    const nextWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, saved));
-    // SSR 하이드레이션 일치를 위해 마운트 후 1회 복원하는 의도된 패턴
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setWidth(nextWidth);
-    setIsIconOnly(nextWidth <= ICON_ONLY_WIDTH);
-  }, []);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -84,26 +79,21 @@ export default function Sidebar() {
       style={{ width }}
     >
       <div className={styles.logo}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- 정적 export + 로컬 SVG 로고라 next/image 최적화 대상 아님 */}
         <img className={styles.logoIcon} src="/cali-logo.svg" alt="Cali Logo" />
       </div>
       <nav className={styles.nav}>
-        {NAV_ITEMS.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            pathname === `${item.href}/` ||
-            pathname.startsWith(`${item.href}/`);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`${styles.navItem} ${isActive ? styles.active : ""}`}
-            >
-              <span className={styles.navIcon}>{item.icon}</span>
-              <span className={styles.navLabel}>{item.label}</span>
-            </Link>
-          );
-        })}
+        {NAV_ITEMS.map((item) => (
+          // 하위 경로(/schedule/...)에서도 켜진다 (TanStack Router 기본 부분 일치)
+          <Link
+            key={item.href}
+            to={item.href}
+            className={styles.navItem}
+            activeProps={{ className: styles.active }}
+          >
+            <span className={styles.navIcon}>{item.icon}</span>
+            <span className={styles.navLabel}>{item.label}</span>
+          </Link>
+        ))}
       </nav>
       <div
         className={styles.resizeHandle}
