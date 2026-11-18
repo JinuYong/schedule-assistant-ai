@@ -18,8 +18,9 @@ dist/
 *.tsbuildinfo
 
 # ── Tauri / Rust ─────────────────────────────────────────────
-src-tauri/target/
-src-tauri/gen/
+# 중간에 /가 있는 패턴은 .gitignore 기준 경로라 apps/app 아래도 잡히게 **/를 붙인다
+**/src-tauri/target/
+**/src-tauri/gen/
 
 # ── Android (Capacitor) ──────────────────────────────────────
 android/

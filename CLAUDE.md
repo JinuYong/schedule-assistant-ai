@@ -5,6 +5,21 @@ Google Calendar / Microsoft Todo와 연동한다.
 
 ---
 
+## 모노레포 (Bun workspaces)
+
+```
+apps/app/          Tauri 앱 (src, src-tauri, scripts, index.html, vite.config.ts, .env.local …)
+apps/server/       API 서버 (Hono + Bun, https://cali-api.jinu.io) — 2단계에서 추가
+packages/shared/   앱·서버 공용 타입 — 2단계에서 추가
+```
+
+- **이 문서의 `src/`·`src-tauri/`·`scripts/`·`.env.local`·`out/` 경로는 모두 `apps/app/` 기준이다.**
+- `bun install`은 루트에서 한 번(lockfile도 루트 `bun.lock` 하나). 루트 스크립트 `dev`·`dev:web`·`dev:tauri`·`build`는 앱으로 넘기고, `typecheck`·`lint`·`test`는 모든 패키지에서 돈다.
+- 패키지 이름은 `@cali/app`·`@cali/server`·`@cali/shared`.
+- Rust `target/`에는 절대 경로가 박혀 있어 폴더를 옮기면 `cargo clean`이 필요하다(`failed to read plugin permissions …` 오류).
+
+---
+
 ## 기술 스택
 
 | 영역 | 기술 |
@@ -69,7 +84,7 @@ bun run lint             # ESLint
 ## 프로젝트 구조
 
 ```
-schedule-assistant-ai/
+apps/app/
 ├── src-tauri/                   # Rust 백엔드 (edition 2024)
 │   ├── src/
 │   │   ├── main.rs              # 진입점
@@ -137,10 +152,10 @@ schedule-assistant-ai/
 ├── index.html                   # 메인 창 진입 HTML → src/main.tsx
 ├── floating.html                # 플로팅 창 진입 HTML → src/floating/main.tsx
 ├── vite.config.ts               # 진입점 둘, @ 별칭, 포트 3100 고정, outDir out
-├── package.json
-├── AGENTS.md                    # → CLAUDE.md 심볼릭 링크
-└── CLAUDE.md
+├── scripts/                     # 릴리스 버전 계산·반영 (next-version.sh, bump-version.sh)
+└── package.json                 # @cali/app
 ```
+(루트에는 `package.json`(workspaces)·`bun.lock`·`CLAUDE.md`·`AGENTS.md`(→ CLAUDE.md 심볼릭 링크)·`docs/`·`.github/`)
 
 ---
 
