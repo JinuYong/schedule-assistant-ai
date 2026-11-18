@@ -61,6 +61,13 @@ bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서�
 | 단축키 | `tauri-plugin-global-shortcut` |
 | 패키지 매니저 | **Bun** (npm/yarn/pnpm 사용 **절대 금지**) |
 
+### 도구 버전 (가능한 최신으로 유지)
+
+- **Bun**: 루트 `package.json`의 `packageManager`(CI는 `bun-version-file`로 읽음). 올리면 `apps/server/Dockerfile`의 `oven/bun:*-slim`도 같이.
+- **Node**: `.node-version`(fnm `--use-on-cd`가 자동 전환, 릴리스 CI는 `setup-node`). Vite·Tauri CLI·Vitest가 Node로 돈다. `@types/node`도 같은 메이저.
+- **TypeScript 7**(Go 네이티브 `tsc`)과 **6**을 같이 둔다: `"typescript": "npm:@typescript/typescript6@…"`(typescript-eslint처럼 `typescript`를 import하는 도구용 — TS 7은 아직 JS API가 없다), `"@typescript/native": "npm:typescript@…"`(`tsc` 실행 파일). typescript-eslint가 TS 7을 지원하면 별칭을 걷어낸다. TS 7은 `baseUrl`·`moduleResolution: node`·`target: es5`를 받지 않는다.
+- **Rust**: stable 최신(`rustup update`, 릴리스 CI는 `dtolnay/rust-toolchain@stable`). 크레이트는 `cargo update` + 메이저는 crates.io 확인.
+
 ---
 
 ## 패키지 매니저

@@ -49,7 +49,7 @@ jobs:
     steps:
       # 항상 main의 최신 상태를 기준으로 빌드한다.
       # fetch-depth: 0 — 마지막 태그 이후 커밋을 읽어 버전을 계산하려면 전체 이력이 필요.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
@@ -102,9 +102,14 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # 버전은 저장소에 적힌 것과 같게: Bun은 package.json packageManager, Node(Vite·Tauri CLI)는 .node-version
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version-file: package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
 
       - uses: dtolnay/rust-toolchain@stable
         with:

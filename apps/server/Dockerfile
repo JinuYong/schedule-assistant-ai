@@ -1,6 +1,7 @@
 # Cali API 서버 이미지. 빌드 컨텍스트는 저장소 루트(compose.yaml) — Bun workspaces라 루트 lockfile이 필요하다.
 # 서버(OCI ARM)에서 직접 빌드한다. 공식 이미지가 arm64를 지원한다.
-FROM oven/bun:1.3.6-slim
+# Bun 버전은 루트 package.json의 packageManager와 맞춘다
+FROM oven/bun:1.4.4-slim
 
 WORKDIR /repo
 ENV NODE_ENV=production
