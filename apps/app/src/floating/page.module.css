@@ -32,11 +32,12 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   overflow: hidden;
 }
 
-/* 로그인 안내 — 높이는 page.tsx NOTICE_HEIGHT와 맞춘다 */
+/* 로그인 안내 — 높이는 page.tsx NOTICE_HEIGHT와 맞춘다.
+   box-shadow를 넣지 않는다(.dropdown도): 창 아래 여백이 6px라 그림자가 창 끝에서 잘리고,
+   macOS 창 그림자가 그 잘린 반투명 픽셀을 따라 회색 윤곽선을 그린다. 그림자는 창 그림자에 맡긴다 */
 .notice {
   width: 100%;
   height: 44px;
@@ -51,7 +52,6 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .noticeText {
