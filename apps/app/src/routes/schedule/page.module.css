@@ -28,7 +28,7 @@
 .sidePanelHandle {
   position: absolute;
   top: 0;
-  left: -10px;    /* gap(20px)의 중앙 */
+  left: -10px; /* gap(20px)의 중앙 */
   width: 20px;
   height: 100%;
   cursor: col-resize;
@@ -38,7 +38,7 @@
 }
 
 .sidePanelHandle::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 9px;
@@ -215,8 +215,12 @@
 }
 
 @keyframes skeletonShimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .quickDropdownItem {
@@ -271,7 +275,9 @@
   line-height: 1;
   color: var(--color-text-secondary);
   background: var(--color-surface);
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .refreshBtn:hover:not(:disabled) {
@@ -302,7 +308,9 @@
   font-size: 22px;
   line-height: 1;
   color: var(--color-text-secondary);
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .navBtn:hover {
@@ -322,7 +330,10 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .todayBtn:hover {
@@ -349,8 +360,13 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
 }
 
 /* ── Calendar Grid ── */
@@ -406,7 +422,7 @@
   border-right: none;
 }
 
-.dayCell:nth-last-child(-n+7) {
+.dayCell:nth-last-child(-n + 7) {
   border-bottom: none;
 }
 
@@ -550,7 +566,10 @@
   color: var(--color-text-secondary);
   background: transparent;
   opacity: 0;
-  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    color 0.15s;
 }
 
 .dayCell:hover .cellAddBtn {
@@ -711,7 +730,9 @@
   border-radius: 4px;
   font-size: 13px;
   color: var(--color-text-secondary);
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -729,7 +750,9 @@
   border-radius: 4px;
   font-size: 11px;
   color: var(--color-text-secondary);
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -824,7 +847,9 @@
   border: 2px solid var(--color-border);
   border-radius: 50%;
   background: transparent;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .todoCheckBtn:hover {
@@ -912,7 +937,9 @@
   border-radius: 4px;
   background: transparent;
   color: var(--color-text-secondary);
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .todoActionBtn:hover {
@@ -1002,7 +1029,9 @@
   border: 1.5px solid var(--color-border);
   border-radius: 3px;
   background: transparent;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .todoChecklistBtn:hover {
@@ -1015,7 +1044,7 @@
 }
 
 .todoChecklistChecked::after {
-  content: '';
+  content: "";
   display: block;
   width: 8px;
   height: 5px;
@@ -1110,7 +1139,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .modalClose:hover {
@@ -1528,7 +1559,9 @@ select.formInput {
   margin-left: 2px;
   border-radius: 50%;
   color: var(--color-text-secondary);
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .detailLocBtn:hover {

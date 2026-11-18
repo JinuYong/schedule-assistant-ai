@@ -39,23 +39,32 @@ describe("eventColor", () => {
     });
 
     it("다른 나라 공휴일 캘린더도 같은 형식이라 걸린다", () => {
-      expect(eventColor({
-        description: "공휴일",
-        calendarColor: HOLIDAY_CAL_COLOR,
-        calendarId: "en.usa#holiday@group.v.calendar.google.com",
-      })).toBe(HOLIDAY_COLOR);
+      expect(
+        eventColor({
+          description: "공휴일",
+          calendarColor: HOLIDAY_CAL_COLOR,
+          calendarId: "en.usa#holiday@group.v.calendar.google.com",
+        }),
+      ).toBe(HOLIDAY_COLOR);
     });
   });
 
   describe("일반 캘린더", () => {
     it("캘린더 색을 그대로 쓴다", () => {
-      expect(eventColor({ calendarColor: "#5b9bd5", calendarId: "work" })).toBe("#5b9bd5");
+      expect(eventColor({ calendarColor: "#5b9bd5", calendarId: "work" })).toBe(
+        "#5b9bd5",
+      );
     });
 
-    it("설명에 \"공휴일\"이라 적어도 색을 바꾸지 않는다", () => {
+    it('설명에 "공휴일"이라 적어도 색을 바꾸지 않는다', () => {
       // 캘린더로 먼저 거르므로 사용자가 쓴 문구에 휘둘리지 않는다
-      expect(eventColor({ description: "공휴일", calendarColor: "#5b9bd5", calendarId: "work" }))
-        .toBe("#5b9bd5");
+      expect(
+        eventColor({
+          description: "공휴일",
+          calendarColor: "#5b9bd5",
+          calendarId: "work",
+        }),
+      ).toBe("#5b9bd5");
     });
 
     it("캘린더 색이 없으면 undefined (호출부가 기본 스타일로 폴백)", () => {

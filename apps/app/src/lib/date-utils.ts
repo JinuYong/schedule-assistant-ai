@@ -6,13 +6,24 @@ export function formatDue(dateTime: string, timeZone = "UTC") {
   let d: Date;
   try {
     const tz = (window as any).Temporal
-      ? (window as any).Temporal.ZonedDateTime.from(`${dateTime}[${timeZone}]`).toInstant().epochMilliseconds
+      ? (window as any).Temporal.ZonedDateTime.from(
+          `${dateTime}[${timeZone}]`,
+        ).toInstant().epochMilliseconds
       : null;
-    d = tz !== null
-      ? new Date(tz)
-      : new Date(dateTime.endsWith("Z") || dateTime.includes("+") ? dateTime : dateTime + "Z");
+    d =
+      tz !== null
+        ? new Date(tz)
+        : new Date(
+            dateTime.endsWith("Z") || dateTime.includes("+")
+              ? dateTime
+              : dateTime + "Z",
+          );
   } catch {
-    d = new Date(dateTime.endsWith("Z") || dateTime.includes("+") ? dateTime : dateTime + "Z");
+    d = new Date(
+      dateTime.endsWith("Z") || dateTime.includes("+")
+        ? dateTime
+        : dateTime + "Z",
+    );
   }
   const today = new Date();
   const isPast = d < today && d.toDateString() !== today.toDateString();
@@ -36,7 +47,9 @@ export function graphDateTimeToMs(dateTime: string, timeZone = "UTC"): number {
   const base = dateTime.slice(0, 19); // 분수초 제거
   try {
     const T = (window as any).Temporal;
-    if (T) return T.ZonedDateTime.from(`${base}[${timeZone}]`).toInstant().epochMilliseconds;
+    if (T)
+      return T.ZonedDateTime.from(`${base}[${timeZone}]`).toInstant()
+        .epochMilliseconds;
   } catch {
     /* fallthrough */
   }
@@ -46,26 +59,44 @@ export function graphDateTimeToMs(dateTime: string, timeZone = "UTC"): number {
 
 /** "2026년 6월" 형식의 월/연 라벨 */
 export function formatMonthYear(year: number, month: number): string {
-  return new Date(year, month, 1).toLocaleDateString("ko-KR", { year: "numeric", month: "long" });
+  return new Date(year, month, 1).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+  });
 }
 
 /** ISO 시각 → "오후 3시" / "오후 3:30" (정시는 분 생략) */
 export function formatTime(iso: string): string {
   const date = new Date(iso);
-  return date.toLocaleTimeString("ko-KR", date.getMinutes() === 0 ? { hour: "numeric" } : { hour: "numeric", minute: "2-digit" });
+  return date.toLocaleTimeString(
+    "ko-KR",
+    date.getMinutes() === 0
+      ? { hour: "numeric" }
+      : { hour: "numeric", minute: "2-digit" },
+  );
 }
 
 /** "YYYY-MM-DD" → "6월 12일 (금)" 형식의 날짜 라벨 */
 export function formatDateLabel(dateStr: string): string {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("ko-KR", {
-    month: "long", day: "numeric", weekday: "short",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
   });
 }
 
 /** Unix ms → "6월 28일 오전 9시" (정시는 분 생략) — 알림 시각 표시용 */
 export function formatDateTimeLabel(ms: number): string {
   const d = new Date(ms);
-  const datePart = d.toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
-  const timePart = d.toLocaleTimeString("ko-KR", d.getMinutes() === 0 ? { hour: "numeric" } : { hour: "numeric", minute: "2-digit" });
+  const datePart = d.toLocaleDateString("ko-KR", {
+    month: "long",
+    day: "numeric",
+  });
+  const timePart = d.toLocaleTimeString(
+    "ko-KR",
+    d.getMinutes() === 0
+      ? { hour: "numeric" }
+      : { hour: "numeric", minute: "2-digit" },
+  );
   return `${datePart} ${timePart}`;
 }

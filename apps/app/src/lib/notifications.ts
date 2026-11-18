@@ -4,7 +4,10 @@ import { isTauri } from "./tauri-store";
 const scheduled = new Map<string, ReturnType<typeof setTimeout>>();
 
 /** 데스크탑 알림 즉시 전송 (Rust osascript 경유 — macOS 26에서 동작) */
-export async function fireNotification(title: string, body: string): Promise<void> {
+export async function fireNotification(
+  title: string,
+  body: string,
+): Promise<void> {
   if (!isTauri()) return;
   await invoke("send_os_notification", { title, body });
 }
@@ -41,14 +44,25 @@ function arm(event: ScheduledNotification) {
   const remaining = event.time - Date.now();
 
   if (remaining > MAX_TIMEOUT_MS) {
-    scheduled.set(event.id, setTimeout(() => arm(event), MAX_TIMEOUT_MS));
+    scheduled.set(
+      event.id,
+      setTimeout(() => arm(event), MAX_TIMEOUT_MS),
+    );
     return;
   }
 
-  scheduled.set(event.id, setTimeout(() => {
-    scheduled.delete(event.id);
-    fireNotification(event.title, event.body).catch((e) => console.error("[notification]", e));
-  }, Math.max(remaining, 0)));
+  scheduled.set(
+    event.id,
+    setTimeout(
+      () => {
+        scheduled.delete(event.id);
+        fireNotification(event.title, event.body).catch((e) =>
+          console.error("[notification]", e),
+        );
+      },
+      Math.max(remaining, 0),
+    ),
+  );
 }
 
 export function cancelNotification(id: string) {

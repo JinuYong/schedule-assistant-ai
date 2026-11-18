@@ -16,22 +16,37 @@ interface EventListProps {
 }
 
 function EventList({
-  isLoading, events, deletingId, onEventClick, onEdit, onDelete,
+  isLoading,
+  events,
+  deletingId,
+  onEventClick,
+  onEdit,
+  onDelete,
 }: EventListProps) {
   return (
     <ul className={styles.eventList}>
       {events.length === 0 ? (
-        isLoading ? (<p className={styles.empty}>loading...</p>) : (<p className={styles.empty}>일정이 없습니다.</p>)
-      ) : events.map((ev) => (
+        isLoading ? (
+          <p className={styles.empty}>loading...</p>
+        ) : (
+          <p className={styles.empty}>일정이 없습니다.</p>
+        )
+      ) : (
+        events.map((ev) => (
           <li
             key={ev.id}
             className={styles.eventItem}
-            style={eventColor(ev) ? {borderLeftColor: eventColor(ev)} : undefined}
+            style={
+              eventColor(ev) ? { borderLeftColor: eventColor(ev) } : undefined
+            }
             onClick={() => onEventClick(ev)}
           >
-          <span className={styles.eventTime} style={eventColor(ev) ? {color: eventColor(ev)} : undefined}>
-            {ev.isAllDay ? "종일" : formatTime(ev.startTime)}
-          </span>
+            <span
+              className={styles.eventTime}
+              style={eventColor(ev) ? { color: eventColor(ev) } : undefined}
+            >
+              {ev.isAllDay ? "종일" : formatTime(ev.startTime)}
+            </span>
             <div className={styles.eventBody}>
               <p className={styles.eventTitle}>{ev.title}</p>
               {ev.location && (
@@ -46,19 +61,31 @@ function EventList({
             </div>
             {/* 호버 시에만 뜨는 오버레이 — 흐름에서 빠져 있어 평소엔 제목·장소가 카드 폭을 다 쓴다 */}
             <div className={styles.eventActions}>
-              <button className={styles.editBtn} onClick={(e) => {
-                e.stopPropagation();
-                onEdit(ev);
-              }} title="일정 수정"><IconPencil/></button>
-              <button className={styles.deleteBtn} onClick={(e) => {
-                e.stopPropagation();
-                onDelete(ev);
-              }} disabled={deletingId === ev.id} title="일정 삭제">
-                {deletingId === ev.id ? "..." : <IconTrash/>}
+              <button
+                className={styles.editBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(ev);
+                }}
+                title="일정 수정"
+              >
+                <IconPencil />
+              </button>
+              <button
+                className={styles.deleteBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(ev);
+                }}
+                disabled={deletingId === ev.id}
+                title="일정 삭제"
+              >
+                {deletingId === ev.id ? "..." : <IconTrash />}
               </button>
             </div>
           </li>
-        ))}
+        ))
+      )}
     </ul>
   );
 }

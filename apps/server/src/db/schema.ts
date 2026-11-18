@@ -1,7 +1,15 @@
-import { bigint, char, datetime, index, mysqlTable, varchar } from "drizzle-orm/mysql-core";
+import {
+  bigint,
+  char,
+  datetime,
+  index,
+  mysqlTable,
+  varchar,
+} from "drizzle-orm/mysql-core";
 
 // serial은 기본 키 말고 UNIQUE 인덱스를 하나 더 만들어서 bigint 자동 증가로 쓴다
-const id = () => bigint({ mode: "number", unsigned: true }).autoincrement().primaryKey();
+const id = () =>
+  bigint({ mode: "number", unsigned: true }).autoincrement().primaryKey();
 
 // 시각은 모두 datetime(UTC)으로 저장한다. MySQL timestamp는 2038년까지만 담는다.
 // DB 기본값(now()) 대신 앱에서 넣어 연결의 세션 시간대에 기대지 않는다(db/index.ts에서 timezone "Z").

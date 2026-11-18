@@ -41,7 +41,7 @@ export function useOAuthConnection(
       (err) => {
         setError(err);
         setStatus("error");
-      }
+      },
     );
   }, [start, setTokens, afterConnect]);
 

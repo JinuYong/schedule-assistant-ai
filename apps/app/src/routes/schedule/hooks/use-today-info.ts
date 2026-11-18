@@ -10,7 +10,7 @@ export function useTodayInfo() {
 
   const refreshTodayInfo = useCallback(() => {
     const nextToday = getTodayInfo();
-    setTodayInfo((prev) => prev.date === nextToday.date ? prev : nextToday);
+    setTodayInfo((prev) => (prev.date === nextToday.date ? prev : nextToday));
     return nextToday;
   }, []);
 

@@ -14,8 +14,15 @@ export interface StoredSession {
 export interface AuthStore {
   /** Google sub로 찾아 있으면 이메일·이름·사진·마지막 로그인을 고치고, 없으면 만든다 */
   upsertGoogleUser(profile: GoogleProfile, now: Date): Promise<User>;
-  createSession(input: { userId: number; tokenHash: string; now: Date; expiresAt: Date }): Promise<void>;
-  findSession(tokenHash: string): Promise<{ session: StoredSession; user: User } | null>;
+  createSession(input: {
+    userId: number;
+    tokenHash: string;
+    now: Date;
+    expiresAt: Date;
+  }): Promise<void>;
+  findSession(
+    tokenHash: string,
+  ): Promise<{ session: StoredSession; user: User } | null>;
   touchSession(id: number, lastUsedAt: Date, expiresAt: Date): Promise<void>;
   deleteSession(tokenHash: string): Promise<void>;
 }
@@ -25,17 +32,39 @@ export function createDbAuthStore(db: Db): AuthStore {
     async upsertGoogleUser(p, now) {
       await db
         .insert(users)
-        .values({ googleSub: p.sub, email: p.email, name: p.name, pictureUrl: p.pictureUrl, createdAt: now, lastLoginAt: now })
+        .values({
+          googleSub: p.sub,
+          email: p.email,
+          name: p.name,
+          pictureUrl: p.pictureUrl,
+          createdAt: now,
+          lastLoginAt: now,
+        })
         .onDuplicateKeyUpdate({
-          set: { email: p.email, name: p.name, pictureUrl: p.pictureUrl, lastLoginAt: now },
+          set: {
+            email: p.email,
+            name: p.name,
+            pictureUrl: p.pictureUrl,
+            lastLoginAt: now,
+          },
         });
-      const [user] = await db.select().from(users).where(eq(users.googleSub, p.sub)).limit(1);
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.googleSub, p.sub))
+        .limit(1);
       if (!user) throw new Error("사용자 저장 직후 조회 실패");
       return user;
     },
 
     async createSession({ userId, tokenHash, now, expiresAt }) {
-      await db.insert(sessions).values({ userId, tokenHash, createdAt: now, lastUsedAt: now, expiresAt });
+      await db.insert(sessions).values({
+        userId,
+        tokenHash,
+        createdAt: now,
+        lastUsedAt: now,
+        expiresAt,
+      });
     },
 
     async findSession(tokenHash) {
@@ -49,7 +78,10 @@ export function createDbAuthStore(db: Db): AuthStore {
     },
 
     async touchSession(id, lastUsedAt, expiresAt) {
-      await db.update(sessions).set({ lastUsedAt, expiresAt }).where(eq(sessions.id, id));
+      await db
+        .update(sessions)
+        .set({ lastUsedAt, expiresAt })
+        .where(eq(sessions.id, id));
     },
 
     async deleteSession(tokenHash) {

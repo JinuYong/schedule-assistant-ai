@@ -19,29 +19,46 @@ export function useSidePanelWidth() {
   const [sidePanelWidth, setSidePanelWidth] = useState(readSavedSideWidth);
   const sideDragRef = useRef({ x: 0, width: DEFAULT_SIDE_WIDTH });
 
-  const handleSidePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    sideDragRef.current = { x: e.clientX, width: sidePanelWidth };
-    document.body.style.cursor = "col-resize";
-  }, [sidePanelWidth]);
+  const handleSidePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      sideDragRef.current = { x: e.clientX, width: sidePanelWidth };
+      document.body.style.cursor = "col-resize";
+    },
+    [sidePanelWidth],
+  );
 
-  const handleSidePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-    const { x: startX, width: startWidth } = sideDragRef.current;
-    // 왼쪽으로 드래그 → 패널 넓어짐 (delta 반전)
-    const newWidth = Math.min(MAX_SIDE_WIDTH, Math.max(MIN_SIDE_WIDTH, startWidth - (e.clientX - startX)));
-    setSidePanelWidth(newWidth);
-  }, []);
+  const handleSidePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+      const { x: startX, width: startWidth } = sideDragRef.current;
+      // 왼쪽으로 드래그 → 패널 넓어짐 (delta 반전)
+      const newWidth = Math.min(
+        MAX_SIDE_WIDTH,
+        Math.max(MIN_SIDE_WIDTH, startWidth - (e.clientX - startX)),
+      );
+      setSidePanelWidth(newWidth);
+    },
+    [],
+  );
 
-  const handleSidePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    document.body.style.cursor = "";
-    setSidePanelWidth((w) => {
-      localStorage.setItem("schedule-side-width", String(w));
-      return w;
-    });
-  }, []);
+  const handleSidePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      document.body.style.cursor = "";
+      setSidePanelWidth((w) => {
+        localStorage.setItem("schedule-side-width", String(w));
+        return w;
+      });
+    },
+    [],
+  );
 
-  return { sidePanelWidth, handleSidePointerDown, handleSidePointerMove, handleSidePointerUp };
+  return {
+    sidePanelWidth,
+    handleSidePointerDown,
+    handleSidePointerMove,
+    handleSidePointerUp,
+  };
 }

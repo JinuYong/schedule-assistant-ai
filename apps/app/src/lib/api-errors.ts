@@ -15,7 +15,10 @@ export class AuthError extends Error {
 /** 레이트 리밋(429) — `retryAfter`초 후 재시도 가능 */
 export class RateLimitError extends Error {
   readonly retryAfter: number;
-  constructor(retryAfter: number, message = "API 사용량을 초과했습니다. 잠시 후 다시 시도해주세요.") {
+  constructor(
+    retryAfter: number,
+    message = "API 사용량을 초과했습니다. 잠시 후 다시 시도해주세요.",
+  ) {
     super(message);
     this.name = "RateLimitError";
     this.retryAfter = retryAfter;

@@ -18,7 +18,11 @@ export interface TodoFormState {
   repeatType: "daily" | "weekly" | "absoluteMonthly" | "absoluteYearly";
   repeatInterval: number;
   /** 수정 진입 시점의 반복 상태(변경 감지용) — 변경 없으면 recurrence를 PATCH에 안 보냄 */
-  repeatBaseline?: { enabled: boolean; type: TodoFormState["repeatType"]; interval: number };
+  repeatBaseline?: {
+    enabled: boolean;
+    type: TodoFormState["repeatType"];
+    interval: number;
+  };
   reminderEnabled: boolean;
   reminderDate: string; // yyyy-mm-dd
   reminderTime: string; // HH:mm
@@ -26,26 +30,38 @@ export interface TodoFormState {
 }
 
 export const EMPTY_TODO_FORM: TodoFormState = {
-  open: false, mode: "create", listId: "", taskId: undefined,
-  title: "", dueDate: "", importance: "normal", memo: "",
-  repeatEnabled: false, repeatType: "daily", repeatInterval: 1,
-  reminderEnabled: false, reminderDate: "", reminderTime: "09:00",
+  open: false,
+  mode: "create",
+  listId: "",
+  taskId: undefined,
+  title: "",
+  dueDate: "",
+  importance: "normal",
+  memo: "",
+  repeatEnabled: false,
+  repeatType: "daily",
+  repeatInterval: 1,
+  reminderEnabled: false,
+  reminderDate: "",
+  reminderTime: "09:00",
   checklistItems: [],
 };
 
 /** 체크리스트 표시 정렬 — 미완료(기존 순서 유지) 먼저, 완료는 맨 아래.
  *  완료 그룹은 완료 시각(checkedDateTime) 오름차순이라 **방금 완료한 항목이 가장 아래**.
  *  (checkedDateTime 없는 항목은 맨 아래로 간주) */
-export function sortChecklistByDone<T extends { isChecked?: boolean; checkedDateTime?: { dateTime: string } }>(
-  items: T[]
-): T[] {
+export function sortChecklistByDone<
+  T extends { isChecked?: boolean; checkedDateTime?: { dateTime: string } },
+>(items: T[]): T[] {
   return [...items].sort((a, b) => {
     const ca = a.isChecked ? 1 : 0;
     const cb = b.isChecked ? 1 : 0;
-    if (ca !== cb) return ca - cb;          // 미완료 먼저
-    if (!a.isChecked) return 0;             // 둘 다 미완료 → 기존 순서 유지(stable)
+    if (ca !== cb) return ca - cb; // 미완료 먼저
+    if (!a.isChecked) return 0; // 둘 다 미완료 → 기존 순서 유지(stable)
     // 둘 다 완료 → 완료 시각 오름차순(최근 완료가 맨 아래), 시각 없으면 맨 아래
-    return (a.checkedDateTime?.dateTime ?? "9999").localeCompare(b.checkedDateTime?.dateTime ?? "9999");
+    return (a.checkedDateTime?.dateTime ?? "9999").localeCompare(
+      b.checkedDateTime?.dateTime ?? "9999",
+    );
   });
 }
 
@@ -58,31 +74,49 @@ export function recurrenceLabel(type: TodoFormState["repeatType"]): string {
 
 function graphDayOfWeek(date: string): string {
   const day = new Date(date + "T00:00:00").getDay();
-  return ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][day];
+  return [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ][day];
 }
 
-export function buildTodoRecurrence(form: TodoFormState): TodoTask["recurrence"] | null | undefined {
+export function buildTodoRecurrence(
+  form: TodoFormState,
+): TodoTask["recurrence"] | null | undefined {
   if (!form.repeatEnabled) return form.mode === "edit" ? null : undefined;
   const startDate = form.dueDate || new Date().toISOString().split("T")[0];
   return {
     pattern: {
       type: form.repeatType,
       interval: Math.max(1, form.repeatInterval || 1),
-      ...(form.repeatType === "weekly" ? {daysOfWeek: [graphDayOfWeek(startDate)]} : {}),
+      ...(form.repeatType === "weekly"
+        ? { daysOfWeek: [graphDayOfWeek(startDate)] }
+        : {}),
     },
-    range: {type: "noEnd", startDate},
+    range: { type: "noEnd", startDate },
   } as TodoTask["recurrence"];
 }
 
 /** 폼의 알림 설정 → Graph isReminderOn/reminderDateTime (수정 시 해제는 null로 명시).
  *  Graph(특히 개인 계정)는 IANA timeZone 쓰기를 거부할 수 있어 UTC로 변환해 전송한다.
  *  (입력값은 사용자 로컬 시각 → 로컬로 해석 후 UTC 문자열로) */
-export function buildTodoReminder(form: TodoFormState): Pick<TodoTaskUpdates, "isReminderOn" | "reminderDateTime"> {
+export function buildTodoReminder(
+  form: TodoFormState,
+): Pick<TodoTaskUpdates, "isReminderOn" | "reminderDateTime"> {
   if (!form.reminderEnabled || !form.reminderDate) {
-    return form.mode === "edit" ? { isReminderOn: false, reminderDateTime: null } : { isReminderOn: false };
+    return form.mode === "edit"
+      ? { isReminderOn: false, reminderDateTime: null }
+      : { isReminderOn: false };
   }
   const time = form.reminderTime || "09:00";
-  const utc = new Date(`${form.reminderDate}T${time}:00`).toISOString().slice(0, 19); // 로컬→UTC
+  const utc = new Date(`${form.reminderDate}T${time}:00`)
+    .toISOString()
+    .slice(0, 19); // 로컬→UTC
   return {
     isReminderOn: true,
     reminderDateTime: { dateTime: `${utc}.0000000`, timeZone: "UTC" },
@@ -90,12 +124,15 @@ export function buildTodoReminder(form: TodoFormState): Pick<TodoTaskUpdates, "i
 }
 
 /** 반복 설정이 진입 시점 대비 바뀌었는지 → 바뀐 경우에만 PATCH에 recurrence 포함 */
-function resolveRecurrence(form: TodoFormState): TodoTask["recurrence"] | null | undefined {
+function resolveRecurrence(
+  form: TodoFormState,
+): TodoTask["recurrence"] | null | undefined {
   if (form.mode !== "edit") return buildTodoRecurrence(form);
   const b = form.repeatBaseline;
   const unchanged = b
     ? b.enabled === form.repeatEnabled &&
-      (!form.repeatEnabled || (b.type === form.repeatType && b.interval === form.repeatInterval))
+      (!form.repeatEnabled ||
+        (b.type === form.repeatType && b.interval === form.repeatInterval))
     : !form.repeatEnabled; // baseline 없으면 원래 반복 없던 것으로 간주
   if (unchanged) return undefined; // 변경 없음 → 보내지 않아 서버 값 보존
   return buildTodoRecurrence(form); // 켜짐→새 규칙 / 꺼짐→null
@@ -108,13 +145,17 @@ function resolveRecurrence(form: TodoFormState): TodoTask["recurrence"] | null |
  * 폼에서 항목을 추가하면 빈 칸이 먼저 생기므로, 채우지 않은 칸은 저장하지 않는다.
  * 앞뒤 공백도 함께 다듬는다.
  */
-export function cleanChecklistItems(items: ChecklistDraftItem[]): ChecklistDraftItem[] {
+export function cleanChecklistItems(
+  items: ChecklistDraftItem[],
+): ChecklistDraftItem[] {
   return items
     .map((item) => ({ ...item, displayName: item.displayName.trim() }))
     .filter((item) => item.displayName);
 }
 
-export function buildTodoTaskFromForm(form: TodoFormState): TodoTaskUpdates & Pick<TodoTask, "title"> {
+export function buildTodoTaskFromForm(
+  form: TodoFormState,
+): TodoTaskUpdates & Pick<TodoTask, "title"> {
   const dueDateTime = form.dueDate
     ? { dateTime: `${form.dueDate}T00:00:00.0000000`, timeZone: "UTC" }
     : undefined;
@@ -125,7 +166,9 @@ export function buildTodoTaskFromForm(form: TodoFormState): TodoTaskUpdates & Pi
     ...(recurrence !== undefined ? { recurrence } : {}),
     ...buildTodoReminder(form),
     ...(dueDateTime ? { dueDateTime } : {}),
-    ...(form.memo.trim() ? { body: { content: form.memo.trim(), contentType: "text" as const } } : {}),
+    ...(form.memo.trim()
+      ? { body: { content: form.memo.trim(), contentType: "text" as const } }
+      : {}),
   };
 }
 
@@ -142,14 +185,24 @@ function localDateTimeParts(ms: number) {
 /** 기존 할일 → 수정 폼 상태 (반복·알림·체크리스트 매핑 + timeZone 반영) */
 export function todoEditFormState(todo: TodoItem): TodoFormState {
   const due = todo.dueDateTime
-    ? localDateTimeParts(graphDateTimeToMs(todo.dueDateTime.dateTime, todo.dueDateTime.timeZone)).date
+    ? localDateTimeParts(
+        graphDateTimeToMs(todo.dueDateTime.dateTime, todo.dueDateTime.timeZone),
+      ).date
     : "";
-  const reminder = todo.isReminderOn && todo.reminderDateTime
-    ? localDateTimeParts(graphDateTimeToMs(todo.reminderDateTime.dateTime, todo.reminderDateTime.timeZone))
-    : null;
+  const reminder =
+    todo.isReminderOn && todo.reminderDateTime
+      ? localDateTimeParts(
+          graphDateTimeToMs(
+            todo.reminderDateTime.dateTime,
+            todo.reminderDateTime.timeZone,
+          ),
+        )
+      : null;
   const repeatType = todo.recurrence?.pattern.type;
   const normalizedType: TodoFormState["repeatType"] =
-    repeatType === "weekly" || repeatType === "absoluteMonthly" || repeatType === "absoluteYearly"
+    repeatType === "weekly" ||
+    repeatType === "absoluteMonthly" ||
+    repeatType === "absoluteYearly"
       ? repeatType
       : "daily";
   const repeatInterval = todo.recurrence?.pattern.interval ?? 1;
@@ -165,14 +218,20 @@ export function todoEditFormState(todo: TodoItem): TodoFormState {
     repeatEnabled: !!todo.recurrence,
     repeatType: normalizedType,
     repeatInterval,
-    repeatBaseline: { enabled: !!todo.recurrence, type: normalizedType, interval: repeatInterval },
+    repeatBaseline: {
+      enabled: !!todo.recurrence,
+      type: normalizedType,
+      interval: repeatInterval,
+    },
     reminderEnabled: reminder !== null,
     reminderDate: reminder?.date ?? "",
     reminderTime: reminder?.time ?? "09:00",
-    checklistItems: sortChecklistByDone(todo.checklistItems ?? []).map((item) => ({
-      id: item.id,
-      displayName: item.displayName,
-      isChecked: item.isChecked,
-    })),
+    checklistItems: sortChecklistByDone(todo.checklistItems ?? []).map(
+      (item) => ({
+        id: item.id,
+        displayName: item.displayName,
+        isChecked: item.isChecked,
+      }),
+    ),
   };
 }

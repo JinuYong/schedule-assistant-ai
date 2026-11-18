@@ -46,7 +46,11 @@ export const useAccountStore = create<AccountStore>((set, get) => {
 
     signInWithGoogle: async (idToken) => {
       if (!idToken) {
-        set({ status: "error", error: "Cali 계정 정보를 받지 못했습니다. 연결을 해제한 뒤 다시 로그인해 주세요." });
+        set({
+          status: "error",
+          error:
+            "Cali 계정 정보를 받지 못했습니다. 연결을 해제한 뒤 다시 로그인해 주세요.",
+        });
         return;
       }
       set({ status: "signing-in", error: "" });
@@ -57,7 +61,11 @@ export const useAccountStore = create<AccountStore>((set, get) => {
         await storeSet(STORE_KEY, session);
       } catch (e) {
         console.error("[account] 서버 로그인 실패", e);
-        set({ status: "error", error: "Cali 서버에 로그인하지 못했습니다. 잠시 뒤 다시 로그인해 주세요." });
+        set({
+          status: "error",
+          error:
+            "Cali 서버에 로그인하지 못했습니다. 잠시 뒤 다시 로그인해 주세요.",
+        });
       }
     },
 
@@ -80,7 +88,10 @@ export const useAccountStore = create<AccountStore>((set, get) => {
       const session = get().session;
       await clear();
       set({ status: "idle", error: "" });
-      if (session) await api.logout(session.token).catch((e) => console.warn("[account] 서버 로그아웃 실패", e));
+      if (session)
+        await api
+          .logout(session.token)
+          .catch((e) => console.warn("[account] 서버 로그아웃 실패", e));
     },
   };
 });

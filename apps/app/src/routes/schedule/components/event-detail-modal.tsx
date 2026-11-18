@@ -16,7 +16,12 @@ interface EventDetailModalProps {
 }
 
 export default function EventDetailModal({
-  event, calendars, deletingId, onClose, onDelete, onEdit,
+  event,
+  calendars,
+  deletingId,
+  onClose,
+  onDelete,
+  onEdit,
 }: EventDetailModalProps) {
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -24,14 +29,19 @@ export default function EventDetailModal({
         <div className={styles.modalHeader}>
           <span
             className={styles.detailDot}
-            style={eventColor(event) ? {background: eventColor(event)} : undefined}
+            style={
+              eventColor(event) ? { background: eventColor(event) } : undefined
+            }
           />
           <h2 className={styles.modalTitle}>{event.title}</h2>
-          <button className={styles.modalClose} onClick={onClose}><IconClose/></button>
+          <button className={styles.modalClose} onClick={onClose}>
+            <IconClose />
+          </button>
         </div>
         <div className={styles.detailBody}>
           <p className={styles.detailRow}>
-            <span className={styles.detailIcon}>🕐</span>{formatEventWhen(event)}
+            <span className={styles.detailIcon}>🕐</span>
+            {formatEventWhen(event)}
           </p>
           {event.location && (
             <p className={`${styles.detailRow} ${styles.detailRowLoc}`}>
@@ -43,13 +53,15 @@ export default function EventDetailModal({
                   onClick={() => openNaverMap(event.location!)}
                   title="네이버지도에서 보기"
                 >
-                  <IconNavigate size={14}/>
+                  <IconNavigate size={14} />
                 </button>
               )}
             </p>
           )}
           <p className={styles.detailRow}>
-            <span className={styles.detailIcon}>🗂</span>{calendars.find((c) => c.id === event.calendarId)?.summary ?? "기본 캘린더"}
+            <span className={styles.detailIcon}>🗂</span>
+            {calendars.find((c) => c.id === event.calendarId)?.summary ??
+              "기본 캘린더"}
           </p>
           {event.description && (
             <p className={styles.detailDesc}>{event.description}</p>
@@ -63,10 +75,7 @@ export default function EventDetailModal({
           >
             {deletingId === event.id ? "삭제 중..." : "삭제"}
           </button>
-          <button
-            className={styles.submitBtn}
-            onClick={() => onEdit(event)}
-          >
+          <button className={styles.submitBtn} onClick={() => onEdit(event)}>
             수정
           </button>
         </div>

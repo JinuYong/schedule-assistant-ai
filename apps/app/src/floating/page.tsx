@@ -4,7 +4,11 @@ import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { hideFloatingWindow } from "@/lib/floating-window";
 import { registerHotkey, unregisterHotkey } from "@/lib/hotkey";
-import { getCalendarList, listEventsInRange, type CalendarListItem } from "@/lib/google-calendar";
+import {
+  getCalendarList,
+  listEventsInRange,
+  type CalendarListItem,
+} from "@/lib/google-calendar";
 import { useAuthStore } from "@/store/auth";
 import { CalendarEvent, mapGCalEvent } from "@/store/events";
 import { useScheduleCommand } from "@/hooks/use-schedule-command";
@@ -22,7 +26,10 @@ export default function FloatingPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [calendars, setCalendars] = useState<CalendarListItem[]>([]);
   const primaryCalendarId = calendars.find((c) => c.primary)?.id ?? "primary";
-  const [defaultCalendarId, reloadDefaultCal] = useDefaultCalendarId(calendars, primaryCalendarId);
+  const [defaultCalendarId, reloadDefaultCal] = useDefaultCalendarId(
+    calendars,
+    primaryCalendarId,
+  );
 
   const {
     input,
@@ -59,7 +66,7 @@ export default function FloatingPage() {
   // 자동완성용 데이터: 캐시 즉시 반영 후 토큰 있으면 최신 이벤트로 갱신
   const loadMatchData = useCallback(async () => {
     await loadFromStore(); // 메인 창에서 로그인한 최신 토큰을 플로팅창 스토어로 반영
-    reloadDefaultCal();    // 설정에서 바뀐 기본 캘린더 반영
+    reloadDefaultCal(); // 설정에서 바뀐 기본 캘린더 반영
     const cached = await storeGet<CalendarEvent[]>("events.cache");
     if (cached?.length) setEvents(cached);
     const token = (await refreshGoogle())?.access_token;
@@ -93,7 +100,9 @@ export default function FloatingPage() {
 
   // window.focus 이벤트: document가 이미 focused 상태이므로 딜레이 없이 바로 input.focus()
   useEffect(() => {
-    const onFocus = () => { inputRef.current?.focus(); };
+    const onFocus = () => {
+      inputRef.current?.focus();
+    };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
@@ -126,8 +135,8 @@ export default function FloatingPage() {
       const { listen } = await import("@tauri-apps/api/event");
       unlistenShown = await listen("floating-shown", () => {
         registerEsc();
-        reset();          // 입력/선택 초기화
-        loadMatchData();  // 자동완성 데이터 갱신
+        reset(); // 입력/선택 초기화
+        loadMatchData(); // 자동완성 데이터 갱신
       });
       unlisten = await listen("floating-should-hide", async () => {
         await unregisterEsc();
@@ -142,20 +151,35 @@ export default function FloatingPage() {
     };
   }, [reset, loadMatchData]);
 
-  const handleSubmit = useCallback((e: { preventDefault(): void }) => {
-    e.preventDefault();
-    void submit();
-  }, [submit]);
+  const handleSubmit = useCallback(
+    (e: { preventDefault(): void }) => {
+      e.preventDefault();
+      void submit();
+    },
+    [submit],
+  );
 
   return (
     <div className={styles.root}>
       <div className={styles.wrapper}>
         <form className={styles.form} onSubmit={handleSubmit}>
-          <img src="/icon-source.png" className={styles.appIcon} alt="" draggable={false} />
+          <img
+            src="/icon-source.png"
+            className={styles.appIcon}
+            alt=""
+            draggable={false}
+          />
           {lockedTarget && (
             <span className={styles.lockChip} title={lockedTarget.title}>
               <span className={styles.lockChipLabel}>{lockedTarget.title}</span>
-              <button type="button" className={styles.lockChipClear} onClick={clearLock} aria-label="대상 해제">✕</button>
+              <button
+                type="button"
+                className={styles.lockChipClear}
+                onClick={clearLock}
+                aria-label="대상 해제"
+              >
+                ✕
+              </button>
             </span>
           )}
           <input
@@ -164,17 +188,25 @@ export default function FloatingPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={lockedTarget
-              ? "명령 입력 (예: 삭제, 오후 7시로 변경)"
-              : "일정 입력 (예: 내일 3시 팀 미팅) · 기존 일정 입력 시 수정/삭제"}
+            placeholder={
+              lockedTarget
+                ? "명령 입력 (예: 삭제, 오후 7시로 변경)"
+                : "일정 입력 (예: 내일 3시 팀 미팅) · 기존 일정 입력 시 수정/삭제"
+            }
             disabled={status === "loading"}
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
           />
           {status === "loading" && <span className={styles.spinning}>⏳</span>}
-          {status === "done"    && <span className={`${styles.indicator} ${styles.done}`}>✓ 완료</span>}
-          {status === "error"   && <span className={`${styles.indicator} ${styles.error}`}>✗ 실패</span>}
+          {status === "done" && (
+            <span className={`${styles.indicator} ${styles.done}`}>✓ 완료</span>
+          )}
+          {status === "error" && (
+            <span className={`${styles.indicator} ${styles.error}`}>
+              ✗ 실패
+            </span>
+          )}
         </form>
       </div>
 
@@ -183,19 +215,28 @@ export default function FloatingPage() {
           {loading && matches.length === 0 ? (
             [0, 1].map((i) => (
               <li key={`sk-${i}`} className={styles.skeletonRow}>
-                <span className={`${styles.skeletonBar} ${styles.skeletonTitle}`}/>
-                <span className={`${styles.skeletonBar} ${styles.skeletonMeta}`}/>
+                <span
+                  className={`${styles.skeletonBar} ${styles.skeletonTitle}`}
+                />
+                <span
+                  className={`${styles.skeletonBar} ${styles.skeletonMeta}`}
+                />
               </li>
             ))
           ) : (
-            <li className={styles.hint}>↑↓로 대상 지정 후 명령 입력 · 지정 없이 Enter는 새 일정</li>
+            <li className={styles.hint}>
+              ↑↓로 대상 지정 후 명령 입력 · 지정 없이 Enter는 새 일정
+            </li>
           )}
           {matches.map((ev, i) => (
             <li
               key={ev.id}
               className={`${styles.item} ${i === activeIndex ? styles.itemActive : ""}`}
               onMouseEnter={() => setActiveIndex(i)}
-              onMouseDown={(e) => { e.preventDefault(); lockTarget(ev); }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                lockTarget(ev);
+              }}
             >
               <span className={styles.itemTitle}>{ev.title}</span>
               <span className={styles.itemMeta}>{eventShortLabel(ev)}</span>

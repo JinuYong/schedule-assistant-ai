@@ -11,10 +11,14 @@ describe("resolveDefaultCalendarId", () => {
   it("저장값이 없으면 fallback", () => {
     expect(resolveDefaultCalendarId(cals, null, "primary")).toBe("primary");
     expect(resolveDefaultCalendarId(cals, "", "primary")).toBe("primary");
-    expect(resolveDefaultCalendarId(cals, undefined, "primary")).toBe("primary");
+    expect(resolveDefaultCalendarId(cals, undefined, "primary")).toBe(
+      "primary",
+    );
   });
 
   it("저장값이 목록에 없으면(삭제된 캘린더) fallback", () => {
-    expect(resolveDefaultCalendarId(cals, "deleted-cal", "primary")).toBe("primary");
+    expect(resolveDefaultCalendarId(cals, "deleted-cal", "primary")).toBe(
+      "primary",
+    );
   });
 });

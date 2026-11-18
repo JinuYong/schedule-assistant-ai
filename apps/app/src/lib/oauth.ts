@@ -7,7 +7,8 @@ import type { BaseTokens } from "@/types/tokens";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET ?? "";
 const MICROSOFT_CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID ?? "";
-const MICROSOFT_CLIENT_SECRET = import.meta.env.VITE_MICROSOFT_CLIENT_SECRET ?? "";
+const MICROSOFT_CLIENT_SECRET =
+  import.meta.env.VITE_MICROSOFT_CLIENT_SECRET ?? "";
 
 /** Rust refresh 커맨드 응답 형태 */
 interface RefreshResponse {
@@ -28,7 +29,10 @@ interface RefreshResponse {
  * `granted`가 비어 있으면 판별할 근거가 없으므로 통과시킨다 —
  * 응답에 scope가 없다는 이유로 로그인을 막으면 오탐이 더 치명적이다.
  */
-export function findMissingScopes(granted: string | undefined, required: string[]): string[] {
+export function findMissingScopes(
+  granted: string | undefined,
+  required: string[],
+): string[] {
   if (!granted?.trim()) return [];
   const tail = (scope: string) => scope.split("/").pop()?.toLowerCase() ?? "";
   const grantedTails = new Set(granted.trim().split(/\s+/).map(tail));
@@ -55,7 +59,8 @@ const redirectUri = (port: number) => `http://localhost:${port}`;
 
 const googleProvider: OAuthProvider = {
   clientId: GOOGLE_CLIENT_ID,
-  missingIdError: "Google Client ID가 설정되지 않았습니다. 개발자에게 문의하세요.",
+  missingIdError:
+    "Google Client ID가 설정되지 않았습니다. 개발자에게 문의하세요.",
   exchangeCommand: "exchange_google_token",
   refreshCommand: "refresh_google_token",
   buildAuthUrl: (port) =>
@@ -85,7 +90,8 @@ const googleProvider: OAuthProvider = {
 
 const microsoftProvider: OAuthProvider = {
   clientId: MICROSOFT_CLIENT_ID,
-  missingIdError: "Microsoft Client ID가 설정되지 않았습니다. 개발자에게 문의하세요.",
+  missingIdError:
+    "Microsoft Client ID가 설정되지 않았습니다. 개발자에게 문의하세요.",
   exchangeCommand: "exchange_microsoft_token",
   refreshCommand: "refresh_microsoft_token",
   buildAuthUrl: (port) =>
@@ -117,7 +123,7 @@ const microsoftProvider: OAuthProvider = {
 async function startOAuth(
   provider: OAuthProvider,
   onTokens: (tokens: BaseTokens) => void,
-  onError: (err: string) => void
+  onError: (err: string) => void,
 ): Promise<void> {
   if (!isTauri()) {
     onError("Tauri 환경이 아닙니다.");
@@ -130,14 +136,19 @@ async function startOAuth(
   }
 
   try {
-    const { start, onUrl, cancel } = await import("@fabianlars/tauri-plugin-oauth");
+    const { start, onUrl, cancel } =
+      await import("@fabianlars/tauri-plugin-oauth");
     const { open } = await import("@tauri-apps/plugin-shell");
 
     const port = await start();
 
     const unlisten = await onUrl(async (callbackUrl: string) => {
       unlisten();
-      try { await cancel(port); } catch { /* 이미 종료된 경우 무시 */ }
+      try {
+        await cancel(port);
+      } catch {
+        /* 이미 종료된 경우 무시 */
+      }
 
       const url = new URL(callbackUrl);
       const code = url.searchParams.get("code");
@@ -149,11 +160,17 @@ async function startOAuth(
       }
 
       try {
-        const tokens = await invoke<BaseTokens>(provider.exchangeCommand, provider.exchangeArgs(code, port));
+        const tokens = await invoke<BaseTokens>(
+          provider.exchangeCommand,
+          provider.exchangeArgs(code, port),
+        );
 
         // 권한이 빠진 토큰을 저장하면 "연결됨"으로 보이면서 정작 데이터는 비어 있는
         // 원인 불명 상태가 된다. 저장하지 않고 다시 로그인하도록 안내한다.
-        const missing = findMissingScopes(tokens.scope, provider.requiredScopes);
+        const missing = findMissingScopes(
+          tokens.scope,
+          provider.requiredScopes,
+        );
         if (missing.length > 0) {
           onError(provider.missingScopeError);
           return;
@@ -173,14 +190,21 @@ async function startOAuth(
 
 /** 만료 임박(또는 force) 시 토큰 갱신. 갱신 실패(auth_error)는 AuthError로 변환 */
 function createTokenRefresher(provider: OAuthProvider) {
-  return async function refreshTokenIfNeeded(tokens: BaseTokens, force = false): Promise<BaseTokens> {
+  return async function refreshTokenIfNeeded(
+    tokens: BaseTokens,
+    force = false,
+  ): Promise<BaseTokens> {
     if (!tokens.refresh_token) return tokens;
-    if (!force && (tokens.expiresAt ?? 0) - Date.now() > 5 * 60 * 1000) return tokens;
+    if (!force && (tokens.expiresAt ?? 0) - Date.now() > 5 * 60 * 1000)
+      return tokens;
     if (!provider.clientId) return tokens;
 
     let refreshed: RefreshResponse;
     try {
-      refreshed = await invoke<RefreshResponse>(provider.refreshCommand, provider.refreshArgs(tokens.refresh_token));
+      refreshed = await invoke<RefreshResponse>(
+        provider.refreshCommand,
+        provider.refreshArgs(tokens.refresh_token),
+      );
     } catch (e) {
       const message = String(e);
       if (message.startsWith("auth_error:")) {
@@ -200,13 +224,14 @@ function createTokenRefresher(provider: OAuthProvider) {
 
 export const startGoogleOAuth = (
   onTokens: (tokens: BaseTokens) => void,
-  onError: (err: string) => void
+  onError: (err: string) => void,
 ) => startOAuth(googleProvider, onTokens, onError);
 
 export const startMicrosoftOAuth = (
   onTokens: (tokens: BaseTokens) => void,
-  onError: (err: string) => void
+  onError: (err: string) => void,
 ) => startOAuth(microsoftProvider, onTokens, onError);
 
 export const refreshGoogleTokenIfNeeded = createTokenRefresher(googleProvider);
-export const refreshMicrosoftTokenIfNeeded = createTokenRefresher(microsoftProvider);
+export const refreshMicrosoftTokenIfNeeded =
+  createTokenRefresher(microsoftProvider);

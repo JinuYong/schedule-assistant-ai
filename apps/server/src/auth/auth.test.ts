@@ -1,6 +1,13 @@
 import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import type { LoginResponse, MeResponse } from "@cali/shared";
-import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type CryptoKey, type JWTPayload } from "jose";
+import {
+  createLocalJWKSet,
+  exportJWK,
+  generateKeyPair,
+  SignJWT,
+  type CryptoKey,
+  type JWTPayload,
+} from "jose";
 import { createApp } from "../app";
 import { createGoogleVerifier } from "./google";
 import { createMemoryAuthStore } from "./memory-store";
@@ -18,12 +25,20 @@ beforeAll(async () => {
   const other = await generateKeyPair("RS256");
   googleKey = google.privateKey;
   otherKey = other.privateKey;
-  const jwk = { ...(await exportJWK(google.publicKey)), kid: KID, alg: "RS256", use: "sig" };
+  const jwk = {
+    ...(await exportJWK(google.publicKey)),
+    kid: KID,
+    alg: "RS256",
+    use: "sig",
+  };
   jwks = createLocalJWKSet({ keys: [jwk] });
 });
 
 /** Google이 발급한 것처럼 서명한 id_token */
-async function idToken(overrides: JWTPayload = {}, opts: { key?: CryptoKey; expiresIn?: string } = {}) {
+async function idToken(
+  overrides: JWTPayload = {},
+  opts: { key?: CryptoKey; expiresIn?: string } = {},
+) {
   return new SignJWT({
     iss: "https://accounts.google.com",
     aud: CLIENT_ID,
@@ -52,7 +67,10 @@ beforeEach(() => {
     checkDb: async () => {},
     auth: {
       store,
-      verifyGoogle: createGoogleVerifier({ audiences: [CLIENT_ID, "android-client"], jwks }),
+      verifyGoogle: createGoogleVerifier({
+        audiences: [CLIENT_ID, "android-client"],
+        jwks,
+      }),
       now: () => clock,
     },
   });
@@ -66,14 +84,21 @@ const login = (token: string) =>
   });
 
 const me = (session?: string) =>
-  app.request("/me", { headers: session ? { Authorization: `Bearer ${session}` } : {} });
+  app.request("/me", {
+    headers: session ? { Authorization: `Bearer ${session}` } : {},
+  });
 
 describe("POST /auth/google", () => {
   test("올바른 id_token이면 사용자를 만들고 세션 토큰을 준다", async () => {
     const res = await login(await idToken());
     expect(res.status).toBe(200);
     const body = (await res.json()) as LoginResponse;
-    expect(body.user).toEqual({ id: 1, email: "me@example.com", name: "진우", pictureUrl: "https://lh3.googleusercontent.com/a/x" });
+    expect(body.user).toEqual({
+      id: 1,
+      email: "me@example.com",
+      name: "진우",
+      pictureUrl: "https://lh3.googleusercontent.com/a/x",
+    });
     expect(body.token.length).toBeGreaterThanOrEqual(43);
     // DB에는 토큰 원문이 아니라 해시만
     expect(store.sessions.has(body.token)).toBe(false);
@@ -82,7 +107,9 @@ describe("POST /auth/google", () => {
 
   test("같은 Google 계정이면 같은 사용자, 바뀐 이메일·이름은 따라간다", async () => {
     await login(await idToken());
-    const res = await login(await idToken({ email: "new@example.com", name: "새 이름" }));
+    const res = await login(
+      await idToken({ email: "new@example.com", name: "새 이름" }),
+    );
     const body = (await res.json()) as LoginResponse;
     expect(body.user.id).toBe(1);
     expect(body.user.email).toBe("new@example.com");
@@ -90,31 +117,46 @@ describe("POST /auth/google", () => {
   });
 
   test("다른 aud(남의 OAuth 클라이언트)용 토큰은 거부", async () => {
-    expect((await login(await idToken({ aud: "someone-else" }))).status).toBe(401);
+    expect((await login(await idToken({ aud: "someone-else" }))).status).toBe(
+      401,
+    );
   });
 
   test("허용 목록의 다른 클라이언트(안드로이드)는 받는다", async () => {
-    expect((await login(await idToken({ aud: "android-client" }))).status).toBe(200);
+    expect((await login(await idToken({ aud: "android-client" }))).status).toBe(
+      200,
+    );
   });
 
   test("Google 키가 아닌 키로 서명하면 거부", async () => {
-    expect((await login(await idToken({}, { key: otherKey }))).status).toBe(401);
+    expect((await login(await idToken({}, { key: otherKey }))).status).toBe(
+      401,
+    );
   });
 
   test("만료된 토큰은 거부", async () => {
-    expect((await login(await idToken({}, { expiresIn: "-5m" }))).status).toBe(401);
+    expect((await login(await idToken({}, { expiresIn: "-5m" }))).status).toBe(
+      401,
+    );
   });
 
   test("발급자가 Google이 아니면 거부", async () => {
-    expect((await login(await idToken({ iss: "https://evil.example" }))).status).toBe(401);
+    expect(
+      (await login(await idToken({ iss: "https://evil.example" }))).status,
+    ).toBe(401);
   });
 
   test("이메일이 확인되지 않았으면 거부", async () => {
-    expect((await login(await idToken({ email_verified: false }))).status).toBe(401);
+    expect((await login(await idToken({ email_verified: false }))).status).toBe(
+      401,
+    );
   });
 
   test("본문이 틀리면 400", async () => {
-    const res = await app.request("/auth/google", { method: "POST", body: "not json" });
+    const res = await app.request("/auth/google", {
+      method: "POST",
+      body: "not json",
+    });
     expect(res.status).toBe(400);
     expect(store.users.size).toBe(0);
   });
@@ -122,7 +164,8 @@ describe("POST /auth/google", () => {
 
 describe("세션", () => {
   async function signIn() {
-    return ((await (await login(await idToken())).json()) as LoginResponse).token;
+    return ((await (await login(await idToken())).json()) as LoginResponse)
+      .token;
   }
 
   test("/me는 세션 토큰이 있어야 한다", async () => {
@@ -136,7 +179,10 @@ describe("세션", () => {
 
   test("로그아웃하면 그 토큰은 더 못 쓴다", async () => {
     const token = await signIn();
-    const res = await app.request("/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    const res = await app.request("/auth/logout", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
     expect(res.status).toBe(204);
     expect((await me(token)).status).toBe(401);
   });

@@ -12,7 +12,7 @@ export const DEFAULT_CALENDAR_KEY = "google.defaultCalendarId";
 export function resolveDefaultCalendarId(
   calendars: Pick<CalendarListItem, "id">[],
   stored: string | null | undefined,
-  fallbackId: string
+  fallbackId: string,
 ): string {
   return stored && calendars.some((c) => c.id === stored) ? stored : fallbackId;
 }
@@ -26,12 +26,14 @@ export function resolveDefaultCalendarId(
  */
 export function useDefaultCalendarId(
   calendars: CalendarListItem[],
-  fallbackId: string
+  fallbackId: string,
 ): readonly [string, () => void] {
   const [stored, setStored] = useState<string | null>(null);
 
   const reload = useCallback(() => {
-    void storeGet<string>(DEFAULT_CALENDAR_KEY).then((v) => setStored(v ?? null));
+    void storeGet<string>(DEFAULT_CALENDAR_KEY).then((v) =>
+      setStored(v ?? null),
+    );
   }, []);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export function useDefaultCalendarId(
 
   const id = useMemo(
     () => resolveDefaultCalendarId(calendars, stored, fallbackId),
-    [stored, calendars, fallbackId]
+    [stored, calendars, fallbackId],
   );
 
   return [id, reload] as const;

@@ -40,8 +40,13 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
 }
 
 .refreshBtn {
@@ -58,7 +63,9 @@
   line-height: 1;
   color: var(--color-text-secondary);
   background: var(--color-surface);
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .refreshBtn:hover:not(:disabled) {
@@ -155,7 +162,9 @@
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .checkBtn:hover {
@@ -184,7 +193,9 @@
   border-radius: 3px;
   transition: opacity 0.15s;
 }
-.starBtn:hover { opacity: 0.8; }
+.starBtn:hover {
+  opacity: 0.8;
+}
 
 /* 수정·삭제 버튼 (호버 시 표시) */
 .actionBtns {
@@ -193,7 +204,9 @@
   opacity: 0;
   transition: opacity 0.15s;
 }
-.todoRow:hover .actionBtns { opacity: 1; }
+.todoRow:hover .actionBtns {
+  opacity: 1;
+}
 
 .actionBtn {
   display: flex;
@@ -204,10 +217,18 @@
   border-radius: 4px;
   background: transparent;
   color: var(--color-text-secondary);
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
-.actionBtn:hover { background: var(--color-accent-soft); color: var(--color-accent); }
-.deleteBtn:hover { background: rgba(255,59,48,0.08); color: var(--color-danger); }
+.actionBtn:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+.deleteBtn:hover {
+  background: rgba(255, 59, 48, 0.08);
+  color: var(--color-danger);
+}
 
 /* 리스트 헤더 추가 버튼 */
 .addBtn {
@@ -219,7 +240,10 @@
   border-radius: var(--radius-sm);
   transition: background 0.15s;
 }
-.addBtn:hover { background: var(--color-accent-soft); color: var(--color-accent); }
+.addBtn:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
 
 .chevronSlot {
   flex-shrink: 0;
@@ -278,7 +302,9 @@
   border-radius: 3px;
   background: transparent;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .checklistBtn:hover {
@@ -291,7 +317,7 @@
 }
 
 .checklistChecked::after {
-  content: '';
+  content: "";
   display: block;
   width: 8px;
   height: 5px;

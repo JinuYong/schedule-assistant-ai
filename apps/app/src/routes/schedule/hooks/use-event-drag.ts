@@ -18,7 +18,9 @@ interface EventDragOptions {
  * optsRef로 콜백 최신값을 유지해 effect 내 stale closure를 방지한다.
  */
 export function useEventDrag(opts: EventDragOptions) {
-  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
+  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(
+    null,
+  );
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 });
   // 마우스를 누른 동안만 true. 실제 드래그(draggingEvent)와 구분 — 누름만으론 UI 안 바뀜
@@ -28,7 +30,9 @@ export function useEventDrag(opts: EventDragOptions) {
   const dragStartPosRef = useRef({ x: 0, y: 0 });
   const hasDragMovedRef = useRef(false);
   const optsRef = useRef(opts);
-  useEffect(() => { optsRef.current = opts; });
+  useEffect(() => {
+    optsRef.current = opts;
+  });
 
   const startDrag = useCallback((ev: CalendarEvent, e: React.MouseEvent) => {
     e.preventDefault();
@@ -54,7 +58,9 @@ export function useEventDrag(opts: EventDragOptions) {
       }
       setGhostPos({ x: e.clientX, y: e.clientY });
       const el = document.elementFromPoint(e.clientX, e.clientY);
-      setDragOverDate(el?.closest<HTMLElement>("[data-date]")?.dataset.date ?? null);
+      setDragOverDate(
+        el?.closest<HTMLElement>("[data-date]")?.dataset.date ?? null,
+      );
     };
 
     const onUp = (e: MouseEvent) => {
@@ -71,7 +77,8 @@ export function useEventDrag(opts: EventDragOptions) {
       }
 
       const el = document.elementFromPoint(e.clientX, e.clientY);
-      const targetDate = el?.closest<HTMLElement>("[data-date]")?.dataset.date ?? null;
+      const targetDate =
+        el?.closest<HTMLElement>("[data-date]")?.dataset.date ?? null;
       if (ev && targetDate && targetDate !== getEventDateKey(ev)) {
         optsRef.current.onDrop(ev, targetDate);
       }

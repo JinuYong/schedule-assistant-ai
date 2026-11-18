@@ -3,7 +3,8 @@ import type { ApiError, LoginResponse, MeResponse } from "@cali/shared";
 
 /** 개발(bun run dev:tauri)은 로컬 서버(bun run dev:server), 배포 빌드는 운영. VITE_API_URL로 바꿀 수 있다 */
 export const API_URL = (
-  import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:8787" : "https://cali-api.jinu.io")
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV ? "http://localhost:8787" : "https://cali-api.jinu.io")
 ).replace(/\/+$/, "");
 
 export class ApiRequestError extends Error {
@@ -16,7 +17,10 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit & { token?: string } = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  init: RequestInit & { token?: string } = {},
+): Promise<T> {
   const { token, headers, ...rest } = init;
   const res = await fetch(`${API_URL}${path}`, {
     ...rest,
@@ -36,7 +40,11 @@ async function request<T>(path: string, init: RequestInit & { token?: string } =
 export const api = {
   /** Google OAuth 교환 응답의 id_token으로 서버 세션을 받는다 */
   loginWithGoogle: (idToken: string) =>
-    request<LoginResponse>("/auth/google", { method: "POST", body: JSON.stringify({ idToken }) }),
+    request<LoginResponse>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ idToken }),
+    }),
   me: (token: string) => request<MeResponse>("/me", { token }),
-  logout: (token: string) => request<void>("/auth/logout", { method: "POST", token }),
+  logout: (token: string) =>
+    request<void>("/auth/logout", { method: "POST", token }),
 };

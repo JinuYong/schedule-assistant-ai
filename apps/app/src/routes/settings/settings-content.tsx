@@ -12,7 +12,13 @@ import { fireNotification } from "@/lib/notifications";
 import styles from "./page.module.css";
 
 export default function SettingsContent() {
-  const { googleTokens, setGoogleTokens, microsoftTokens, setMicrosoftTokens, refreshGoogle } = useAuthStore();
+  const {
+    googleTokens,
+    setGoogleTokens,
+    microsoftTokens,
+    setMicrosoftTokens,
+    refreshGoogle,
+  } = useAuthStore();
   const { accentColor, setTheme } = useThemeStore();
 
   const [anthropicKey, setAnthropicKey] = useState("");
@@ -29,10 +35,18 @@ export default function SettingsContent() {
   const [notifStatus, setNotifStatus] = useState("");
 
   const testNotification = async () => {
-    if (!isTauri()) { setNotifStatus("데스크탑 앱에서만 동작합니다."); return; }
+    if (!isTauri()) {
+      setNotifStatus("데스크탑 앱에서만 동작합니다.");
+      return;
+    }
     try {
-      await fireNotification("Cali 알림 테스트", "이 알림이 보이면 정상입니다 ✅");
-      setNotifStatus("알림을 보냈습니다. 배너 또는 우측 상단 알림 센터를 확인하세요. (앱이 맨 앞이면 배너 대신 알림 센터로 갑니다)");
+      await fireNotification(
+        "Cali 알림 테스트",
+        "이 알림이 보이면 정상입니다 ✅",
+      );
+      setNotifStatus(
+        "알림을 보냈습니다. 배너 또는 우측 상단 알림 센터를 확인하세요. (앱이 맨 앞이면 배너 대신 알림 센터로 갑니다)",
+      );
     } catch (e) {
       setNotifStatus(`실패: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -40,9 +54,13 @@ export default function SettingsContent() {
 
   const account = useAccountStore();
   const { signInWithGoogle, refreshMe } = account;
-  const google = useOAuthConnection(startGoogleOAuth, setGoogleTokens, (tokens) => {
-    void signInWithGoogle(tokens.id_token);
-  });
+  const google = useOAuthConnection(
+    startGoogleOAuth,
+    setGoogleTokens,
+    (tokens) => {
+      void signInWithGoogle(tokens.id_token);
+    },
+  );
 
   // 설정을 열 때 서버 세션이 살아 있는지 확인(만료면 다시 로그인 안내가 뜬다)
   useEffect(() => {
@@ -80,7 +98,9 @@ export default function SettingsContent() {
       setCalendars(list);
       setDefaultCal((await storeGet<string>(DEFAULT_CALENDAR_KEY)) ?? "");
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [googleTokens, refreshGoogle]);
 
   const saveDefaultCal = (id: string) => {
@@ -114,7 +134,8 @@ export default function SettingsContent() {
     };
 
     window.addEventListener("keydown", handleNativeKeyDown, true);
-    return () => window.removeEventListener("keydown", handleNativeKeyDown, true);
+    return () =>
+      window.removeEventListener("keydown", handleNativeKeyDown, true);
   }, []);
 
   const saveShortcut = async () => {
@@ -130,7 +151,9 @@ export default function SettingsContent() {
       setShortcutSaved(true);
       setTimeout(() => setShortcutSaved(false), 2000);
     } catch {
-      setShortcutError("단축키 등록에 실패했습니다. 다른 키 조합을 시도해보세요.");
+      setShortcutError(
+        "단축키 등록에 실패했습니다. 다른 키 조합을 시도해보세요.",
+      );
     }
   };
 
@@ -151,7 +174,9 @@ export default function SettingsContent() {
               onClick={() => setTheme(t.color, t.hover)}
               title={t.label}
             >
-              {accentColor === t.color && <span className={styles.swatchCheck}>✓</span>}
+              {accentColor === t.color && (
+                <span className={styles.swatchCheck}>✓</span>
+              )}
             </button>
           ))}
         </div>
@@ -175,7 +200,11 @@ export default function SettingsContent() {
             placeholder="sk-ant-..."
           />
         </div>
-        <button className={styles.saveBtn} onClick={saveKeys} style={{ marginTop: 12 }}>
+        <button
+          className={styles.saveBtn}
+          onClick={saveKeys}
+          style={{ marginTop: 12 }}
+        >
           {savedKeys ? "저장됨 ✓" : "저장"}
         </button>
         {!isTauri() && (
@@ -190,18 +219,24 @@ export default function SettingsContent() {
           {googleTokens && <span className={styles.badge}>연결됨</span>}
         </div>
         <p className={styles.description}>
-          Google 계정으로 로그인하여 일정을 동기화합니다. 이 계정이 Cali 계정이 됩니다.
+          Google 계정으로 로그인하여 일정을 동기화합니다. 이 계정이 Cali 계정이
+          됩니다.
         </p>
         {google.error && <p className={styles.errorText}>{google.error}</p>}
         {googleTokens && account.session && (
           <p className={styles.hint}>Cali 계정: {account.session.user.email}</p>
         )}
-        {googleTokens && !account.session && account.status !== "signing-in" && (
-          <p className={styles.errorText}>
-            {account.error || "Cali 계정에 로그인되어 있지 않습니다. 연결을 해제한 뒤 다시 로그인해 주세요."}
-          </p>
+        {googleTokens &&
+          !account.session &&
+          account.status !== "signing-in" && (
+            <p className={styles.errorText}>
+              {account.error ||
+                "Cali 계정에 로그인되어 있지 않습니다. 연결을 해제한 뒤 다시 로그인해 주세요."}
+            </p>
+          )}
+        {account.status === "signing-in" && (
+          <p className={styles.hint}>Cali 계정에 로그인하는 중...</p>
         )}
-        {account.status === "signing-in" && <p className={styles.hint}>Cali 계정에 로그인하는 중...</p>}
         {googleTokens ? (
           <>
             {calendars.length > 0 && (
@@ -214,11 +249,14 @@ export default function SettingsContent() {
                 >
                   <option value="">Google 기본 캘린더</option>
                   {calendars.map((c) => (
-                    <option key={c.id} value={c.id}>{c.summary}</option>
+                    <option key={c.id} value={c.id}>
+                      {c.summary}
+                    </option>
                   ))}
                 </select>
                 <p className={styles.hint}>
-                  일정 추가 모달에서 기본으로 선택되고, 자연어로 캘린더를 지정하지 않으면 여기에 추가됩니다.
+                  일정 추가 모달에서 기본으로 선택되고, 자연어로 캘린더를
+                  지정하지 않으면 여기에 추가됩니다.
                 </p>
               </div>
             )}
@@ -232,7 +270,9 @@ export default function SettingsContent() {
             onClick={google.connect}
             disabled={google.status === "waiting"}
           >
-            {google.status === "waiting" ? "브라우저에서 인증 중..." : "Google로 로그인"}
+            {google.status === "waiting"
+              ? "브라우저에서 인증 중..."
+              : "Google로 로그인"}
           </button>
         )}
       </section>
@@ -241,14 +281,29 @@ export default function SettingsContent() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>Microsoft Todo</h2>
-          {microsoftTokens && <span className={microsoftTokens.access_token ? styles.badge : styles.badgeWarn}>{ microsoftTokens.access_token ? "연결됨" : "토큰 오류 (재연결 필요)" }</span>}
+          {microsoftTokens && (
+            <span
+              className={
+                microsoftTokens.access_token ? styles.badge : styles.badgeWarn
+              }
+            >
+              {microsoftTokens.access_token
+                ? "연결됨"
+                : "토큰 오류 (재연결 필요)"}
+            </span>
+          )}
         </div>
         <p className={styles.description}>
           Microsoft 계정으로 로그인하여 할일을 동기화합니다.
         </p>
-        {microsoft.error && <p className={styles.errorText}>{microsoft.error}</p>}
+        {microsoft.error && (
+          <p className={styles.errorText}>{microsoft.error}</p>
+        )}
         {microsoftTokens ? (
-          <button className={styles.dangerBtn} onClick={() => setMicrosoftTokens(null)}>
+          <button
+            className={styles.dangerBtn}
+            onClick={() => setMicrosoftTokens(null)}
+          >
             연결 해제
           </button>
         ) : (
@@ -257,7 +312,9 @@ export default function SettingsContent() {
             onClick={microsoft.connect}
             disabled={microsoft.status === "waiting"}
           >
-            {microsoft.status === "waiting" ? "브라우저에서 인증 중..." : "Microsoft로 로그인"}
+            {microsoft.status === "waiting"
+              ? "브라우저에서 인증 중..."
+              : "Microsoft로 로그인"}
           </button>
         )}
       </section>
@@ -267,14 +324,22 @@ export default function SettingsContent() {
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>플로팅 창 단축키</h2>
         </div>
-        <p className={styles.description}>플로팅 입력창을 열기 위한 전역 단축키를 설정합니다.</p>
+        <p className={styles.description}>
+          플로팅 입력창을 열기 위한 전역 단축키를 설정합니다.
+        </p>
         <div className={styles.shortcutRow}>
           <input
             className={`${styles.shortcutInput}${isRecording ? ` ${styles.shortcutRecording}` : ""}`}
             value={isRecording ? "단축키를 입력하세요..." : shortcut}
             readOnly
-            onFocus={() => { setIsRecording(true); isRecordingRef.current = true; }}
-            onBlur={() => { setIsRecording(false); isRecordingRef.current = false; }}
+            onFocus={() => {
+              setIsRecording(true);
+              isRecordingRef.current = true;
+            }}
+            onBlur={() => {
+              setIsRecording(false);
+              isRecordingRef.current = false;
+            }}
             placeholder="클릭 후 단축키 입력"
           />
           <button className={styles.saveBtn} onClick={saveShortcut}>
@@ -282,7 +347,10 @@ export default function SettingsContent() {
           </button>
         </div>
         {shortcutError && <p className={styles.errorText}>{shortcutError}</p>}
-        <p className={styles.hint}>입력창 클릭 후 원하는 키 조합을 누르세요. 변경 시 앱을 재시작해야 적용됩니다.</p>
+        <p className={styles.hint}>
+          입력창 클릭 후 원하는 키 조합을 누르세요. 변경 시 앱을 재시작해야
+          적용됩니다.
+        </p>
       </section>
 
       {/* 알림 테스트 */}
@@ -290,8 +358,12 @@ export default function SettingsContent() {
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>알림</h2>
         </div>
-        <p className={styles.description}>할일 알림(데스크탑)이 정상 동작하는지 즉시 테스트합니다.</p>
-        <button className={styles.saveBtn} onClick={testNotification}>테스트 알림 보내기</button>
+        <p className={styles.description}>
+          할일 알림(데스크탑)이 정상 동작하는지 즉시 테스트합니다.
+        </p>
+        <button className={styles.saveBtn} onClick={testNotification}>
+          테스트 알림 보내기
+        </button>
         {notifStatus && <p className={styles.hint}>{notifStatus}</p>}
       </section>
     </>

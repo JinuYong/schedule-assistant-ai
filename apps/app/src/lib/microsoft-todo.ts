@@ -9,10 +9,13 @@ const graphFetch = createAuthenticatedFetch({
   refresh: (force) => useAuthStore.getState().refreshMicrosoft(force),
   jsonContentType: "write",
   emptyValue: null,
-  rateLimitMessage: "Microsoft API 사용량 초과. 5분 후 새로고침 버튼을 눌러주세요.",
+  rateLimitMessage:
+    "Microsoft API 사용량 초과. 5분 후 새로고침 버튼을 눌러주세요.",
   parseError: async (res) => {
     if (res.status === 401) {
-      return new AuthError("Microsoft 토큰이 만료되었습니다. 설정에서 재연결해주세요.");
+      return new AuthError(
+        "Microsoft 토큰이 만료되었습니다. 설정에서 재연결해주세요.",
+      );
     }
     const text = await res.text().catch(() => "");
     return new Error(`Graph API ${res.status}: ${text}`);
@@ -31,7 +34,10 @@ export interface TodoTask {
   title: string;
   status?: "notStarted" | "inProgress" | "completed";
   importance?: "low" | "normal" | "high";
-  recurrence?: { pattern: { type: string; interval: number }; range: { type: string } };
+  recurrence?: {
+    pattern: { type: string; interval: number };
+    range: { type: string };
+  };
   dueDateTime?: { dateTime: string; timeZone: string };
   isReminderOn?: boolean;
   reminderDateTime?: { dateTime: string; timeZone: string };
@@ -41,7 +47,16 @@ export interface TodoTask {
 
 export type TodoTaskUpdates = Partial<
   Omit<
-    Pick<TodoTask, "title" | "dueDateTime" | "importance" | "body" | "recurrence" | "isReminderOn" | "reminderDateTime">,
+    Pick<
+      TodoTask,
+      | "title"
+      | "dueDateTime"
+      | "importance"
+      | "body"
+      | "recurrence"
+      | "isReminderOn"
+      | "reminderDateTime"
+    >,
     "recurrence" | "reminderDateTime"
   >
 > & {
@@ -50,12 +65,11 @@ export type TodoTaskUpdates = Partial<
 };
 
 export async function getTaskLists(
-  accessToken: string
+  accessToken: string,
 ): Promise<{ id: string; displayName: string }[]> {
-  const data = await graphFetch<{ value: { id: string; displayName: string; wellknownListName?: string }[] }>(
-    "/me/todo/lists",
-    accessToken
-  );
+  const data = await graphFetch<{
+    value: { id: string; displayName: string; wellknownListName?: string }[];
+  }>("/me/todo/lists", accessToken);
   // 'flaggedEmails'(Outlook 플래그 메일) 시스템 목록은 일반 할일 목록이 아니므로 제외
   return data.value
     .filter((l) => l.wellknownListName !== "flaggedEmails")
@@ -64,11 +78,11 @@ export async function getTaskLists(
 
 export async function getTasks(
   accessToken: string,
-  listId: string
+  listId: string,
 ): Promise<TodoTask[]> {
   const data = await graphFetch<{ value: TodoTask[] }>(
     `/me/todo/lists/${listId}/tasks?$top=100&$expand=checklistItems`,
-    accessToken
+    accessToken,
   );
   return data.value.filter((t) => t.status !== "completed");
 }
@@ -76,25 +90,24 @@ export async function getTasks(
 export async function createTask(
   accessToken: string,
   listId: string,
-  task: TodoTask
+  task: TodoTask,
 ): Promise<TodoTask> {
-  return graphFetch<TodoTask>(
-    `/me/todo/lists/${listId}/tasks`,
-    accessToken,
-    { method: "POST", body: JSON.stringify(task) }
-  );
+  return graphFetch<TodoTask>(`/me/todo/lists/${listId}/tasks`, accessToken, {
+    method: "POST",
+    body: JSON.stringify(task),
+  });
 }
 
 export async function createChecklistItem(
   accessToken: string,
   listId: string,
   taskId: string,
-  displayName: string
+  displayName: string,
 ): Promise<ChecklistItem> {
   return graphFetch<ChecklistItem>(
     `/me/todo/lists/${listId}/tasks/${taskId}/checklistItems`,
     accessToken,
-    { method: "POST", body: JSON.stringify({ displayName }) }
+    { method: "POST", body: JSON.stringify({ displayName }) },
   );
 }
 
@@ -103,12 +116,12 @@ export async function toggleChecklistItem(
   listId: string,
   taskId: string,
   itemId: string,
-  isChecked: boolean
+  isChecked: boolean,
 ): Promise<void> {
   await graphFetch(
     `/me/todo/lists/${listId}/tasks/${taskId}/checklistItems/${itemId}`,
     accessToken,
-    { method: "PATCH", body: JSON.stringify({ isChecked }) }
+    { method: "PATCH", body: JSON.stringify({ isChecked }) },
   );
 }
 
@@ -117,12 +130,12 @@ export async function updateChecklistItem(
   listId: string,
   taskId: string,
   itemId: string,
-  updates: Partial<Pick<ChecklistItem, "displayName" | "isChecked">>
+  updates: Partial<Pick<ChecklistItem, "displayName" | "isChecked">>,
 ): Promise<ChecklistItem> {
   return graphFetch<ChecklistItem>(
     `/me/todo/lists/${listId}/tasks/${taskId}/checklistItems/${itemId}`,
     accessToken,
-    { method: "PATCH", body: JSON.stringify(updates) }
+    { method: "PATCH", body: JSON.stringify(updates) },
   );
 }
 
@@ -130,12 +143,12 @@ export async function updateTask(
   accessToken: string,
   listId: string,
   taskId: string,
-  updates: TodoTaskUpdates
+  updates: TodoTaskUpdates,
 ): Promise<TodoTask> {
   return graphFetch<TodoTask>(
     `/me/todo/lists/${listId}/tasks/${taskId}`,
     accessToken,
-    { method: "PATCH", body: JSON.stringify(updates) }
+    { method: "PATCH", body: JSON.stringify(updates) },
   );
 }
 
@@ -143,35 +156,35 @@ export async function deleteChecklistItem(
   accessToken: string,
   listId: string,
   taskId: string,
-  itemId: string
+  itemId: string,
 ): Promise<void> {
   await graphFetch<null>(
     `/me/todo/lists/${listId}/tasks/${taskId}/checklistItems/${itemId}`,
     accessToken,
-    { method: "DELETE" }
+    { method: "DELETE" },
   );
 }
 
 export async function deleteTask(
   accessToken: string,
   listId: string,
-  taskId: string
+  taskId: string,
 ): Promise<void> {
   await graphFetch<null>(
     `/me/todo/lists/${listId}/tasks/${taskId}`,
     accessToken,
-    { method: "DELETE" }
+    { method: "DELETE" },
   );
 }
 
 export async function completeTask(
   accessToken: string,
   listId: string,
-  taskId: string
+  taskId: string,
 ): Promise<TodoTask> {
   return graphFetch<TodoTask>(
     `/me/todo/lists/${listId}/tasks/${taskId}`,
     accessToken,
-    { method: "PATCH", body: JSON.stringify({ status: "completed" }) }
+    { method: "PATCH", body: JSON.stringify({ status: "completed" }) },
   );
 }

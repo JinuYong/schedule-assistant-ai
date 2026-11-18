@@ -21,7 +21,10 @@ export default function ThemeApplier() {
     root.style.setProperty("--color-accent-hover", accentHover);
     // rgba 파생 변수 — color-mix() 브라우저 호환성 우회
     root.style.setProperty("--color-accent-soft", hexToRgba(accentColor, 0.15));
-    root.style.setProperty("--color-accent-ultra-soft", hexToRgba(accentColor, 0.08));
+    root.style.setProperty(
+      "--color-accent-ultra-soft",
+      hexToRgba(accentColor, 0.08),
+    );
   }, [accentColor, accentHover]);
 
   return null;

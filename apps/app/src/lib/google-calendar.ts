@@ -34,10 +34,14 @@ const request = createAuthenticatedFetch({
   refresh: (force) => useAuthStore.getState().refreshGoogle(force),
   jsonContentType: "always",
   emptyValue: undefined,
-  rateLimitMessage: "Google API 사용량 초과. 잠시 후 새로고침 버튼을 눌러주세요.",
+  rateLimitMessage:
+    "Google API 사용량 초과. 잠시 후 새로고침 버튼을 눌러주세요.",
   parseError: async (res) => {
     const err = await res.json().catch(() => ({}));
-    return new Error((err as { error?: { message?: string } })?.error?.message ?? `HTTP ${res.status}`);
+    return new Error(
+      (err as { error?: { message?: string } })?.error?.message ??
+        `HTTP ${res.status}`,
+    );
   },
 });
 
@@ -46,14 +50,16 @@ let _calListCache: { data: CalendarListItem[]; ts: number } | null = null;
 const CAL_LIST_TTL = 60 * 60 * 1000; // 1시간 (수동 새로고침 버튼으로 언제든 초기화 가능)
 
 /** 사용자가 선택(표시)한 캘린더 목록 조회 (1시간 캐시) */
-export async function getCalendarList(accessToken: string): Promise<CalendarListItem[]> {
+export async function getCalendarList(
+  accessToken: string,
+): Promise<CalendarListItem[]> {
   if (MOCK_ENABLED) return MOCK_CALENDARS; // 더미 모드
   if (_calListCache && Date.now() - _calListCache.ts < CAL_LIST_TTL) {
     return _calListCache.data;
   }
   const data = await request<{ items?: CalendarListItem[] }>(
     "/users/me/calendarList?minAccessRole=reader",
-    accessToken
+    accessToken,
   );
   const result = (data.items ?? []).filter((cal) => cal.selected !== false);
   _calListCache = { data: result, ts: Date.now() };
@@ -82,7 +88,10 @@ function dedup(events: GCalEvent[]): GCalEvent[] {
 }
 
 /** 모든 캘린더의 향후 이벤트 조회 */
-export async function listUpcomingEvents(accessToken: string, maxResults = 50): Promise<GCalEvent[]> {
+export async function listUpcomingEvents(
+  accessToken: string,
+  maxResults = 50,
+): Promise<GCalEvent[]> {
   const calendars = await getCalendarList(accessToken);
   const now = new Date().toISOString();
 
@@ -90,11 +99,17 @@ export async function listUpcomingEvents(accessToken: string, maxResults = 50): 
     calendars.map((cal) =>
       request<{ items?: GCalEvent[] }>(
         `/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(now)}&maxResults=${maxResults}&singleEvents=true&orderBy=startTime`,
-        accessToken
+        accessToken,
       )
-        .then((d) => (d.items ?? []).map((ev) => ({ ...ev, calendarColor: cal.backgroundColor, calendarId: cal.id })))
-        .catch(() => [] as GCalEvent[])
-    )
+        .then((d) =>
+          (d.items ?? []).map((ev) => ({
+            ...ev,
+            calendarColor: cal.backgroundColor,
+            calendarId: cal.id,
+          })),
+        )
+        .catch(() => [] as GCalEvent[]),
+    ),
   );
 
   return dedup(results.flat()).slice(0, maxResults);
@@ -104,7 +119,7 @@ export async function listUpcomingEvents(accessToken: string, maxResults = 50): 
 export async function listEventsInRange(
   accessToken: string,
   timeMin: string,
-  timeMax: string
+  timeMax: string,
 ): Promise<GCalEvent[]> {
   const calendars = await getCalendarList(accessToken);
   const params = new URLSearchParams({
@@ -119,11 +134,17 @@ export async function listEventsInRange(
     calendars.map((cal) =>
       request<{ items?: GCalEvent[] }>(
         `/calendars/${encodeURIComponent(cal.id)}/events?${params}`,
-        accessToken
+        accessToken,
       )
-        .then((d) => (d.items ?? []).map((ev) => ({ ...ev, calendarColor: cal.backgroundColor, calendarId: cal.id })))
-        .catch(() => [] as GCalEvent[])
-    )
+        .then((d) =>
+          (d.items ?? []).map((ev) => ({
+            ...ev,
+            calendarColor: cal.backgroundColor,
+            calendarId: cal.id,
+          })),
+        )
+        .catch(() => [] as GCalEvent[]),
+    ),
   );
 
   return dedup(results.flat());
@@ -137,7 +158,10 @@ export function buildEventFromParsed(parsed: ParsedEvent): GCalEvent {
     description: parsed.description,
     location: parsed.location,
     ...(parsed.isAllDay
-      ? { start: { date: parsed.startTime.split("T")[0] }, end: { date: parsed.endTime.split("T")[0] } }
+      ? {
+          start: { date: parsed.startTime.split("T")[0] },
+          end: { date: parsed.endTime.split("T")[0] },
+        }
       : {
           start: { dateTime: parsed.startTime, timeZone: "Asia/Seoul" },
           end: { dateTime: parsed.endTime, timeZone: "Asia/Seoul" },
@@ -148,12 +172,12 @@ export function buildEventFromParsed(parsed: ParsedEvent): GCalEvent {
 export async function createEvent(
   accessToken: string,
   event: GCalEvent,
-  calendarId = "primary"
+  calendarId = "primary",
 ): Promise<GCalEvent> {
   return request<GCalEvent>(
     `/calendars/${encodeURIComponent(calendarId)}/events`,
     accessToken,
-    { method: "POST", body: JSON.stringify(event) }
+    { method: "POST", body: JSON.stringify(event) },
   );
 }
 
@@ -161,17 +185,25 @@ export async function updateEvent(
   accessToken: string,
   eventId: string,
   event: Partial<GCalEvent>,
-  calendarId = "primary"
+  calendarId = "primary",
 ): Promise<GCalEvent> {
   return request<GCalEvent>(
     `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     accessToken,
-    { method: "PATCH", body: JSON.stringify(event) }
+    { method: "PATCH", body: JSON.stringify(event) },
   );
 }
 
-export async function deleteEvent(accessToken: string, eventId: string, calendarId = "primary"): Promise<void> {
-  return request<void>(`/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, accessToken, {
-    method: "DELETE",
-  });
+export async function deleteEvent(
+  accessToken: string,
+  eventId: string,
+  calendarId = "primary",
+): Promise<void> {
+  return request<void>(
+    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    accessToken,
+    {
+      method: "DELETE",
+    },
+  );
 }

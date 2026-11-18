@@ -1,4 +1,9 @@
-import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  redirect,
+} from "@tanstack/react-router";
 import MainLayout from "@/routes/main-layout";
 import SchedulePage from "@/routes/schedule/page";
 import TodoPage from "@/routes/todo/page";
@@ -16,12 +21,34 @@ const indexRoute = createRoute({
   },
 });
 
-const scheduleRoute = createRoute({ getParentRoute: () => rootRoute, path: "/schedule", component: SchedulePage });
-const todoRoute = createRoute({ getParentRoute: () => rootRoute, path: "/todo", component: TodoPage });
-const chatRoute = createRoute({ getParentRoute: () => rootRoute, path: "/chat", component: ChatPage });
-const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/settings", component: SettingsPage });
+const scheduleRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/schedule",
+  component: SchedulePage,
+});
+const todoRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/todo",
+  component: TodoPage,
+});
+const chatRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/chat",
+  component: ChatPage,
+});
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings",
+  component: SettingsPage,
+});
 
-const routeTree = rootRoute.addChildren([indexRoute, scheduleRoute, todoRoute, chatRoute, settingsRoute]);
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  scheduleRoute,
+  todoRoute,
+  chatRoute,
+  settingsRoute,
+]);
 
 export const router = createRouter({ routeTree });
 

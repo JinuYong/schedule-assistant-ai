@@ -7,8 +7,12 @@ import {
 import { AuthError } from "@/lib/api-errors";
 import { createSingleFlight, type SingleFlight } from "@/lib/promise-cache";
 import type { BaseTokens } from "@/types/tokens";
-import { MOCK_ENABLED, MOCK_GOOGLE_TOKENS, MOCK_MICROSOFT_TOKENS } from "@/lib/dev-mock";
-import { showToast } from '@/store/toast'
+import {
+  MOCK_ENABLED,
+  MOCK_GOOGLE_TOKENS,
+  MOCK_MICROSOFT_TOKENS,
+} from "@/lib/dev-mock";
+import { showToast } from "@/store/toast";
 
 export type GoogleTokens = BaseTokens;
 export type MicrosoftTokens = BaseTokens;
@@ -97,7 +101,8 @@ export const useAuthStore = create<AuthStore>((set, get) => {
       await storeDelete("microsoft.tokens");
     },
     refreshIfNeeded: refreshMicrosoftTokenIfNeeded,
-    expiredMessage: "Microsoft 연결이 만료되었습니다. 설정에서 다시 연결해주세요.",
+    expiredMessage:
+      "Microsoft 연결이 만료되었습니다. 설정에서 다시 연결해주세요.",
   });
 
   return {

@@ -12,7 +12,13 @@ import {
   formatEventWhen,
 } from "./calendar-utils";
 
-function mkEv(o: { id?: string; startTime: string; endTime?: string; isAllDay?: boolean; title?: string }): CalendarEvent {
+function mkEv(o: {
+  id?: string;
+  startTime: string;
+  endTime?: string;
+  isAllDay?: boolean;
+  title?: string;
+}): CalendarEvent {
   return {
     id: o.id ?? o.startTime,
     title: o.title ?? "x",
@@ -66,7 +72,8 @@ describe("buildCells", () => {
 describe("msUntilNextDay", () => {
   it("다음 날 자정 + 1초까지의 ms", () => {
     const now = new Date(2026, 5, 15, 10, 30, 0);
-    const expected = new Date(2026, 5, 16, 0, 0, 0).getTime() - now.getTime() + 1000;
+    const expected =
+      new Date(2026, 5, 16, 0, 0, 0).getTime() - now.getTime() + 1000;
     expect(msUntilNextDay(now)).toBe(expected);
   });
 });
@@ -82,14 +89,14 @@ describe("buildMonthLayout", () => {
     ]);
 
     const d3 = layout.slotsByDate.get("2026-06-03")![0]!;
-    expect(d3.isStart).toBe(true);    // 실제 시작일
-    expect(d3.isEnd).toBe(false);     // 아직 안 끝남
+    expect(d3.isStart).toBe(true); // 실제 시작일
+    expect(d3.isEnd).toBe(false); // 아직 안 끝남
     expect(d3.showTitle).toBe(true);
-    expect(d3.span).toBe(4);          // week0에서 6/3~6/6 = 4칸 가로지름
+    expect(d3.span).toBe(4); // week0에서 6/3~6/6 = 4칸 가로지름
     expect(d3.covered).toBe(false);
 
     const d5 = layout.slotsByDate.get("2026-06-05")![0]!;
-    expect(d5.covered).toBe(true);    // 시작 칸 막대에 덮인 칸
+    expect(d5.covered).toBe(true); // 시작 칸 막대에 덮인 칸
     expect(d5.span).toBe(0);
     expect(d5.showTitle).toBe(false);
 
@@ -104,24 +111,37 @@ describe("buildMonthLayout", () => {
       mkEv({ startTime: "2026-06-03", endTime: "2026-06-08", isAllDay: true }),
     ]);
     const d7 = layout.slotsByDate.get("2026-06-07")![0]!; // 다음 주 일요일 = 실제 종료일
-    expect(d7.isStart).toBe(false);   // 이전 주에서 이어짐 → 왼쪽 안 둥글게
-    expect(d7.isEnd).toBe(true);      // 실제 종료
-    expect(d7.showTitle).toBe(true);  // 주 시작 칸이라 제목 재표시
+    expect(d7.isStart).toBe(false); // 이전 주에서 이어짐 → 왼쪽 안 둥글게
+    expect(d7.isEnd).toBe(true); // 실제 종료
+    expect(d7.showTitle).toBe(true); // 주 시작 칸이라 제목 재표시
   });
 
   it("겹치는 멀티데이 일정은 서로 다른 레인", () => {
     const layout = buildMonthLayout(cells, [
-      mkEv({ id: "A", startTime: "2026-06-02", endTime: "2026-06-05", isAllDay: true }),
-      mkEv({ id: "B", startTime: "2026-06-03", endTime: "2026-06-06", isAllDay: true }),
+      mkEv({
+        id: "A",
+        startTime: "2026-06-02",
+        endTime: "2026-06-05",
+        isAllDay: true,
+      }),
+      mkEv({
+        id: "B",
+        startTime: "2026-06-03",
+        endTime: "2026-06-06",
+        isAllDay: true,
+      }),
     ]);
     const slots = layout.slotsByDate.get("2026-06-04")!; // 둘 다 걸치는 날
-    const ids = slots.filter(Boolean).map((s) => s!.event.id).sort();
+    const ids = slots
+      .filter(Boolean)
+      .map((s) => s!.event.id)
+      .sort();
     expect(ids).toEqual(["A", "B"]);
   });
 
   it("maxLanes를 넘는 일정은 overflow로 집계", () => {
     const sameDay = [1, 2, 3, 4].map((n) =>
-      mkEv({ id: `e${n}`, startTime: "2026-06-10T0" + n + ":00:00" })
+      mkEv({ id: `e${n}`, startTime: "2026-06-10T0" + n + ":00:00" }),
     );
     const layout = buildMonthLayout(cells, sameDay, 3);
     expect(layout.slotsByDate.get("2026-06-10")).toHaveLength(3);
@@ -133,78 +153,152 @@ describe("buildEventTimeFields", () => {
   const base = { startTime: "09:00", endTime: "10:00" };
 
   it("종일 단일: end.date는 다음 날(배타적)", () => {
-    expect(buildEventTimeFields({ ...base, isAllDay: true, date: "2026-06-03", endDate: "2026-06-03" }))
-      .toEqual({ start: { date: "2026-06-03" }, end: { date: "2026-06-04" } });
+    expect(
+      buildEventTimeFields({
+        ...base,
+        isAllDay: true,
+        date: "2026-06-03",
+        endDate: "2026-06-03",
+      }),
+    ).toEqual({ start: { date: "2026-06-03" }, end: { date: "2026-06-04" } });
   });
 
   it("종일 범위: 종료일+1을 end.date로", () => {
-    expect(buildEventTimeFields({ ...base, isAllDay: true, date: "2026-06-03", endDate: "2026-06-05" }))
-      .toEqual({ start: { date: "2026-06-03" }, end: { date: "2026-06-06" } });
+    expect(
+      buildEventTimeFields({
+        ...base,
+        isAllDay: true,
+        date: "2026-06-03",
+        endDate: "2026-06-05",
+      }),
+    ).toEqual({ start: { date: "2026-06-03" }, end: { date: "2026-06-06" } });
   });
 
   it("종일: 종료일이 시작일보다 앞이면 단일로 간주", () => {
-    expect(buildEventTimeFields({ ...base, isAllDay: true, date: "2026-06-03", endDate: "2026-06-01" }))
-      .toEqual({ start: { date: "2026-06-03" }, end: { date: "2026-06-04" } });
+    expect(
+      buildEventTimeFields({
+        ...base,
+        isAllDay: true,
+        date: "2026-06-03",
+        endDate: "2026-06-01",
+      }),
+    ).toEqual({ start: { date: "2026-06-03" }, end: { date: "2026-06-04" } });
   });
 
   it("시간 일정 같은 날", () => {
-    expect(buildEventTimeFields({ isAllDay: false, date: "2026-06-03", endDate: "2026-06-03", startTime: "09:00", endTime: "10:30" }))
-      .toEqual({
-        start: { dateTime: "2026-06-03T09:00:00", timeZone: "Asia/Seoul" },
-        end: { dateTime: "2026-06-03T10:30:00", timeZone: "Asia/Seoul" },
-      });
+    expect(
+      buildEventTimeFields({
+        isAllDay: false,
+        date: "2026-06-03",
+        endDate: "2026-06-03",
+        startTime: "09:00",
+        endTime: "10:30",
+      }),
+    ).toEqual({
+      start: { dateTime: "2026-06-03T09:00:00", timeZone: "Asia/Seoul" },
+      end: { dateTime: "2026-06-03T10:30:00", timeZone: "Asia/Seoul" },
+    });
   });
 
   it("시간 일정 자정 넘김(다른 날)", () => {
-    expect(buildEventTimeFields({ isAllDay: false, date: "2026-06-03", endDate: "2026-06-04", startTime: "22:00", endTime: "02:00" }))
-      .toEqual({
-        start: { dateTime: "2026-06-03T22:00:00", timeZone: "Asia/Seoul" },
-        end: { dateTime: "2026-06-04T02:00:00", timeZone: "Asia/Seoul" },
-      });
+    expect(
+      buildEventTimeFields({
+        isAllDay: false,
+        date: "2026-06-03",
+        endDate: "2026-06-04",
+        startTime: "22:00",
+        endTime: "02:00",
+      }),
+    ).toEqual({
+      start: { dateTime: "2026-06-03T22:00:00", timeZone: "Asia/Seoul" },
+      end: { dateTime: "2026-06-04T02:00:00", timeZone: "Asia/Seoul" },
+    });
   });
 });
 
 describe("eventEndDateForForm", () => {
   it("종일: end.date 배타적이라 -1일(포함 종료일)", () => {
-    expect(eventEndDateForForm({ isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-05" })).toBe("2026-06-04");
+    expect(
+      eventEndDateForForm({
+        isAllDay: true,
+        startTime: "2026-06-03",
+        endTime: "2026-06-05",
+      }),
+    ).toBe("2026-06-04");
   });
 
   it("종일 단일(end=start+1) → 시작일", () => {
-    expect(eventEndDateForForm({ isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-04" })).toBe("2026-06-03");
+    expect(
+      eventEndDateForForm({
+        isAllDay: true,
+        startTime: "2026-06-03",
+        endTime: "2026-06-04",
+      }),
+    ).toBe("2026-06-03");
   });
 
   it("시간 일정: 종료 일시의 날짜", () => {
-    expect(eventEndDateForForm({ isAllDay: false, startTime: "2026-06-03T10:00", endTime: "2026-06-03T11:00" })).toBe("2026-06-03");
-    expect(eventEndDateForForm({ isAllDay: false, startTime: "2026-06-03T23:00", endTime: "2026-06-04T01:00" })).toBe("2026-06-04");
+    expect(
+      eventEndDateForForm({
+        isAllDay: false,
+        startTime: "2026-06-03T10:00",
+        endTime: "2026-06-03T11:00",
+      }),
+    ).toBe("2026-06-03");
+    expect(
+      eventEndDateForForm({
+        isAllDay: false,
+        startTime: "2026-06-03T23:00",
+        endTime: "2026-06-04T01:00",
+      }),
+    ).toBe("2026-06-04");
   });
 
   it("endTime 없으면 시작일", () => {
-    expect(eventEndDateForForm({ isAllDay: true, startTime: "2026-06-03" })).toBe("2026-06-03");
+    expect(
+      eventEndDateForForm({ isAllDay: true, startTime: "2026-06-03" }),
+    ).toBe("2026-06-03");
   });
 });
 
 describe("formatEventWhen", () => {
   it("종일 단일: 범위(–)·(종일) 텍스트 없이 날짜만", () => {
-    const s = formatEventWhen({ isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-04" });
+    const s = formatEventWhen({
+      isAllDay: true,
+      startTime: "2026-06-03",
+      endTime: "2026-06-04",
+    });
     expect(s).not.toContain("종일");
     expect(s).not.toContain("–");
     expect(s).toContain("일"); // 날짜 라벨
   });
 
   it("종일 여러 날: 시작–종료 범위 표시(종일 텍스트 없음)", () => {
-    const s = formatEventWhen({ isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-08" });
+    const s = formatEventWhen({
+      isAllDay: true,
+      startTime: "2026-06-03",
+      endTime: "2026-06-08",
+    });
     expect(s).not.toContain("종일");
     expect(s).toContain("–");
   });
 
   it("시간 일정 같은 날: 시작–종료 시간", () => {
-    const s = formatEventWhen({ isAllDay: false, startTime: "2026-06-03T13:00:00", endTime: "2026-06-03T15:00:00" });
+    const s = formatEventWhen({
+      isAllDay: false,
+      startTime: "2026-06-03T13:00:00",
+      endTime: "2026-06-03T15:00:00",
+    });
     expect(s).toContain("–");
     expect(s).not.toContain("(종일)");
   });
 
   it("시간 일정 자정 넘김: 종료 날짜도 포함", () => {
-    const s = formatEventWhen({ isAllDay: false, startTime: "2026-06-03T22:00:00", endTime: "2026-06-04T02:00:00" });
+    const s = formatEventWhen({
+      isAllDay: false,
+      startTime: "2026-06-03T22:00:00",
+      endTime: "2026-06-04T02:00:00",
+    });
     expect(s).toContain("–");
     // 시작·종료 날짜가 다르므로 "일"이 두 번 등장(날짜 라벨 2개)
     expect((s.match(/일/g) ?? []).length).toBeGreaterThanOrEqual(2);
@@ -214,7 +308,11 @@ describe("formatEventWhen", () => {
 describe("buildMovedTimeFields", () => {
   it("종일 일정은 일수(span)를 보존하며 이동한다", () => {
     // 2일짜리 종일 일정(end.date 배타적: 6/3~6/4 → end 6/5)
-    const e = { isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-05" } as unknown as CalendarEvent;
+    const e = {
+      isAllDay: true,
+      startTime: "2026-06-03",
+      endTime: "2026-06-05",
+    } as unknown as CalendarEvent;
     expect(buildMovedTimeFields(e, "2026-06-20")).toEqual({
       start: { date: "2026-06-20" },
       end: { date: "2026-06-22" }, // 2일 유지
@@ -222,7 +320,11 @@ describe("buildMovedTimeFields", () => {
   });
 
   it("단일 종일 일정은 1일을 유지한다", () => {
-    const e = { isAllDay: true, startTime: "2026-06-03", endTime: "2026-06-04" } as unknown as CalendarEvent;
+    const e = {
+      isAllDay: true,
+      startTime: "2026-06-03",
+      endTime: "2026-06-04",
+    } as unknown as CalendarEvent;
     expect(buildMovedTimeFields(e, "2026-06-20")).toEqual({
       start: { date: "2026-06-20" },
       end: { date: "2026-06-21" },

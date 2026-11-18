@@ -1,11 +1,16 @@
 import { create } from "zustand";
 import { createSingleFlight } from "@/lib/promise-cache";
-import { scheduleNotification, cancelNotification, cancelNotificationsByPrefix } from "@/lib/notifications";
+import {
+  scheduleNotification,
+  cancelNotification,
+  cancelNotificationsByPrefix,
+} from "@/lib/notifications";
 import { graphDateTimeToMs } from "@/lib/date-utils";
 import { MOCK_ENABLED, MOCK_TODOS, MOCK_TASKLISTS } from "@/lib/dev-mock";
 import { showToast } from "./toast";
 import {
-  getTaskLists, getTasks,
+  getTaskLists,
+  getTasks,
   createTask as apiCreateTask,
   updateTask as apiUpdateTask,
   deleteTask as apiDeleteTask,
@@ -33,12 +38,42 @@ interface TodosStore {
   lastFetchedAt: number;
   throttledUntil: number; // 429 쿨다운 만료 시각 (force 포함 모든 요청 차단)
   fetchTodos: (accessToken: string, force?: boolean) => Promise<void>;
-  createTodo: (accessToken: string, listId: string, task: TodoTaskUpdates & Pick<TodoTask, "title">, checklistItems?: ChecklistDraftItem[]) => Promise<void>;
-  updateTodo: (accessToken: string, listId: string, taskId: string, updates: TodoTaskUpdates, checklistItems?: ChecklistDraftItem[]) => Promise<void>;
-  deleteTodo: (accessToken: string, listId: string, taskId: string) => Promise<void>;
-  completeTodo: (accessToken: string, listId: string, taskId: string) => Promise<void>;
-  toggleImportance: (accessToken: string, listId: string, taskId: string, current: "low" | "normal" | "high" | undefined) => Promise<void>;
-  toggleChecklistItem: (accessToken: string, listId: string, taskId: string, itemId: string, isChecked: boolean) => Promise<void>;
+  createTodo: (
+    accessToken: string,
+    listId: string,
+    task: TodoTaskUpdates & Pick<TodoTask, "title">,
+    checklistItems?: ChecklistDraftItem[],
+  ) => Promise<void>;
+  updateTodo: (
+    accessToken: string,
+    listId: string,
+    taskId: string,
+    updates: TodoTaskUpdates,
+    checklistItems?: ChecklistDraftItem[],
+  ) => Promise<void>;
+  deleteTodo: (
+    accessToken: string,
+    listId: string,
+    taskId: string,
+  ) => Promise<void>;
+  completeTodo: (
+    accessToken: string,
+    listId: string,
+    taskId: string,
+  ) => Promise<void>;
+  toggleImportance: (
+    accessToken: string,
+    listId: string,
+    taskId: string,
+    current: "low" | "normal" | "high" | undefined,
+  ) => Promise<void>;
+  toggleChecklistItem: (
+    accessToken: string,
+    listId: string,
+    taskId: string,
+    itemId: string,
+    isChecked: boolean,
+  ) => Promise<void>;
 }
 
 const fetchTodosFlight = createSingleFlight<void>();
@@ -49,7 +84,10 @@ function scheduleTodoNotifications(todos: TodoItem[]) {
   for (const t of todos) {
     if (!t.id || !t.isReminderOn || !t.reminderDateTime?.dateTime) continue;
     // Graph는 reminderDateTime을 보통 UTC로 돌려주므로 timeZone을 반영해 실제 순간으로 변환
-    const ms = graphDateTimeToMs(t.reminderDateTime.dateTime, t.reminderDateTime.timeZone);
+    const ms = graphDateTimeToMs(
+      t.reminderDateTime.dateTime,
+      t.reminderDateTime.timeZone,
+    );
     if (Number.isNaN(ms) || ms <= Date.now()) continue;
     void scheduleNotification({
       id: `todo-${t.id}`,
@@ -71,14 +109,19 @@ async function syncChecklistItems(
   listId: string,
   taskId: string,
   currentItems: ChecklistItem[] = [],
-  nextItems: ChecklistDraftItem[] = []
+  nextItems: ChecklistDraftItem[] = [],
 ) {
-  const nextById = new Map(nextItems.filter((item) => item.id).map((item) => [item.id!, item]));
+  const nextById = new Map(
+    nextItems.filter((item) => item.id).map((item) => [item.id!, item]),
+  );
   for (const current of currentItems) {
     const next = nextById.get(current.id);
     if (!next || !next.displayName.trim()) {
       await apiDeleteChecklistItem(accessToken, listId, taskId, current.id);
-    } else if (next.displayName.trim() !== current.displayName || next.isChecked !== current.isChecked) {
+    } else if (
+      next.displayName.trim() !== current.displayName ||
+      next.isChecked !== current.isChecked
+    ) {
       await apiUpdateChecklistItem(accessToken, listId, taskId, current.id, {
         displayName: next.displayName.trim(),
         isChecked: next.isChecked ?? false,
@@ -88,7 +131,12 @@ async function syncChecklistItems(
 
   for (const item of nextItems) {
     if (!item.id && item.displayName.trim()) {
-      await apiCreateChecklistItem(accessToken, listId, taskId, item.displayName.trim());
+      await apiCreateChecklistItem(
+        accessToken,
+        listId,
+        taskId,
+        item.displayName.trim(),
+      );
     }
   }
 }
@@ -109,7 +157,12 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
     // 429 쿨다운 중이면 force 포함 모든 요청 차단
     if (now < get().throttledUntil) return;
     // 5분 이내 재요청 방지 (normal fetch만)
-    if (!force && get().lastFetchedAt > 0 && now - get().lastFetchedAt < 5 * 60 * 1000) return;
+    if (
+      !force &&
+      get().lastFetchedAt > 0 &&
+      now - get().lastFetchedAt < 5 * 60 * 1000
+    )
+      return;
 
     return fetchTodosFlight.run(async () => {
       set({ isLoading: true, error: null });
@@ -160,7 +213,13 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
   createTodo: async (accessToken, listId, task, checklistItems = []) => {
     const created = await apiCreateTask(accessToken, listId, task as TodoTask);
     if (created.id && checklistItems.length > 0) {
-      await syncChecklistItems(accessToken, listId, created.id, [], checklistItems);
+      await syncChecklistItems(
+        accessToken,
+        listId,
+        created.id,
+        [],
+        checklistItems,
+      );
     }
     await get().fetchTodos(accessToken, true);
   },
@@ -175,21 +234,30 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
     };
     set((s) => ({
       todos: s.todos.map((t) =>
-        t.id !== taskId ? t : { ...t, ...optimisticUpdates }
+        t.id !== taskId ? t : { ...t, ...optimisticUpdates },
       ),
     }));
     try {
       await apiUpdateTask(accessToken, listId, taskId, updates);
       if (checklistItems) {
-        const current = get().todos.find((t) => t.id === taskId)?.checklistItems ?? [];
-        await syncChecklistItems(accessToken, listId, taskId, current, checklistItems);
+        const current =
+          get().todos.find((t) => t.id === taskId)?.checklistItems ?? [];
+        await syncChecklistItems(
+          accessToken,
+          listId,
+          taskId,
+          current,
+          checklistItems,
+        );
       }
       if (checklistItems) {
         await get().fetchTodos(accessToken, true);
       }
     } catch (e) {
       console.error("[updateTodo] 실패:", e);
-      showToast(e instanceof Error ? `수정 실패: ${e.message}` : "할일 수정 실패");
+      showToast(
+        e instanceof Error ? `수정 실패: ${e.message}` : "할일 수정 실패",
+      );
       await get().fetchTodos(accessToken, true);
     }
   },
@@ -208,7 +276,7 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
     const next = current === "high" ? "normal" : "high";
     set((s) => ({
       todos: s.todos.map((t) =>
-        t.id !== taskId ? t : { ...t, importance: next }
+        t.id !== taskId ? t : { ...t, importance: next },
       ),
     }));
     try {
@@ -230,27 +298,46 @@ export const useTodosStore = create<TodosStore>((set, get) => ({
     }
   },
 
-  toggleChecklistItem: async (accessToken, listId, taskId, itemId, isChecked) => {
+  toggleChecklistItem: async (
+    accessToken,
+    listId,
+    taskId,
+    itemId,
+    isChecked,
+  ) => {
     // 낙관적 업데이트
     set((s) => ({
       todos: s.todos.map((t) =>
-        t.id !== taskId ? t : {
-          ...t,
-          checklistItems: t.checklistItems?.map((c) =>
-            c.id !== itemId ? c : {
-              ...c,
-              isChecked,
-              // 완료 시각 즉시 반영 → "방금 완료한 항목이 맨 아래로" 정렬이 새로고침 전에도 동작
-              checkedDateTime: isChecked
-                ? { dateTime: new Date().toISOString(), timeZone: "UTC" }
-                : undefined,
-            }
-          ),
-        }
+        t.id !== taskId
+          ? t
+          : {
+              ...t,
+              checklistItems: t.checklistItems?.map((c) =>
+                c.id !== itemId
+                  ? c
+                  : {
+                      ...c,
+                      isChecked,
+                      // 완료 시각 즉시 반영 → "방금 완료한 항목이 맨 아래로" 정렬이 새로고침 전에도 동작
+                      checkedDateTime: isChecked
+                        ? {
+                            dateTime: new Date().toISOString(),
+                            timeZone: "UTC",
+                          }
+                        : undefined,
+                    },
+              ),
+            },
       ),
     }));
     try {
-      await apiToggleChecklistItem(accessToken, listId, taskId, itemId, isChecked);
+      await apiToggleChecklistItem(
+        accessToken,
+        listId,
+        taskId,
+        itemId,
+        isChecked,
+      );
     } catch {
       await get().fetchTodos(accessToken, true);
     }

@@ -19,16 +19,21 @@ describe("findMissingScopes", () => {
   });
 
   it("Microsoft처럼 전체 URI로 돌려줘도 인식한다", () => {
-    const granted = "https://graph.microsoft.com/Tasks.ReadWrite https://graph.microsoft.com/User.Read";
+    const granted =
+      "https://graph.microsoft.com/Tasks.ReadWrite https://graph.microsoft.com/User.Read";
     expect(findMissingScopes(granted, ["Tasks.ReadWrite"])).toEqual([]);
   });
 
   it("대소문자 차이를 무시한다", () => {
-    expect(findMissingScopes("tasks.readwrite", ["Tasks.ReadWrite"])).toEqual([]);
+    expect(findMissingScopes("tasks.readwrite", ["Tasks.ReadWrite"])).toEqual(
+      [],
+    );
   });
 
   it("구분자가 여러 공백/개행이어도 파싱한다", () => {
-    expect(findMissingScopes(`  ${CALENDAR}\n\t${EMAIL} `, [CALENDAR])).toEqual([]);
+    expect(findMissingScopes(`  ${CALENDAR}\n\t${EMAIL} `, [CALENDAR])).toEqual(
+      [],
+    );
   });
 
   it("scope가 없으면 판별 근거가 없으므로 통과시킨다", () => {

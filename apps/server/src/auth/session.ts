@@ -17,7 +17,11 @@ export function hashToken(token: string): string {
   return new Bun.CryptoHasher("sha256").update(token).digest("hex");
 }
 
-export async function startSession(store: AuthStore, userId: number, now = new Date()): Promise<string> {
+export async function startSession(
+  store: AuthStore,
+  userId: number,
+  now = new Date(),
+): Promise<string> {
   const token = newSessionToken();
   await store.createSession({
     userId,
@@ -29,17 +33,28 @@ export async function startSession(store: AuthStore, userId: number, now = new D
 }
 
 /** 토큰으로 사용자를 찾는다. 없거나 만료면 null. 쓸 때마다 만료를 밀어 준다(하루 단위) */
-export async function resolveSession(store: AuthStore, token: string, now = new Date()): Promise<User | null> {
+export async function resolveSession(
+  store: AuthStore,
+  token: string,
+  now = new Date(),
+): Promise<User | null> {
   const found = await store.findSession(hashToken(token));
   if (!found) return null;
   const { session, user } = found;
   if (session.expiresAt.getTime() <= now.getTime()) return null;
   if (now.getTime() - session.lastUsedAt.getTime() >= TOUCH_INTERVAL_MS) {
-    await store.touchSession(session.id, now, new Date(now.getTime() + SESSION_TTL_MS));
+    await store.touchSession(
+      session.id,
+      now,
+      new Date(now.getTime() + SESSION_TTL_MS),
+    );
   }
   return user;
 }
 
-export async function endSession(store: AuthStore, token: string): Promise<void> {
+export async function endSession(
+  store: AuthStore,
+  token: string,
+): Promise<void> {
   await store.deleteSession(hashToken(token));
 }

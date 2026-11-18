@@ -31,4 +31,3 @@ export function createApp(deps: AppDeps) {
     })
     .route("/", authRoutes(deps.auth));
 }
-

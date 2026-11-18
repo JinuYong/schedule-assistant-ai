@@ -1,4 +1,10 @@
-import { googleLoginBody, type ApiError, type LoginResponse, type MeResponse, type PublicUser } from "@cali/shared";
+import {
+  googleLoginBody,
+  type ApiError,
+  type LoginResponse,
+  type MeResponse,
+  type PublicUser,
+} from "@cali/shared";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import type { User } from "../db/schema";
@@ -33,7 +39,8 @@ export function requireUser(deps: AuthDeps) {
   return createMiddleware<AuthVars>(async (c, next) => {
     const token = bearer(c.req.header("Authorization"));
     const user = token ? await resolveSession(deps.store, token, now()) : null;
-    if (!token || !user) return c.json<ApiError>({ error: "unauthorized" }, 401);
+    if (!token || !user)
+      return c.json<ApiError>({ error: "unauthorized" }, 401);
     c.set("user", user);
     c.set("token", token);
     await next();
@@ -46,8 +53,11 @@ export function authRoutes(deps: AuthDeps) {
 
   return new Hono<AuthVars>()
     .post("/auth/google", async (c) => {
-      const body = googleLoginBody.safeParse(await c.req.json().catch(() => null));
-      if (!body.success) return c.json<ApiError>({ error: "invalid_body" }, 400);
+      const body = googleLoginBody.safeParse(
+        await c.req.json().catch(() => null),
+      );
+      if (!body.success)
+        return c.json<ApiError>({ error: "invalid_body" }, 400);
 
       let profile;
       try {
@@ -65,7 +75,9 @@ export function authRoutes(deps: AuthDeps) {
       const token = await startSession(deps.store, user.id, at);
       return c.json<LoginResponse>({ token, user: toPublicUser(user) });
     })
-    .get("/me", auth, (c) => c.json<MeResponse>({ user: toPublicUser(c.get("user")) }))
+    .get("/me", auth, (c) =>
+      c.json<MeResponse>({ user: toPublicUser(c.get("user")) }),
+    )
     .post("/auth/logout", auth, async (c) => {
       await endSession(deps.store, c.get("token"));
       return c.body(null, 204);

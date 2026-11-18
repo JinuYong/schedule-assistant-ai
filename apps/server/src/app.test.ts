@@ -12,7 +12,11 @@ const auth: AppDeps["auth"] = {
 
 describe("/health", () => {
   test("DB에 닿으면 200", async () => {
-    const app = createApp({ corsOrigins: ORIGINS, checkDb: async () => {}, auth });
+    const app = createApp({
+      corsOrigins: ORIGINS,
+      checkDb: async () => {},
+      auth,
+    });
     const res = await app.request("/health");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
@@ -33,15 +37,25 @@ describe("/health", () => {
 });
 
 describe("CORS", () => {
-  const app = createApp({ corsOrigins: ORIGINS, checkDb: async () => {}, auth });
+  const app = createApp({
+    corsOrigins: ORIGINS,
+    checkDb: async () => {},
+    auth,
+  });
 
   test("Tauri 창 출처는 허용", async () => {
-    const res = await app.request("/health", { headers: { Origin: "tauri://localhost" } });
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("tauri://localhost");
+    const res = await app.request("/health", {
+      headers: { Origin: "tauri://localhost" },
+    });
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(
+      "tauri://localhost",
+    );
   });
 
   test("모르는 출처는 허용 헤더를 주지 않는다", async () => {
-    const res = await app.request("/health", { headers: { Origin: "https://evil.example" } });
+    const res = await app.request("/health", {
+      headers: { Origin: "https://evil.example" },
+    });
     expect(res.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
@@ -55,6 +69,8 @@ describe("CORS", () => {
       },
     });
     expect(res.status).toBe(204);
-    expect(res.headers.get("Access-Control-Allow-Headers")).toContain("Authorization");
+    expect(res.headers.get("Access-Control-Allow-Headers")).toContain(
+      "Authorization",
+    );
   });
 });

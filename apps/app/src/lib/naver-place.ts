@@ -17,17 +17,19 @@ export interface PlaceResult {
  * "커피<b>&amp;</b>베이커리" → "커피&베이커리"
  */
 export function stripHtmlTags(raw: string): string {
-  return raw
-    .replace(/<[^>]*>/g, "")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    // &amp; 는 마지막에 — 먼저 풀면 "&amp;lt;" 같은 이중 인코딩이 잘못 해석된다
-    .replace(/&amp;/g, "&")
-    .trim();
+  return (
+    raw
+      .replace(/<[^>]*>/g, "")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#0?39;/g, "'")
+      .replace(/&apos;/g, "'")
+      .replace(/&nbsp;/g, " ")
+      // &amp; 는 마지막에 — 먼저 풀면 "&amp;lt;" 같은 이중 인코딩이 잘못 해석된다
+      .replace(/&amp;/g, "&")
+      .trim()
+  );
 }
 
 /**
@@ -52,7 +54,8 @@ export function parsePlaceItems(raw: unknown): PlaceResult[] {
   if (!Array.isArray(items)) return [];
   return items.map((it) => {
     const o = (it ?? {}) as Record<string, unknown>;
-    const str = (k: string) => (typeof o[k] === "string" ? (o[k] as string) : "");
+    const str = (k: string) =>
+      typeof o[k] === "string" ? (o[k] as string) : "";
     return {
       name: stripHtmlTags(str("title")),
       roadAddress: stripHtmlTags(str("roadAddress")),

@@ -27,7 +27,7 @@ export function createAuthenticatedFetch(config: AuthenticatedFetchConfig) {
   return async function authenticatedFetch<T>(
     path: string,
     accessToken: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<T> {
     const isWrite = !!options.method && options.method !== "GET";
     const needsJson = config.jsonContentType === "always" || isWrite;

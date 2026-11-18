@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const invoke = vi.fn().mockResolvedValue(undefined);
-vi.mock("@tauri-apps/api/core", () => ({ invoke: (...args: unknown[]) => invoke(...args) }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: (...args: unknown[]) => invoke(...args),
+}));
 vi.mock("./tauri-store", () => ({ isTauri: () => true }));
 
-const { scheduleNotification, cancelNotification, cancelNotificationsByPrefix } =
-  await import("./notifications");
+const {
+  scheduleNotification,
+  cancelNotification,
+  cancelNotificationsByPrefix,
+} = await import("./notifications");
 
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
@@ -14,7 +19,12 @@ const DAY = 24 * 60 * MINUTE;
 const MAX_TIMEOUT_MS = 2_147_483_647;
 
 function at(msFromNow: number) {
-  return { id: "event-1", title: "팀 미팅", body: "15분 후 시작", time: Date.now() + msFromNow };
+  return {
+    id: "event-1",
+    title: "팀 미팅",
+    body: "15분 후 시작",
+    time: Date.now() + msFromNow,
+  };
 }
 
 describe("scheduleNotification", () => {
@@ -98,13 +108,20 @@ describe("scheduleNotification", () => {
 
   it("접두사 취소는 해당 종류만 지운다", async () => {
     await scheduleNotification({ ...at(5 * MINUTE), id: "event-a" });
-    await scheduleNotification({ ...at(5 * MINUTE), id: "todo-a", title: "할일" });
+    await scheduleNotification({
+      ...at(5 * MINUTE),
+      id: "todo-a",
+      title: "할일",
+    });
 
     cancelNotificationsByPrefix("event-");
 
     await vi.advanceTimersByTimeAsync(6 * MINUTE);
     expect(invoke).toHaveBeenCalledTimes(1);
-    expect(invoke).toHaveBeenCalledWith("send_os_notification", expect.objectContaining({ title: "할일" }));
+    expect(invoke).toHaveBeenCalledWith(
+      "send_os_notification",
+      expect.objectContaining({ title: "할일" }),
+    );
     cancelNotificationsByPrefix("todo-");
   });
 });

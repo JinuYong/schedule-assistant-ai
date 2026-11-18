@@ -30,7 +30,9 @@ export function eventColor(ev: ColorSource): string | undefined {
   if (!isHolidayCalendar(ev.calendarId)) return ev.calendarColor;
   // 공휴일 캘린더 안에서만 종류를 가른다. 쉬는 날이라는 근거가 없으면 전부 기념일 취급 —
   // 24절기·잡절처럼 종류가 늘어도 "쉬는 날 아님"으로 맞게 떨어진다.
-  return ev.description?.startsWith("공휴일") ? HOLIDAY_COLOR : OBSERVANCE_COLOR;
+  return ev.description?.startsWith("공휴일")
+    ? HOLIDAY_COLOR
+    : OBSERVANCE_COLOR;
 }
 
 /**

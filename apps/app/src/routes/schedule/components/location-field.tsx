@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { IconSearch } from "@/components/icons";
 import { searchPlaces, toLocationString, PlaceResult } from "@/lib/naver-place";
@@ -33,7 +39,11 @@ export default function LocationField({ value, onChange }: LocationFieldProps) {
   const rowRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   /** 포털로 띄운 드롭다운을 입력창에 붙이기 위한 화면 좌표 */
-  const [anchor, setAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [anchor, setAnchor] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
   /** 검색 중이거나 결과(0건 포함)가 있으면 드롭다운을 띄운다 */
   const showDropdown = searching || results !== null;
@@ -67,7 +77,8 @@ export default function LocationField({ value, onChange }: LocationFieldProps) {
 
   const updateAnchor = useCallback(() => {
     const rect = rowRef.current?.getBoundingClientRect();
-    if (rect) setAnchor({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    if (rect)
+      setAnchor({ top: rect.bottom + 4, left: rect.left, width: rect.width });
   }, []);
 
   // 포털은 문서 흐름 밖이라 입력창을 따라오지 않는다.
@@ -89,7 +100,8 @@ export default function LocationField({ value, onChange }: LocationFieldProps) {
   useEffect(() => {
     if (activeIndex < 0) return;
     const list = dropdownRef.current;
-    const item = list?.querySelectorAll<HTMLElement>('[role="option"]')[activeIndex];
+    const item =
+      list?.querySelectorAll<HTMLElement>('[role="option"]')[activeIndex];
     if (!list || !item) return;
 
     const listRect = list.getBoundingClientRect();
@@ -108,7 +120,11 @@ export default function LocationField({ value, onChange }: LocationFieldProps) {
     if (!showDropdown) return;
     const onPointerDown = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (wrapRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      if (
+        wrapRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      )
+        return;
       close();
     };
     document.addEventListener("mousedown", onPointerDown);
@@ -166,43 +182,55 @@ export default function LocationField({ value, onChange }: LocationFieldProps) {
           disabled={!value.trim() || searching}
           title="네이버에서 장소 검색"
         >
-          <IconSearch/>
+          <IconSearch />
         </button>
       </div>
 
       {/* 에러는 조치가 필요한 정보라 드롭다운에 넣지 않는다 — 바깥 클릭으로 사라지면 안 된다 */}
       {error && <p className={styles.placeError}>{error}</p>}
 
-      {showDropdown && anchor && createPortal(
-        <div
-          className={styles.placeDropdown}
-          ref={dropdownRef}
-          style={{ top: anchor.top, left: anchor.left, width: anchor.width }}
-        >
-          {searching && <p className={styles.placeHint}>검색 중...</p>}
-          {!searching && results?.length === 0 && (
-            <p className={styles.placeHint}>검색 결과가 없습니다.</p>
-          )}
-          {!!results?.length && (
-            <ul className={styles.placeList} id="location-suggestions" role="listbox">
-              {results.map((p, i) => (
-                <li key={`${p.name}-${i}`} role="option" aria-selected={i === activeIndex}>
-                  <button
-                    type="button"
-                    className={`${styles.placeItem} ${i === activeIndex ? styles.placeItemActive : ""}`}
-                    onClick={() => pick(p)}
-                    onMouseEnter={() => setActiveIndex(i)}
+      {showDropdown &&
+        anchor &&
+        createPortal(
+          <div
+            className={styles.placeDropdown}
+            ref={dropdownRef}
+            style={{ top: anchor.top, left: anchor.left, width: anchor.width }}
+          >
+            {searching && <p className={styles.placeHint}>검색 중...</p>}
+            {!searching && results?.length === 0 && (
+              <p className={styles.placeHint}>검색 결과가 없습니다.</p>
+            )}
+            {!!results?.length && (
+              <ul
+                className={styles.placeList}
+                id="location-suggestions"
+                role="listbox"
+              >
+                {results.map((p, i) => (
+                  <li
+                    key={`${p.name}-${i}`}
+                    role="option"
+                    aria-selected={i === activeIndex}
                   >
-                    <span className={styles.placeName}>{p.name}</span>
-                    <span className={styles.placeAddr}>{p.roadAddress || p.address}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>,
-        document.body
-      )}
+                    <button
+                      type="button"
+                      className={`${styles.placeItem} ${i === activeIndex ? styles.placeItemActive : ""}`}
+                      onClick={() => pick(p)}
+                      onMouseEnter={() => setActiveIndex(i)}
+                    >
+                      <span className={styles.placeName}>{p.name}</span>
+                      <span className={styles.placeAddr}>
+                        {p.roadAddress || p.address}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

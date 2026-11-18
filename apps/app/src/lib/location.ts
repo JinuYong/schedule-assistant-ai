@@ -43,7 +43,12 @@ export function isMappableLocation(raw: string): boolean {
   if (/[가-힣]{2,}(시|군|구)\s+\S/.test(s)) return true;
 
   // 영문 주소 ("123 Main St", "1 Infinite Loop Rd")
-  if (/\d+\s+[A-Za-z][\w\s]*\b(St|Street|Rd|Road|Ave|Avenue|Blvd|Dr|Drive|Ln|Lane)\b/i.test(s)) return true;
+  if (
+    /\d+\s+[A-Za-z][\w\s]*\b(St|Street|Rd|Road|Ave|Avenue|Blvd|Dr|Drive|Ln|Lane)\b/i.test(
+      s,
+    )
+  )
+    return true;
 
   return false;
 }
@@ -59,12 +64,14 @@ export function isMappableLocation(raw: string): boolean {
  * `층`/`호` 글자가 있는 꼬리만 잘라내기 때문이다.
  */
 export function stripAddressDetail(location: string): string {
-  return location
-    // 층이 나오면 그 뒤는 전부 상세다: "지상1층 102호", "1층 B호", "지하2층"
-    .replace(/\s+(지상|지하)?\s*B?\d+\s*층.*$/i, "")
-    // 층 없이 호수만 붙는 경우: "…12 102호"
-    .replace(/\s+[A-Za-z]?\d+(-\d+)?\s*호$/, "")
-    .trim();
+  return (
+    location
+      // 층이 나오면 그 뒤는 전부 상세다: "지상1층 102호", "1층 B호", "지하2층"
+      .replace(/\s+(지상|지하)?\s*B?\d+\s*층.*$/i, "")
+      // 층 없이 호수만 붙는 경우: "…12 102호"
+      .replace(/\s+[A-Za-z]?\d+(-\d+)?\s*호$/, "")
+      .trim()
+  );
 }
 
 /**

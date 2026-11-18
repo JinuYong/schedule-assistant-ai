@@ -25,8 +25,19 @@ interface CalendarGridProps {
 }
 
 function CalendarGrid({
-  cells, todayDate, selectedDate, slotsByDate, overflowByDate, draggingEvent, dragOverDate,
-  prevMonth, nextMonth, onSelectDate, onAddEvent, onEventChipClick, onEventMouseDown,
+  cells,
+  todayDate,
+  selectedDate,
+  slotsByDate,
+  overflowByDate,
+  draggingEvent,
+  dragOverDate,
+  prevMonth,
+  nextMonth,
+  onSelectDate,
+  onAddEvent,
+  onEventChipClick,
+  onEventMouseDown,
 }: CalendarGridProps) {
   const wheelCooldownRef = useRef(false);
   const wheelJustReleasedRef = useRef(false);
@@ -41,11 +52,18 @@ function CalendarGrid({
         const delta = e.deltaX;
         const absDelta = Math.abs(delta);
         // 감속 감지: delta가 이전의 70% 미만 + 최소 100ms 경과 → 스와이프 끝으로 판단, 쿨다운 해제
-        if (wheelCooldownRef.current && lastAbsDeltaRef.current > 0 && absDelta < lastAbsDeltaRef.current * 0.7 && Date.now() - cooldownStartRef.current > 100) {
+        if (
+          wheelCooldownRef.current &&
+          lastAbsDeltaRef.current > 0 &&
+          absDelta < lastAbsDeltaRef.current * 0.7 &&
+          Date.now() - cooldownStartRef.current > 100
+        ) {
           wheelCooldownRef.current = false;
           wheelJustReleasedRef.current = true;
           lastAbsDeltaRef.current = 0;
-          setTimeout(() => { wheelJustReleasedRef.current = false; }, 50);
+          setTimeout(() => {
+            wheelJustReleasedRef.current = false;
+          }, 50);
           return;
         }
         lastAbsDeltaRef.current = absDelta;
@@ -54,16 +72,22 @@ function CalendarGrid({
         wheelCooldownRef.current = true;
         cooldownStartRef.current = Date.now();
         lastAbsDeltaRef.current = absDelta;
-        if (delta > 0) nextMonth(); else prevMonth();
+        if (delta > 0) nextMonth();
+        else prevMonth();
       }}
     >
       <div className={styles.weekdays}>
         {WEEKDAYS.map((wd, i) => (
-          <div key={wd} className={`${styles.weekdayHeader}${i === 6 ? ` ${styles.sundayLabel}` : ""}`}>{wd}</div>
+          <div
+            key={wd}
+            className={`${styles.weekdayHeader}${i === 6 ? ` ${styles.sundayLabel}` : ""}`}
+          >
+            {wd}
+          </div>
         ))}
       </div>
       <div className={styles.dayCells}>
-        {cells.map(({date, day, inMonth, isSunday}) => {
+        {cells.map(({ date, day, inMonth, isSunday }) => {
           const isToday = date === todayDate;
           const isSelected = date === selectedDate;
           const slots = slotsByDate.get(date) ?? [];
@@ -74,7 +98,9 @@ function CalendarGrid({
             isToday ? styles.todayCell : "",
             isSelected ? styles.selectedCell : "",
             isSunday ? styles.sundayCell : "",
-          ].filter(Boolean).join(" ");
+          ]
+            .filter(Boolean)
+            .join(" ");
 
           const isDragOver = dragOverDate === date;
 
@@ -100,12 +126,19 @@ function CalendarGrid({
                   }}
                   title="일정 추가"
                 >
-                  <IconPlus/>
+                  <IconPlus />
                 </button>
               )}
               {slots.map((slot, i) => {
                 // 빈 레인 또는 앞 칸 막대에 덮인 칸 → 투명 자리채움(높이만 확보)
-                if (!slot || slot.covered) return <span key={`e${i}`} className={styles.eventBarEmpty} aria-hidden />;
+                if (!slot || slot.covered)
+                  return (
+                    <span
+                      key={`e${i}`}
+                      className={styles.eventBarEmpty}
+                      aria-hidden
+                    />
+                  );
                 const ev = slot.event;
                 const spanning = slot.span >= 2;
                 const barCls = [
@@ -114,9 +147,13 @@ function CalendarGrid({
                   slot.isEnd ? styles.barEnd : "",
                   spanning ? styles.barSpan : "",
                   draggingEvent?.id === ev.id ? styles.draggingChip : "",
-                ].filter(Boolean).join(" ");
+                ]
+                  .filter(Boolean)
+                  .join(" ");
                 const color = eventColor(ev);
-                const barStyle: React.CSSProperties = color ? {background: color, color: "#fff"} : {};
+                const barStyle: React.CSSProperties = color
+                  ? { background: color, color: "#fff" }
+                  : {};
                 // span개 칸을 가로로 덮되, 실제 시작/끝 칸에만 안쪽 여백(GAP)을 줘 격자선과 떨어뜨림
                 // (이어지는 칸 경계에는 여백 없이 연속)
                 const GAP = 3;
@@ -130,10 +167,14 @@ function CalendarGrid({
                     className={barCls}
                     style={barStyle}
                     title={ev.title}
-                    onClick={(e) => { e.stopPropagation(); onEventChipClick(ev, date); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventChipClick(ev, date);
+                    }}
                     onMouseDown={(e) => onEventMouseDown(ev, e)}
                   >
-                    {ev.isAllDay ? "" : `${formatTime(ev.startTime)} `}{ev.title}
+                    {ev.isAllDay ? "" : `${formatTime(ev.startTime)} `}
+                    {ev.title}
                   </span>
                 );
               })}

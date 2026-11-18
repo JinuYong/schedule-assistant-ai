@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { stripHtmlTags, toLocationString, parsePlaceItems } from "./naver-place";
-import { parseLocationLabel, isMappableLocation, stripAddressDetail, naverMapSearchUrl } from "./location";
+import {
+  stripHtmlTags,
+  toLocationString,
+  parsePlaceItems,
+} from "./naver-place";
+import {
+  parseLocationLabel,
+  isMappableLocation,
+  stripAddressDetail,
+  naverMapSearchUrl,
+} from "./location";
 
 describe("stripHtmlTags", () => {
   it("검색어 강조 태그를 제거한다", () => {
@@ -32,20 +41,24 @@ describe("toLocationString", () => {
   const base = { name: "", roadAddress: "", address: "", category: "" };
 
   it("상호명과 도로명주소를 쉼표로 합친다", () => {
-    expect(toLocationString({
-      ...base,
-      name: "스타벅스 역삼역점",
-      roadAddress: "서울특별시 강남구 테헤란로 123",
-      address: "서울특별시 강남구 역삼동 737",
-    })).toBe("스타벅스 역삼역점, 서울특별시 강남구 테헤란로 123");
+    expect(
+      toLocationString({
+        ...base,
+        name: "스타벅스 역삼역점",
+        roadAddress: "서울특별시 강남구 테헤란로 123",
+        address: "서울특별시 강남구 역삼동 737",
+      }),
+    ).toBe("스타벅스 역삼역점, 서울특별시 강남구 테헤란로 123");
   });
 
   it("도로명주소가 없으면 지번주소를 쓴다", () => {
-    expect(toLocationString({
-      ...base,
-      name: "동네카페",
-      address: "서울특별시 강남구 역삼동 737",
-    })).toBe("동네카페, 서울특별시 강남구 역삼동 737");
+    expect(
+      toLocationString({
+        ...base,
+        name: "동네카페",
+        address: "서울특별시 강남구 역삼동 737",
+      }),
+    ).toBe("동네카페, 서울특별시 강남구 역삼동 737");
   });
 
   it("주소가 아예 없으면 상호명만 남긴다", () => {
@@ -53,8 +66,12 @@ describe("toLocationString", () => {
   });
 
   it("상호명이 없으면 주소만 남긴다", () => {
-    expect(toLocationString({ ...base, roadAddress: "서울특별시 강남구 테헤란로 123" }))
-      .toBe("서울특별시 강남구 테헤란로 123");
+    expect(
+      toLocationString({
+        ...base,
+        roadAddress: "서울특별시 강남구 테헤란로 123",
+      }),
+    ).toBe("서울특별시 강남구 테헤란로 123");
   });
 });
 
@@ -118,7 +135,10 @@ describe("장소 검색 결과가 표시·지도링크와 맞물리는지", () =
 
   it("주소 없이 상호명만 저장되면 지도 링크가 나오지 않는다", () => {
     const nameOnly = toLocationString({
-      name: "동네카페", roadAddress: "", address: "", category: "",
+      name: "동네카페",
+      roadAddress: "",
+      address: "",
+      category: "",
     });
     expect(nameOnly).toBe("동네카페");
     expect(isMappableLocation(nameOnly)).toBe(false);
@@ -134,37 +154,49 @@ describe("toLocationString + 지도 링크의 역할 분담", () => {
   };
 
   it("저장값에는 층·호수를 남긴다 — 찾아갈 때 필요한 정보다", () => {
-    expect(toLocationString(place))
-      .toBe("레뽀커피, 서울특별시 강남구 강남대로58길 12 지상1층 102호");
+    expect(toLocationString(place)).toBe(
+      "레뽀커피, 서울특별시 강남구 강남대로58길 12 지상1층 102호",
+    );
   });
 
   it("지도 링크에서만 층·호수를 걷어낸다", () => {
-    expect(decodeURIComponent(naverMapSearchUrl(toLocationString(place))))
-      .toBe("https://map.naver.com/p/search/레뽀커피, 서울특별시 강남구 강남대로58길 12");
+    expect(decodeURIComponent(naverMapSearchUrl(toLocationString(place)))).toBe(
+      "https://map.naver.com/p/search/레뽀커피, 서울특별시 강남구 강남대로58길 12",
+    );
   });
 });
 
 describe("stripAddressDetail", () => {
   it("도로명주소 뒤의 층·호수를 떼어낸다", () => {
-    expect(stripAddressDetail("서울특별시 강남구 강남대로58길 12 지상1층 102호"))
-      .toBe("서울특별시 강남구 강남대로58길 12");
-    expect(stripAddressDetail("서울특별시 강남구 남부순환로359길 16 1층 B호"))
-      .toBe("서울특별시 강남구 남부순환로359길 16");
+    expect(
+      stripAddressDetail("서울특별시 강남구 강남대로58길 12 지상1층 102호"),
+    ).toBe("서울특별시 강남구 강남대로58길 12");
+    expect(
+      stripAddressDetail("서울특별시 강남구 남부순환로359길 16 1층 B호"),
+    ).toBe("서울특별시 강남구 남부순환로359길 16");
   });
 
   it("지번주소에서도 동작한다", () => {
-    expect(stripAddressDetail("서울특별시 강남구 도곡동 945-1 지상1층 102호"))
-      .toBe("서울특별시 강남구 도곡동 945-1");
+    expect(
+      stripAddressDetail("서울특별시 강남구 도곡동 945-1 지상1층 102호"),
+    ).toBe("서울특별시 강남구 도곡동 945-1");
   });
 
   it("지하층·호수만 있는 경우도 처리한다", () => {
-    expect(stripAddressDetail("서울특별시 중구 세종대로 110 지하2층")).toBe("서울특별시 중구 세종대로 110");
-    expect(stripAddressDetail("서울특별시 중구 세종대로 110 302호")).toBe("서울특별시 중구 세종대로 110");
+    expect(stripAddressDetail("서울특별시 중구 세종대로 110 지하2층")).toBe(
+      "서울특별시 중구 세종대로 110",
+    );
+    expect(stripAddressDetail("서울특별시 중구 세종대로 110 302호")).toBe(
+      "서울특별시 중구 세종대로 110",
+    );
   });
 
   it("상호명이 앞에 붙어 있어도 주소 꼬리만 자른다", () => {
-    expect(stripAddressDetail("레뽀커피, 서울특별시 강남구 강남대로58길 12 지상1층 102호"))
-      .toBe("레뽀커피, 서울특별시 강남구 강남대로58길 12");
+    expect(
+      stripAddressDetail(
+        "레뽀커피, 서울특별시 강남구 강남대로58길 12 지상1층 102호",
+      ),
+    ).toBe("레뽀커피, 서울특별시 강남구 강남대로58길 12");
   });
 
   it("층·호수가 없으면 그대로 둔다", () => {
@@ -174,16 +206,22 @@ describe("stripAddressDetail", () => {
 
   it("행정동과 도로명의 숫자를 건드리지 않는다", () => {
     // "58길"·"도곡동"이 층·호수로 오인되면 안 된다
-    expect(stripAddressDetail("서울특별시 강남구 도곡동 945-1")).toBe("서울특별시 강남구 도곡동 945-1");
-    expect(stripAddressDetail("서울특별시 강남구 강남대로58길 12")).toBe("서울특별시 강남구 강남대로58길 12");
+    expect(stripAddressDetail("서울특별시 강남구 도곡동 945-1")).toBe(
+      "서울특별시 강남구 도곡동 945-1",
+    );
+    expect(stripAddressDetail("서울특별시 강남구 강남대로58길 12")).toBe(
+      "서울특별시 강남구 강남대로58길 12",
+    );
   });
 });
 
 describe("naverMapSearchUrl", () => {
   it("이미 저장된 장소의 층·호수도 걷어내고 링크를 만든다", () => {
-    const url = naverMapSearchUrl("레뽀커피, 서울특별시 강남구 강남대로58길 12 지상1층 102호");
+    const url = naverMapSearchUrl(
+      "레뽀커피, 서울특별시 강남구 강남대로58길 12 지상1층 102호",
+    );
     expect(decodeURIComponent(url)).toBe(
-      "https://map.naver.com/p/search/레뽀커피, 서울특별시 강남구 강남대로58길 12"
+      "https://map.naver.com/p/search/레뽀커피, 서울특별시 강남구 강남대로58길 12",
     );
   });
 });

@@ -1,33 +1,53 @@
-import {useEffect, useState, useCallback, useMemo, useRef} from "react";
-import {useAuthStore} from "@/store/auth";
-import {useEventsStore, CalendarEvent} from "@/store/events";
-import {useTodosStore, TodoItem} from "@/store/todos";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useAuthStore } from "@/store/auth";
+import { useEventsStore, CalendarEvent } from "@/store/events";
+import { useTodosStore, TodoItem } from "@/store/todos";
 import {
   createEvent,
   updateEvent,
   deleteEvent,
   getCalendarList,
   clearCalendarListCache,
-  CalendarListItem
+  CalendarListItem,
 } from "@/lib/google-calendar";
-import {listen} from "@tauri-apps/api/event";
-import {formatMonthYear, formatDateLabel, isoDate} from "@/lib/date-utils";
-import {isTauri} from "@/lib/tauri-store";
-import {eventColor} from "@/lib/event-color";
-import {showToast} from "@/store/toast";
+import { listen } from "@tauri-apps/api/event";
+import { formatMonthYear, formatDateLabel, isoDate } from "@/lib/date-utils";
+import { isTauri } from "@/lib/tauri-store";
+import { eventColor } from "@/lib/event-color";
+import { showToast } from "@/store/toast";
 import Divider from "@/components/divider";
-import {IconChevronLeft, IconChevronRight, IconRefresh, IconPlus} from "@/components/icons";
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconRefresh,
+  IconPlus,
+} from "@/components/icons";
 import styles from "./page.module.css";
-import UnavailableContent from '@/components/unavailable-content'
-import { buildCells, buildMonthLayout, daysInMonth, buildMovedTimeFields, buildEventTimeFields, eventEndDateForForm, EMPTY_FORM, type EventForm } from "./calendar-utils";
+import UnavailableContent from "@/components/unavailable-content";
+import {
+  buildCells,
+  buildMonthLayout,
+  daysInMonth,
+  buildMovedTimeFields,
+  buildEventTimeFields,
+  eventEndDateForForm,
+  EMPTY_FORM,
+  type EventForm,
+} from "./calendar-utils";
 import { getEventDateKeys, eventShortLabel } from "@/lib/event-match";
-import { buildTodoTaskFromForm, todoEditFormState, EMPTY_TODO_FORM, type TodoFormState, cleanChecklistItems } from "@/lib/todo-form";
-import {useTodayInfo} from "./hooks/use-today-info";
-import {useSidePanelWidth} from "./hooks/use-side-panel-width";
-import {useEventDrag} from "./hooks/use-event-drag";
-import {useTodoActions} from "@/hooks/use-todo-actions";
-import {useScheduleCommand} from "@/hooks/use-schedule-command";
-import {useDefaultCalendarId} from "@/hooks/use-default-calendar";
+import {
+  buildTodoTaskFromForm,
+  todoEditFormState,
+  EMPTY_TODO_FORM,
+  type TodoFormState,
+  cleanChecklistItems,
+} from "@/lib/todo-form";
+import { useTodayInfo } from "./hooks/use-today-info";
+import { useSidePanelWidth } from "./hooks/use-side-panel-width";
+import { useEventDrag } from "./hooks/use-event-drag";
+import { useTodoActions } from "@/hooks/use-todo-actions";
+import { useScheduleCommand } from "@/hooks/use-schedule-command";
+import { useDefaultCalendarId } from "@/hooks/use-default-calendar";
 import CalendarGrid from "./components/calendar-grid";
 import EventList from "./components/event-list";
 import TodoGroups from "./components/todo-groups";
@@ -47,7 +67,9 @@ export default function SchedulePage() {
   const error = useEventsStore((s) => s.error);
   const fetchEvents = useEventsStore((s) => s.fetchEvents);
   const prefetchEvents = useEventsStore((s) => s.prefetchEvents);
-  const syncEventNotifications = useEventsStore((s) => s.syncEventNotifications);
+  const syncEventNotifications = useEventsStore(
+    (s) => s.syncEventNotifications,
+  );
   const invalidateCache = useEventsStore((s) => s.invalidateCache);
 
   const todos = useTodosStore((s) => s.todos);
@@ -57,7 +79,7 @@ export default function SchedulePage() {
   const createTodo = useTodosStore((s) => s.createTodo);
   const updateTodo = useTodosStore((s) => s.updateTodo);
 
-  const {todayInfo, refreshTodayInfo} = useTodayInfo();
+  const { todayInfo, refreshTodayInfo } = useTodayInfo();
   const [currentYear, setCurrentYear] = useState(todayInfo.year);
   const [currentMonth, setCurrentMonth] = useState(todayInfo.month);
   const [selectedDate, setSelectedDate] = useState<string>(todayInfo.date);
@@ -77,7 +99,12 @@ export default function SchedulePage() {
   }, [refreshTodayInfo]);
 
   // 우측 패널 너비 (드래그 리사이즈)
-  const {sidePanelWidth, handleSidePointerDown, handleSidePointerMove, handleSidePointerUp} = useSidePanelWidth();
+  const {
+    sidePanelWidth,
+    handleSidePointerDown,
+    handleSidePointerMove,
+    handleSidePointerUp,
+  } = useSidePanelWidth();
 
   // 캘린더 목록 로드
   useEffect(() => {
@@ -103,16 +130,27 @@ export default function SchedulePage() {
     };
     void sync();
     const timer = setInterval(() => void sync(), 60 * 60 * 1000);
-    return () => { cancelled = true; clearInterval(timer); };
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [googleTokens?.access_token]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존
 
-  const cells = useMemo(() => buildCells(currentYear, currentMonth), [currentYear, currentMonth]);
+  const cells = useMemo(
+    () => buildCells(currentYear, currentMonth),
+    [currentYear, currentMonth],
+  );
 
   /** 현재 그리드에 실제로 표시되는 날짜 범위 (RFC 3339, UTC ISO) */
-  const gridRange = useMemo(() => ({
-    timeMin: new Date(cells[0].date + "T00:00:00").toISOString(),
-    timeMax: new Date(cells[cells.length - 1].date + "T23:59:59").toISOString(),
-  }), [cells]);
+  const gridRange = useMemo(
+    () => ({
+      timeMin: new Date(cells[0].date + "T00:00:00").toISOString(),
+      timeMax: new Date(
+        cells[cells.length - 1].date + "T23:59:59",
+      ).toISOString(),
+    }),
+    [cells],
+  );
 
   // 월별 이벤트 로드 + 인접 달 백그라운드 프리페치
   useEffect(() => {
@@ -121,7 +159,11 @@ export default function SchedulePage() {
       const tokens = await refreshGoogle();
       if (!tokens?.access_token) return;
 
-      await fetchEvents(tokens.access_token, gridRange.timeMin, gridRange.timeMax);
+      await fetchEvents(
+        tokens.access_token,
+        gridRange.timeMin,
+        gridRange.timeMax,
+      );
 
       // 앞뒤 달 프리페치 (fire-and-forget)
       const prevY = currentMonth === 0 ? currentYear - 1 : currentYear;
@@ -130,8 +172,20 @@ export default function SchedulePage() {
       const nextM = currentMonth === 11 ? 0 : currentMonth + 1;
       const prevCells = buildCells(prevY, prevM);
       const nextCells = buildCells(nextY, nextM);
-      void prefetchEvents(tokens.access_token, new Date(prevCells[0].date + "T00:00:00").toISOString(), new Date(prevCells[prevCells.length - 1].date + "T23:59:59").toISOString());
-      void prefetchEvents(tokens.access_token, new Date(nextCells[0].date + "T00:00:00").toISOString(), new Date(nextCells[nextCells.length - 1].date + "T23:59:59").toISOString());
+      void prefetchEvents(
+        tokens.access_token,
+        new Date(prevCells[0].date + "T00:00:00").toISOString(),
+        new Date(
+          prevCells[prevCells.length - 1].date + "T23:59:59",
+        ).toISOString(),
+      );
+      void prefetchEvents(
+        tokens.access_token,
+        new Date(nextCells[0].date + "T00:00:00").toISOString(),
+        new Date(
+          nextCells[nextCells.length - 1].date + "T23:59:59",
+        ).toISOString(),
+      );
     })();
   }, [googleTokens?.access_token, currentYear, currentMonth]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존(객체 재생성 시 재실행 방지), 나머지 누락 deps는 안정적 액션
 
@@ -145,7 +199,8 @@ export default function SchedulePage() {
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     for (const ev of events) {
-      for (const key of getEventDateKeys(ev)) { // 멀티데이 일정은 걸친 모든 날짜에 추가
+      for (const key of getEventDateKeys(ev)) {
+        // 멀티데이 일정은 걸친 모든 날짜에 추가
         if (!map.has(key)) map.set(key, []);
         map.get(key)!.push(ev);
       }
@@ -154,20 +209,28 @@ export default function SchedulePage() {
   }, [events]);
 
   const selectedEvents = useMemo(
-    () => (eventsByDate.get(selectedDate) ?? []).sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    [eventsByDate, selectedDate]
+    () =>
+      (eventsByDate.get(selectedDate) ?? []).sort((a, b) =>
+        a.startTime.localeCompare(b.startTime),
+      ),
+    [eventsByDate, selectedDate],
   );
 
   // 멀티데이 일정을 칸을 가로지르는 연속 막대로 그리기 위한 주간 레인 레이아웃
-  const monthLayout = useMemo(() => buildMonthLayout(cells, events), [cells, events]);
+  const monthLayout = useMemo(
+    () => buildMonthLayout(cells, events),
+    [cells, events],
+  );
 
   const primaryCalendarId = useMemo(
     () => calendars.find((c) => c.primary)?.id ?? "primary",
-    [calendars]
+    [calendars],
   );
   // 설정의 기본 캘린더(없으면 primary) — 모달 기본 선택·자연어 추가 폴백에 사용
-  const [defaultCalendarId] = useDefaultCalendarId(calendars, primaryCalendarId);
-
+  const [defaultCalendarId] = useDefaultCalendarId(
+    calendars,
+    primaryCalendarId,
+  );
 
   // gridRange stale closure 방지용 ref
   const gridRangeRef = useRef(gridRange);
@@ -183,7 +246,11 @@ export default function SchedulePage() {
       invalidateCache();
       const tokens = await refreshGoogle();
       if (tokens?.access_token) {
-        await fetchEvents(tokens.access_token, gridRangeRef.current.timeMin, gridRangeRef.current.timeMax);
+        await fetchEvents(
+          tokens.access_token,
+          gridRangeRef.current.timeMin,
+          gridRangeRef.current.timeMax,
+        );
       }
     }).then((fn) => {
       unlisten = fn;
@@ -211,44 +278,72 @@ export default function SchedulePage() {
     setSelectedDate(isoDate(newYear, newMonth, day));
   }, [currentMonth, currentYear, selectedDate]);
 
-  const openEventForm = useCallback((date: string) => {
-    setEventForm({...EMPTY_FORM, open: true, date, endDate: date, calendarId: defaultCalendarId});
-  }, [defaultCalendarId]);
+  const openEventForm = useCallback(
+    (date: string) => {
+      setEventForm({
+        ...EMPTY_FORM,
+        open: true,
+        date,
+        endDate: date,
+        calendarId: defaultCalendarId,
+      });
+    },
+    [defaultCalendarId],
+  );
 
-  const openEditForm = useCallback((ev: CalendarEvent) => {
-    const dateStr = ev.startTime.split("T")[0];
-    const startT = ev.isAllDay ? "09:00" : new Date(ev.startTime).toLocaleTimeString("ko-KR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false
-    });
-    const endT = ev.isAllDay ? "10:00" : new Date(ev.endTime).toLocaleTimeString("ko-KR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false
-    });
-    const calId = ev.calendarId ?? defaultCalendarId;
-    setEventForm({
-      open: true, editEventId: ev.id, editCalendarId: calId,
-      title: ev.title, date: dateStr, endDate: eventEndDateForForm(ev), isAllDay: ev.isAllDay,
-      startTime: startT, endTime: endT,
-      location: ev.location ?? "", calendarId: calId, submitting: false,
-    });
-  }, [defaultCalendarId]);
+  const openEditForm = useCallback(
+    (ev: CalendarEvent) => {
+      const dateStr = ev.startTime.split("T")[0];
+      const startT = ev.isAllDay
+        ? "09:00"
+        : new Date(ev.startTime).toLocaleTimeString("ko-KR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          });
+      const endT = ev.isAllDay
+        ? "10:00"
+        : new Date(ev.endTime).toLocaleTimeString("ko-KR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          });
+      const calId = ev.calendarId ?? defaultCalendarId;
+      setEventForm({
+        open: true,
+        editEventId: ev.id,
+        editCalendarId: calId,
+        title: ev.title,
+        date: dateStr,
+        endDate: eventEndDateForForm(ev),
+        isAllDay: ev.isAllDay,
+        startTime: startT,
+        endTime: endT,
+        location: ev.location ?? "",
+        calendarId: calId,
+        submitting: false,
+      });
+    },
+    [defaultCalendarId],
+  );
 
   const closeEventForm = useCallback(() => setEventForm(EMPTY_FORM), []);
 
   // 칩 클릭 핸들러 — CalendarGrid memo가 깨지지 않도록 안정적 참조 유지
-  const handleEventChipClick = useCallback((ev: CalendarEvent, date: string) => {
-    setSelectedDate(date);
-    setDetailEvent(ev);
-  }, []);
+  const handleEventChipClick = useCallback(
+    (ev: CalendarEvent, date: string) => {
+      setSelectedDate(date);
+      setDetailEvent(ev);
+    },
+    [],
+  );
 
   const handleRefreshAll = useCallback(async () => {
     clearCalendarListCache();
     const [g, m] = await Promise.all([refreshGoogle(), refreshMicrosoft()]);
     const p: Promise<void>[] = [];
-    if (g?.access_token) p.push(fetchEvents(g.access_token, gridRange.timeMin, gridRange.timeMax));
+    if (g?.access_token)
+      p.push(fetchEvents(g.access_token, gridRange.timeMin, gridRange.timeMax));
     if (m?.access_token) p.push(fetchTodos(m.access_token));
     await Promise.all(p);
   }, [refreshGoogle, refreshMicrosoft, fetchEvents, fetchTodos, gridRange]);
@@ -271,92 +366,166 @@ export default function SchedulePage() {
     events,
     calendars,
     defaultCalendarId,
-    getToken: useCallback(async () => (await refreshGoogle())?.access_token ?? null, [refreshGoogle]),
+    getToken: useCallback(
+      async () => (await refreshGoogle())?.access_token ?? null,
+      [refreshGoogle],
+    ),
     onMutated: useCallback(async () => {
       invalidateCache();
       const tokens = await refreshGoogle();
       if (tokens?.access_token) {
-        await fetchEvents(tokens.access_token, gridRangeRef.current.timeMin, gridRangeRef.current.timeMax);
+        await fetchEvents(
+          tokens.access_token,
+          gridRangeRef.current.timeMin,
+          gridRangeRef.current.timeMax,
+        );
       }
     }, [refreshGoogle, invalidateCache, fetchEvents]),
     onError: showToast,
   });
 
-  const handleQuickAdd = useCallback((e: { preventDefault(): void }) => {
-    e.preventDefault();
-    void submitQuickCommand();
-  }, [submitQuickCommand]);
+  const handleQuickAdd = useCallback(
+    (e: { preventDefault(): void }) => {
+      e.preventDefault();
+      void submitQuickCommand();
+    },
+    [submitQuickCommand],
+  );
 
-  const handleEventFormSubmit = useCallback(async (e: { preventDefault(): void }) => {
-    e.preventDefault();
-    if (!eventForm.title.trim() || eventForm.submitting) return;
-    setEventForm((f) => ({...f, submitting: true}));
-    try {
-      const tokens = await refreshGoogle();
-      if (!tokens?.access_token) throw new Error("Google 계정 연결이 필요합니다.");
-      const timeFields = buildEventTimeFields(eventForm);
+  const handleEventFormSubmit = useCallback(
+    async (e: { preventDefault(): void }) => {
+      e.preventDefault();
+      if (!eventForm.title.trim() || eventForm.submitting) return;
+      setEventForm((f) => ({ ...f, submitting: true }));
+      try {
+        const tokens = await refreshGoogle();
+        if (!tokens?.access_token)
+          throw new Error("Google 계정 연결이 필요합니다.");
+        const timeFields = buildEventTimeFields(eventForm);
 
-      if (eventForm.editEventId) {
-        // 수정
-        await updateEvent(tokens.access_token, eventForm.editEventId, {
-          summary: eventForm.title,
-          location: eventForm.location || undefined,
-          ...timeFields,
-        }, eventForm.editCalendarId ?? "primary");
-      } else {
-        // 신규
-        await createEvent(tokens.access_token, {
-          id: "", summary: eventForm.title,
-          location: eventForm.location || undefined,
-          ...timeFields,
-        }, eventForm.calendarId);
+        if (eventForm.editEventId) {
+          // 수정
+          await updateEvent(
+            tokens.access_token,
+            eventForm.editEventId,
+            {
+              summary: eventForm.title,
+              location: eventForm.location || undefined,
+              ...timeFields,
+            },
+            eventForm.editCalendarId ?? "primary",
+          );
+        } else {
+          // 신규
+          await createEvent(
+            tokens.access_token,
+            {
+              id: "",
+              summary: eventForm.title,
+              location: eventForm.location || undefined,
+              ...timeFields,
+            },
+            eventForm.calendarId,
+          );
+        }
+        invalidateCache();
+        await fetchEvents(
+          tokens.access_token,
+          gridRange.timeMin,
+          gridRange.timeMax,
+        );
+        void syncEventNotifications(tokens.access_token);
+        setSelectedDate(eventForm.date);
+        closeEventForm();
+      } catch (e) {
+        const msg =
+          e instanceof Error ? e.message : "일정 저장에 실패했습니다.";
+        showToast(msg);
+        setEventForm((f) => ({ ...f, submitting: false }));
       }
-      invalidateCache();
-      await fetchEvents(tokens.access_token, gridRange.timeMin, gridRange.timeMax);
-      void syncEventNotifications(tokens.access_token);
-      setSelectedDate(eventForm.date);
-      closeEventForm();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "일정 저장에 실패했습니다.";
-      showToast(msg);
-      setEventForm((f) => ({...f, submitting: false}));
-    }
-  }, [eventForm, refreshGoogle, fetchEvents, syncEventNotifications, invalidateCache, gridRange, closeEventForm]);
+    },
+    [
+      eventForm,
+      refreshGoogle,
+      fetchEvents,
+      syncEventNotifications,
+      invalidateCache,
+      gridRange,
+      closeEventForm,
+    ],
+  );
 
-  const handleDeleteEvent = useCallback(async (ev: CalendarEvent) => {
-    setDeletingId(ev.id);
-    try {
-      const tokens = await refreshGoogle();
-      if (!tokens?.access_token) return;
-      await deleteEvent(tokens.access_token, ev.id, ev.calendarId ?? "primary");
-      invalidateCache();
-      await fetchEvents(tokens.access_token, gridRange.timeMin, gridRange.timeMax);
-      void syncEventNotifications(tokens.access_token);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "일정 삭제에 실패했습니다.";
-      showToast(msg);
-    } finally {
-      setDeletingId(null);
-    }
-  }, [refreshGoogle, fetchEvents, syncEventNotifications, invalidateCache, gridRange]);
+  const handleDeleteEvent = useCallback(
+    async (ev: CalendarEvent) => {
+      setDeletingId(ev.id);
+      try {
+        const tokens = await refreshGoogle();
+        if (!tokens?.access_token) return;
+        await deleteEvent(
+          tokens.access_token,
+          ev.id,
+          ev.calendarId ?? "primary",
+        );
+        invalidateCache();
+        await fetchEvents(
+          tokens.access_token,
+          gridRange.timeMin,
+          gridRange.timeMax,
+        );
+        void syncEventNotifications(tokens.access_token);
+      } catch (e) {
+        const msg =
+          e instanceof Error ? e.message : "일정 삭제에 실패했습니다.";
+        showToast(msg);
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [
+      refreshGoogle,
+      fetchEvents,
+      syncEventNotifications,
+      invalidateCache,
+      gridRange,
+    ],
+  );
 
-  const handleDropEvent = useCallback(async (ev: CalendarEvent, targetDate: string) => {
-    try {
-      const tokens = await refreshGoogle();
-      if (!tokens?.access_token) return;
-      await updateEvent(tokens.access_token, ev.id, buildMovedTimeFields(ev, targetDate), ev.calendarId ?? "primary");
-      invalidateCache();
-      await fetchEvents(tokens.access_token, gridRange.timeMin, gridRange.timeMax);
-      void syncEventNotifications(tokens.access_token);
-      setSelectedDate(targetDate);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "일정 이동에 실패했습니다.";
-      showToast(msg);
-    }
-  }, [refreshGoogle, fetchEvents, syncEventNotifications, invalidateCache, gridRange]);
+  const handleDropEvent = useCallback(
+    async (ev: CalendarEvent, targetDate: string) => {
+      try {
+        const tokens = await refreshGoogle();
+        if (!tokens?.access_token) return;
+        await updateEvent(
+          tokens.access_token,
+          ev.id,
+          buildMovedTimeFields(ev, targetDate),
+          ev.calendarId ?? "primary",
+        );
+        invalidateCache();
+        await fetchEvents(
+          tokens.access_token,
+          gridRange.timeMin,
+          gridRange.timeMax,
+        );
+        void syncEventNotifications(tokens.access_token);
+        setSelectedDate(targetDate);
+      } catch (e) {
+        const msg =
+          e instanceof Error ? e.message : "일정 이동에 실패했습니다.";
+        showToast(msg);
+      }
+    },
+    [
+      refreshGoogle,
+      fetchEvents,
+      syncEventNotifications,
+      invalidateCache,
+      gridRange,
+    ],
+  );
 
   // 드래그-이동 + 클릭(상세) 구분 (document 레벨 마우스 이벤트)
-  const {draggingEvent, dragOverDate, ghostPos, startDrag} = useEventDrag({
+  const { draggingEvent, dragOverDate, ghostPos, startDrag } = useEventDrag({
     onDrop: handleDropEvent,
     onClick: setDetailEvent,
   });
@@ -364,14 +533,15 @@ export default function SchedulePage() {
   // Microsoft Todo CRUD — refreshMicrosoft()로 토큰 확보 후 스토어 액션 호출
   const resolveMicrosoftToken = useCallback(
     async () => (await refreshMicrosoft())?.access_token ?? null,
-    [refreshMicrosoft]
+    [refreshMicrosoft],
   );
   const todoActions = useTodoActions(resolveMicrosoftToken);
 
   const toggleTodoExpand = useCallback((id: string) => {
     setExpandedTodos((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -383,46 +553,79 @@ export default function SchedulePage() {
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [todos]);
 
-  const openTodoForm = useCallback((listId?: string) => {
-    const defaultList = listId ?? todoLists[0]?.id ?? "";
-    setTodoForm({
-      ...EMPTY_TODO_FORM,
-      open: true,
-      mode: "create",
-      listId: defaultList,
-      dueDate: selectedDate,
-    });
-  }, [todoLists, selectedDate]);
+  const openTodoForm = useCallback(
+    (listId?: string) => {
+      const defaultList = listId ?? todoLists[0]?.id ?? "";
+      setTodoForm({
+        ...EMPTY_TODO_FORM,
+        open: true,
+        mode: "create",
+        listId: defaultList,
+        dueDate: selectedDate,
+      });
+    },
+    [todoLists, selectedDate],
+  );
 
-  const openTodoEditForm = useCallback((e: React.MouseEvent, todo: TodoItem) => {
-    e.stopPropagation();
-    setTodoForm(todoEditFormState(todo));
-  }, []);
+  const openTodoEditForm = useCallback(
+    (e: React.MouseEvent, todo: TodoItem) => {
+      e.stopPropagation();
+      setTodoForm(todoEditFormState(todo));
+    },
+    [],
+  );
 
   const closeTodoForm = useCallback(() => setTodoForm(EMPTY_TODO_FORM), []);
 
-  const handleTodoSubmit = useCallback(async (e: { preventDefault(): void }) => {
-    e.preventDefault();
-    if (!todoForm.title.trim() || !todoForm.listId || !microsoftTokens?.access_token) return;
-    setTodoSubmitting(true);
-    try {
-      const task = buildTodoTaskFromForm(todoForm);
-      const checklistItems = cleanChecklistItems(todoForm.checklistItems);
-      if (todoForm.mode === "create") {
-        await createTodo(microsoftTokens.access_token, todoForm.listId, task as Parameters<typeof createTodo>[2], checklistItems);
-      } else if (todoForm.taskId) {
-        await updateTodo(microsoftTokens.access_token, todoForm.listId, todoForm.taskId, task, checklistItems);
+  const handleTodoSubmit = useCallback(
+    async (e: { preventDefault(): void }) => {
+      e.preventDefault();
+      if (
+        !todoForm.title.trim() ||
+        !todoForm.listId ||
+        !microsoftTokens?.access_token
+      )
+        return;
+      setTodoSubmitting(true);
+      try {
+        const task = buildTodoTaskFromForm(todoForm);
+        const checklistItems = cleanChecklistItems(todoForm.checklistItems);
+        if (todoForm.mode === "create") {
+          await createTodo(
+            microsoftTokens.access_token,
+            todoForm.listId,
+            task as Parameters<typeof createTodo>[2],
+            checklistItems,
+          );
+        } else if (todoForm.taskId) {
+          await updateTodo(
+            microsoftTokens.access_token,
+            todoForm.listId,
+            todoForm.taskId,
+            task,
+            checklistItems,
+          );
+        }
+        closeTodoForm();
+      } finally {
+        setTodoSubmitting(false);
       }
-      closeTodoForm();
-    } finally {
-      setTodoSubmitting(false);
-    }
-  }, [todoForm, microsoftTokens, createTodo, updateTodo, closeTodoForm]);
+    },
+    [todoForm, microsoftTokens, createTodo, updateTodo, closeTodoForm],
+  );
 
   const dueTodoGroups = useMemo(() => {
-    const map = new Map<string, { listId: string; listName: string; items: TodoItem[] }>();
+    const map = new Map<
+      string,
+      { listId: string; listName: string; items: TodoItem[] }
+    >();
     for (const todo of todos.filter((t) => t.dueDateTime)) {
-      if (!map.has(todo.listId)) map.set(todo.listId, {listId: todo.listId, listName: todo.listName, items: []});
+      if (!map.has(todo.listId))
+        map.set(todo.listId, {
+          listId: todo.listId,
+          listName: todo.listName,
+          items: [],
+        });
       map.get(todo.listId)!.items.push(todo);
     }
     return Array.from(map.values());
@@ -443,8 +646,17 @@ export default function SchedulePage() {
         <div className={styles.quickAddInputWrap}>
           {quickLockedTarget && (
             <span className={styles.lockChip} title={quickLockedTarget.title}>
-              <span className={styles.lockChipLabel}>{quickLockedTarget.title}</span>
-              <button type="button" className={styles.lockChipClear} onClick={clearQuickLock} aria-label="대상 해제">✕</button>
+              <span className={styles.lockChipLabel}>
+                {quickLockedTarget.title}
+              </span>
+              <button
+                type="button"
+                className={styles.lockChipClear}
+                onClick={clearQuickLock}
+                aria-label="대상 해제"
+              >
+                ✕
+              </button>
             </span>
           )}
           <input
@@ -452,9 +664,11 @@ export default function SchedulePage() {
             value={quickInput}
             onChange={(e) => setQuickInput(e.target.value)}
             onKeyDown={onQuickKeyDown}
-            placeholder={quickLockedTarget
-              ? "수정/삭제 명령 입력 (예: 삭제, 오후 7시로 변경)"
-              : "자연어로 일정 추가 (예: 내일 오후 3시 팀 미팅 회사 캘린더에)"}
+            placeholder={
+              quickLockedTarget
+                ? "수정/삭제 명령 입력 (예: 삭제, 오후 7시로 변경)"
+                : "자연어로 일정 추가 (예: 내일 오후 3시 팀 미팅 회사 캘린더에)"
+            }
             disabled={quickStatus === "loading"}
             autoComplete="off"
           />
@@ -463,8 +677,12 @@ export default function SchedulePage() {
               {quickDateLoading && quickMatches.length === 0 ? (
                 [0, 1].map((i) => (
                   <li key={`sk-${i}`} className={styles.skeletonRow}>
-                    <span className={`${styles.skeletonBar} ${styles.skeletonTitle}`}/>
-                    <span className={`${styles.skeletonBar} ${styles.skeletonMeta}`}/>
+                    <span
+                      className={`${styles.skeletonBar} ${styles.skeletonTitle}`}
+                    />
+                    <span
+                      className={`${styles.skeletonBar} ${styles.skeletonMeta}`}
+                    />
                   </li>
                 ))
               ) : (
@@ -477,120 +695,171 @@ export default function SchedulePage() {
                   key={ev.id}
                   className={`${styles.quickDropdownItem} ${i === quickActiveIndex ? styles.quickDropdownItemActive : ""}`}
                   onMouseEnter={() => setQuickActiveIndex(i)}
-                  onMouseDown={(e) => { e.preventDefault(); lockQuickTarget(ev); }}
-                  style={eventColor(ev) ? {borderLeftColor: eventColor(ev)} : undefined}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    lockQuickTarget(ev);
+                  }}
+                  style={
+                    eventColor(ev)
+                      ? { borderLeftColor: eventColor(ev) }
+                      : undefined
+                  }
                 >
                   <span className={styles.quickDropdownTitle}>{ev.title}</span>
-                  <span className={styles.quickDropdownMeta}>{eventShortLabel(ev)}</span>
+                  <span className={styles.quickDropdownMeta}>
+                    {eventShortLabel(ev)}
+                  </span>
                 </li>
               ))}
             </ul>
           )}
         </div>
-        <button className={styles.quickAddBtn} type="submit"
-                disabled={(!quickInput.trim() && !quickLockedTarget) || quickStatus === "loading"}>
-          {quickStatus === "loading" ? "분석 중..." : quickStatus === "done" ? "완료 ✓" : quickStatus === "error" ? "오류 ✗"
-            : quickLockedTarget ? "실행" : "추가"}
+        <button
+          className={styles.quickAddBtn}
+          type="submit"
+          disabled={
+            (!quickInput.trim() && !quickLockedTarget) ||
+            quickStatus === "loading"
+          }
+        >
+          {quickStatus === "loading"
+            ? "분석 중..."
+            : quickStatus === "done"
+              ? "완료 ✓"
+              : quickStatus === "error"
+                ? "오류 ✗"
+                : quickLockedTarget
+                  ? "실행"
+                  : "추가"}
         </button>
       </form>
 
       {/* 달력(좌) + 일정·할일(우) 2컬럼 레이아웃 */}
-        <div className={styles.mainLayout} style={{ gridTemplateColumns: `1fr ${sidePanelWidth}px` }}>
-          {/* ── 좌측: 달력 ── */}
-          <div className={styles.calendarColumn}>
-            <div className={styles.calendarHeader}>
-              <button className={styles.navBtn} onClick={prevMonth}><IconChevronLeft/></button>
-              <h2 className={styles.monthTitle}>{formatMonthYear(currentYear, currentMonth)}</h2>
-              <button className={styles.navBtn} onClick={nextMonth}><IconChevronRight/></button>
-              <button className={styles.todayBtn} onClick={goToToday}>오늘</button>
-              <div className={styles.refreshGroup}>
-                {isLoading && <span className={styles.loadingDot}/>}
-                <button type="button" className={styles.refreshBtn} onClick={handleRefreshAll} disabled={isLoading || todosLoading} title="새로고침"><IconRefresh/></button>
-              </div>
-            </div>
-
-            {error && <p className={styles.error}>{error}</p>}
-
-            <CalendarGrid
-              cells={cells}
-              todayDate={todayInfo.date}
-              selectedDate={selectedDate}
-              slotsByDate={monthLayout.slotsByDate}
-              overflowByDate={monthLayout.overflowByDate}
-              draggingEvent={draggingEvent}
-              dragOverDate={dragOverDate}
-              prevMonth={prevMonth}
-              nextMonth={nextMonth}
-              onSelectDate={setSelectedDate}
-              onAddEvent={openEventForm}
-              onEventChipClick={handleEventChipClick}
-              onEventMouseDown={startDrag}
-            />
-
-          </div>{/* calendarColumn end */}
-
-          {/* ── 우측: 선택된 날 일정 + 할일 ── */}
-          <div className={styles.sidePanel}>
-            <div
-              className={styles.sidePanelHandle}
-              onPointerDown={handleSidePointerDown}
-              onPointerMove={handleSidePointerMove}
-              onPointerUp={handleSidePointerUp}
-            />
-            <div className={styles.sidePanelContent}>
-              <h2 className={styles.dayTitle}>{formatDateLabel(selectedDate)}</h2>
-              <section>
-                <div className={styles.dayDetailHeader}>
-                  <h3 className={styles.dayDetailTitle}>일정</h3>
-                  <button className={styles.dayAddBtn} onClick={() => openEventForm(selectedDate)}><IconPlus/> 추가</button>
-                </div>
-                <EventList
-                  isLoading={isLoading}
-                  events={selectedEvents}
-                  deletingId={deletingId}
-                  onEventClick={setDetailEvent}
-                  onEdit={openEditForm}
-                  onDelete={handleDeleteEvent}
-                />
-              </section>
-              <Divider />
-              {microsoftTokens ? (
-                <section>
-                  <div className={styles.dayDetailHeader}>
-                    <h3 className={styles.dayDetailTitle}>마감 예정 할일</h3>
-                    <button className={styles.dayAddBtn} onClick={() => openTodoForm()}><IconPlus/> 추가</button>
-                  </div>
-                  <TodoGroups
-                    groups={dueTodoGroups}
-                    emptyMessage="마감일 있는 할일이 없습니다."
-                    todosError={todosError}
-                    todosLoading={todosLoading}
-                    expandedTodos={expandedTodos}
-                    onToggleExpand={toggleTodoExpand}
-                    onComplete={todoActions.complete}
-                    onEditTodo={openTodoEditForm}
-                    onDeleteTodo={todoActions.remove}
-                    onToggleImportance={todoActions.toggleImportance}
-                    onToggleChecklist={todoActions.toggleChecklist}
-                  />
-                </section>
-              ) : (
-                <section>
-                  <div className={styles.dayDetailHeader}>
-                    <h3 className={styles.dayDetailTitle}>마감 예정 할일</h3>
-                  </div>
-                  <UnavailableContent type="MICROSOFT" />
-                </section>
-              )}
+      <div
+        className={styles.mainLayout}
+        style={{ gridTemplateColumns: `1fr ${sidePanelWidth}px` }}
+      >
+        {/* ── 좌측: 달력 ── */}
+        <div className={styles.calendarColumn}>
+          <div className={styles.calendarHeader}>
+            <button className={styles.navBtn} onClick={prevMonth}>
+              <IconChevronLeft />
+            </button>
+            <h2 className={styles.monthTitle}>
+              {formatMonthYear(currentYear, currentMonth)}
+            </h2>
+            <button className={styles.navBtn} onClick={nextMonth}>
+              <IconChevronRight />
+            </button>
+            <button className={styles.todayBtn} onClick={goToToday}>
+              오늘
+            </button>
+            <div className={styles.refreshGroup}>
+              {isLoading && <span className={styles.loadingDot} />}
+              <button
+                type="button"
+                className={styles.refreshBtn}
+                onClick={handleRefreshAll}
+                disabled={isLoading || todosLoading}
+                title="새로고침"
+              >
+                <IconRefresh />
+              </button>
             </div>
           </div>
+
+          {error && <p className={styles.error}>{error}</p>}
+
+          <CalendarGrid
+            cells={cells}
+            todayDate={todayInfo.date}
+            selectedDate={selectedDate}
+            slotsByDate={monthLayout.slotsByDate}
+            overflowByDate={monthLayout.overflowByDate}
+            draggingEvent={draggingEvent}
+            dragOverDate={dragOverDate}
+            prevMonth={prevMonth}
+            nextMonth={nextMonth}
+            onSelectDate={setSelectedDate}
+            onAddEvent={openEventForm}
+            onEventChipClick={handleEventChipClick}
+            onEventMouseDown={startDrag}
+          />
         </div>
+        {/* calendarColumn end */}
+
+        {/* ── 우측: 선택된 날 일정 + 할일 ── */}
+        <div className={styles.sidePanel}>
+          <div
+            className={styles.sidePanelHandle}
+            onPointerDown={handleSidePointerDown}
+            onPointerMove={handleSidePointerMove}
+            onPointerUp={handleSidePointerUp}
+          />
+          <div className={styles.sidePanelContent}>
+            <h2 className={styles.dayTitle}>{formatDateLabel(selectedDate)}</h2>
+            <section>
+              <div className={styles.dayDetailHeader}>
+                <h3 className={styles.dayDetailTitle}>일정</h3>
+                <button
+                  className={styles.dayAddBtn}
+                  onClick={() => openEventForm(selectedDate)}
+                >
+                  <IconPlus /> 추가
+                </button>
+              </div>
+              <EventList
+                isLoading={isLoading}
+                events={selectedEvents}
+                deletingId={deletingId}
+                onEventClick={setDetailEvent}
+                onEdit={openEditForm}
+                onDelete={handleDeleteEvent}
+              />
+            </section>
+            <Divider />
+            {microsoftTokens ? (
+              <section>
+                <div className={styles.dayDetailHeader}>
+                  <h3 className={styles.dayDetailTitle}>마감 예정 할일</h3>
+                  <button
+                    className={styles.dayAddBtn}
+                    onClick={() => openTodoForm()}
+                  >
+                    <IconPlus /> 추가
+                  </button>
+                </div>
+                <TodoGroups
+                  groups={dueTodoGroups}
+                  emptyMessage="마감일 있는 할일이 없습니다."
+                  todosError={todosError}
+                  todosLoading={todosLoading}
+                  expandedTodos={expandedTodos}
+                  onToggleExpand={toggleTodoExpand}
+                  onComplete={todoActions.complete}
+                  onEditTodo={openTodoEditForm}
+                  onDeleteTodo={todoActions.remove}
+                  onToggleImportance={todoActions.toggleImportance}
+                  onToggleChecklist={todoActions.toggleChecklist}
+                />
+              </section>
+            ) : (
+              <section>
+                <div className={styles.dayDetailHeader}>
+                  <h3 className={styles.dayDetailTitle}>마감 예정 할일</h3>
+                </div>
+                <UnavailableContent type="MICROSOFT" />
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* 드래그 고스트 */}
       {draggingEvent && (
         <div
           className={styles.dragGhost}
-          style={{left: ghostPos.x + 14, top: ghostPos.y - 10}}
+          style={{ left: ghostPos.x + 14, top: ghostPos.y - 10 }}
         >
           {draggingEvent.title}
         </div>
@@ -615,8 +884,14 @@ export default function SchedulePage() {
           calendars={calendars}
           deletingId={deletingId}
           onClose={() => setDetailEvent(null)}
-          onDelete={(ev) => { setDetailEvent(null); handleDeleteEvent(ev); }}
-          onEdit={(ev) => { setDetailEvent(null); openEditForm(ev); }}
+          onDelete={(ev) => {
+            setDetailEvent(null);
+            handleDeleteEvent(ev);
+          }}
+          onEdit={(ev) => {
+            setDetailEvent(null);
+            openEditForm(ev);
+          }}
         />
       )}
 

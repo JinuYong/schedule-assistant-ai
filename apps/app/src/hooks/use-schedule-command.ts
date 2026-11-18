@@ -1,5 +1,15 @@
-import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from "react";
-import { parseScheduleText, parseEditCommand, type ParsedEventChanges } from "@/lib/claude";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  type KeyboardEvent,
+} from "react";
+import {
+  parseScheduleText,
+  parseEditCommand,
+  type ParsedEventChanges,
+} from "@/lib/claude";
 import {
   createEvent,
   updateEvent,
@@ -10,7 +20,11 @@ import {
   type GCalEvent,
 } from "@/lib/google-calendar";
 import { CalendarEvent, mapGCalEvent } from "@/store/events";
-import { matchEventsByText, matchCalendar, parseDateHint } from "@/lib/event-match";
+import {
+  matchEventsByText,
+  matchCalendar,
+  parseDateHint,
+} from "@/lib/event-match";
 
 export type CommandStatus = "idle" | "loading" | "done" | "error";
 export type CommandAction = "create" | "update" | "delete";
@@ -40,7 +54,8 @@ export interface ScheduleCommandDeps {
  * - 대상 미지정 상태에서 Enter → 신규 생성
  */
 export function useScheduleCommand(deps: ScheduleCommandDeps) {
-  const { events, calendars, defaultCalendarId, getToken, onMutated, onError } = deps;
+  const { events, calendars, defaultCalendarId, getToken, onMutated, onError } =
+    deps;
   const [input, setInputState] = useState("");
   const [status, setStatus] = useState<CommandStatus>("idle");
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -51,7 +66,10 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
   const dateHint = useMemo(() => parseDateHint(input), [input]);
   // 조회 결과를 어느 날짜 것인지와 함께 둔다. 지금 날짜의 결과가 아직 없으면 조회 중이다
   // (effect 안에서 상태를 비우거나 로딩을 켜지 않고 렌더 때 계산 — react-hooks set-state-in-effect)
-  const [dateResult, setDateResult] = useState<{ hint: string; events: CalendarEvent[] } | null>(null);
+  const [dateResult, setDateResult] = useState<{
+    hint: string;
+    events: CalendarEvent[];
+  } | null>(null);
   const dateLoading = !!dateHint && dateResult?.hint !== dateHint;
 
   useEffect(() => {
@@ -81,7 +99,10 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
   const matches = useMemo(() => {
     if (lockedTarget || dismissed) return [];
     if (!dateHint) return matchEventsByText(input, events);
-    return matchEventsByText(input, dateResult?.hint === dateHint ? dateResult.events : []);
+    return matchEventsByText(
+      input,
+      dateResult?.hint === dateHint ? dateResult.events : [],
+    );
   }, [input, events, dateResult, dateHint, dismissed, lockedTarget]);
   // 후보가 있거나, 날짜 조회 중이면 드롭다운(로딩 행 포함) 노출
   const loading = dateLoading && !lockedTarget && !dismissed;
@@ -116,14 +137,18 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
 
     if (lockedTarget) {
       if (!text) {
-        onError?.("수정 또는 삭제 명령을 입력하세요 (예: 삭제, 오후 7시로 변경)");
+        onError?.(
+          "수정 또는 삭제 명령을 입력하세요 (예: 삭제, 오후 7시로 변경)",
+        );
         return;
       }
       setStatus("loading");
       try {
         const token = await getToken();
         if (!token) throw new Error("Google 계정 연결이 필요합니다.");
-        const now = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+        const now = new Date().toLocaleString("ko-KR", {
+          timeZone: "Asia/Seoul",
+        });
         const cmd = await parseEditCommand(text, now, {
           title: lockedTarget.title,
           startTime: lockedTarget.startTime,
@@ -140,7 +165,8 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
           await onMutated("delete");
         } else {
           const body = buildUpdateBody(cmd.changes, lockedTarget);
-          if (Object.keys(body).length === 0) throw new Error("수정할 내용을 인식하지 못했습니다.");
+          if (Object.keys(body).length === 0)
+            throw new Error("수정할 내용을 인식하지 못했습니다.");
           await updateEvent(token, lockedTarget.id, body, calId);
           reset();
           setStatus("done");
@@ -163,11 +189,23 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
     try {
       const token = await getToken();
       if (!token) throw new Error("Google 계정 연결이 필요합니다.");
-      const now = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-      const parsed = await parseScheduleText(text, now, calendars.map((c) => c.summary));
+      const now = new Date().toLocaleString("ko-KR", {
+        timeZone: "Asia/Seoul",
+      });
+      const parsed = await parseScheduleText(
+        text,
+        now,
+        calendars.map((c) => c.summary),
+      );
       if (!parsed) throw new Error("파싱 실패");
-      const matched = parsed.calendarName ? matchCalendar(parsed.calendarName, calendars) : undefined;
-      await createEvent(token, buildEventFromParsed(parsed), matched?.id ?? defaultCalendarId);
+      const matched = parsed.calendarName
+        ? matchCalendar(parsed.calendarName, calendars)
+        : undefined;
+      await createEvent(
+        token,
+        buildEventFromParsed(parsed),
+        matched?.id ?? defaultCalendarId,
+      );
       reset();
       setStatus("done");
       await onMutated("create");
@@ -179,7 +217,17 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
       setStatus("error");
       setTimeout(() => setStatus("idle"), 2000);
     }
-  }, [input, status, lockedTarget, getToken, calendars, defaultCalendarId, onMutated, onError, reset]);
+  }, [
+    input,
+    status,
+    lockedTarget,
+    getToken,
+    calendars,
+    defaultCalendarId,
+    onMutated,
+    onError,
+    reset,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -210,7 +258,15 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
         setActiveIndex(-1);
       }
     },
-    [lockedTarget, input, showDropdown, matches, activeIndex, clearLock, lockTarget]
+    [
+      lockedTarget,
+      input,
+      showDropdown,
+      matches,
+      activeIndex,
+      clearLock,
+      lockTarget,
+    ],
   );
 
   return {
@@ -232,10 +288,14 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
 }
 
 /** 수정 명령의 변경분(ParsedEventChanges)을 Google Calendar PATCH 본문으로 변환 */
-function buildUpdateBody(changes: ParsedEventChanges, target: CalendarEvent): Partial<GCalEvent> {
+function buildUpdateBody(
+  changes: ParsedEventChanges,
+  target: CalendarEvent,
+): Partial<GCalEvent> {
   const body: Partial<GCalEvent> = {};
   if (changes.title) body.summary = changes.title;
-  if (changes.location !== undefined) body.location = changes.location || undefined;
+  if (changes.location !== undefined)
+    body.location = changes.location || undefined;
 
   const timeChanged =
     changes.startTime !== undefined ||

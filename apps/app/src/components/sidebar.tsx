@@ -38,7 +38,7 @@ export default function Sidebar() {
       dragStartRef.current = { x: e.clientX, width };
       document.body.style.cursor = "col-resize";
     },
-    [width]
+    [width],
   );
 
   const handlePointerMove = useCallback(
@@ -47,7 +47,7 @@ export default function Sidebar() {
       const { x: startX, width: startWidth } = dragStartRef.current;
       const newWidth = Math.min(
         MAX_WIDTH,
-        Math.max(MIN_WIDTH, startWidth + (e.clientX - startX))
+        Math.max(MIN_WIDTH, startWidth + (e.clientX - startX)),
       );
 
       if (newWidth <= ICON_ONLY_THRESHOLD) {
@@ -58,7 +58,7 @@ export default function Sidebar() {
         setIsIconOnly(false);
       }
     },
-    []
+    [],
   );
 
   const handlePointerUp = useCallback(
@@ -70,7 +70,7 @@ export default function Sidebar() {
         return w;
       });
     },
-    []
+    [],
   );
 
   return (

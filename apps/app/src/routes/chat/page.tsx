@@ -5,7 +5,9 @@ import { useChatStore, ChatMessage } from "@/store/chat";
 import { showToast } from "@/store/toast";
 import styles from "./page.module.css";
 
-function buildSystemPrompt(events: ReturnType<typeof useEventsStore.getState>["events"]): string {
+function buildSystemPrompt(
+  events: ReturnType<typeof useEventsStore.getState>["events"],
+): string {
   const now = new Date();
   const todayStr = now.toLocaleDateString("ko-KR", {
     year: "numeric",
@@ -17,7 +19,10 @@ function buildSystemPrompt(events: ReturnType<typeof useEventsStore.getState>["e
 
   const todayEvents = events.filter((ev) => ev.startTime.startsWith(todayKey));
   const upcomingEvents = events
-    .filter((ev) => ev.startTime > now.toISOString() && !ev.startTime.startsWith(todayKey))
+    .filter(
+      (ev) =>
+        ev.startTime > now.toISOString() && !ev.startTime.startsWith(todayKey),
+    )
     .slice(0, 5);
 
   let context = `당신은 AI 일정 관리 비서입니다. 오늘은 ${todayStr}입니다. 현재 시각: ${now.toLocaleTimeString("ko-KR")}.`;
@@ -27,7 +32,10 @@ function buildSystemPrompt(events: ReturnType<typeof useEventsStore.getState>["e
       .map((ev) => {
         const time = ev.isAllDay
           ? "종일"
-          : new Date(ev.startTime).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+          : new Date(ev.startTime).toLocaleTimeString("ko-KR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
         return `- ${time} ${ev.title}${ev.location ? ` (${ev.location})` : ""}`;
       })
       .join("\n");
@@ -39,10 +47,16 @@ function buildSystemPrompt(events: ReturnType<typeof useEventsStore.getState>["e
   if (upcomingEvents.length > 0) {
     const list = upcomingEvents
       .map((ev) => {
-        const date = new Date(ev.startTime).toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+        const date = new Date(ev.startTime).toLocaleDateString("ko-KR", {
+          month: "short",
+          day: "numeric",
+        });
         const time = ev.isAllDay
           ? "종일"
-          : new Date(ev.startTime).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+          : new Date(ev.startTime).toLocaleTimeString("ko-KR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
         return `- ${date} ${time} ${ev.title}`;
       })
       .join("\n");
@@ -66,7 +80,9 @@ export default function ChatPage() {
   }, [messages]);
 
   useEffect(() => {
-    return () => { cleanupRef.current?.(); };
+    return () => {
+      cleanupRef.current?.();
+    };
   }, []);
 
   // textarea 자동 높이.
@@ -85,7 +101,10 @@ export default function ChatPage() {
     const text = input.trim();
     if (!text || isStreaming) return;
 
-    const newMessages: ChatMessage[] = [...messages, { role: "user", content: text }];
+    const newMessages: ChatMessage[] = [
+      ...messages,
+      { role: "user", content: text },
+    ];
     setMessages([...newMessages, { role: "assistant", content: "" }]);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -106,7 +125,7 @@ export default function ChatPage() {
           });
         },
         () => setIsStreaming(false),
-        system
+        system,
       );
       cleanupRef.current = cleanup;
     } catch (e) {
@@ -117,7 +136,10 @@ export default function ChatPage() {
       showToast(displayMsg);
       setMessages((prev) => {
         const updated = [...prev];
-        updated[updated.length - 1] = { role: "assistant", content: displayMsg };
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: displayMsg,
+        };
         return updated;
       });
       setIsStreaming(false);
@@ -136,7 +158,13 @@ export default function ChatPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>AI 브리핑</h1>
         {messages.length > 0 && (
-          <button className={styles.clearBtn} onClick={clear} disabled={isStreaming}>새 대화</button>
+          <button
+            className={styles.clearBtn}
+            onClick={clear}
+            disabled={isStreaming}
+          >
+            새 대화
+          </button>
         )}
       </div>
 
@@ -145,8 +173,16 @@ export default function ChatPage() {
           <div className={styles.welcome}>
             <p className={styles.welcomeTitle}>무엇이든 물어보세요</p>
             <div className={styles.suggestions}>
-              {["오늘 일정 요약해줘", "이번 주 할일 뭐 있어?", "내일 회의 준비 체크리스트"].map((s) => (
-                <button key={s} className={styles.suggestionChip} onClick={() => setInput(s)}>
+              {[
+                "오늘 일정 요약해줘",
+                "이번 주 할일 뭐 있어?",
+                "내일 회의 준비 체크리스트",
+              ].map((s) => (
+                <button
+                  key={s}
+                  className={styles.suggestionChip}
+                  onClick={() => setInput(s)}
+                >
                   {s}
                 </button>
               ))}
@@ -160,7 +196,10 @@ export default function ChatPage() {
             className={`${styles.message} ${msg.role === "user" ? styles.userMessage : styles.assistantMessage}`}
           >
             <div className={styles.bubble}>
-              {msg.content || (isStreaming && i === messages.length - 1 ? <span className={styles.cursor} /> : null)}
+              {msg.content ||
+                (isStreaming && i === messages.length - 1 ? (
+                  <span className={styles.cursor} />
+                ) : null)}
             </div>
           </div>
         ))}
@@ -172,13 +211,20 @@ export default function ChatPage() {
           ref={textareaRef}
           className={styles.textarea}
           value={input}
-          onChange={(e) => { setInput(e.target.value); adjustHeight(); }}
+          onChange={(e) => {
+            setInput(e.target.value);
+            adjustHeight();
+          }}
           onKeyDown={handleKeyDown}
           placeholder="메시지를 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)"
           rows={1}
           disabled={isStreaming}
         />
-        <button className={styles.sendBtn} onClick={sendMessage} disabled={!input.trim() || isStreaming}>
+        <button
+          className={styles.sendBtn}
+          onClick={sendMessage}
+          disabled={!input.trim() || isStreaming}
+        >
           전송
         </button>
       </div>

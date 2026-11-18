@@ -9,7 +9,12 @@ describe("createSingleFlight", () => {
   it("실행 중에는 inflight가 설정되고 완료 후 비워진다", async () => {
     const sf = createSingleFlight<number>();
     let release!: (v: number) => void;
-    const p = sf.run(() => new Promise<number>((res) => { release = res; }));
+    const p = sf.run(
+      () =>
+        new Promise<number>((res) => {
+          release = res;
+        }),
+    );
 
     expect(sf.inflight).not.toBeNull(); // 진행 중
     release(42);

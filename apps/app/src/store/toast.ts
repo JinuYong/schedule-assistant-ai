@@ -28,7 +28,8 @@ export const useToastStore = create<ToastStore>((set) => ({
     }, AUTO_DISMISS_MS);
   },
 
-  dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  dismiss: (id) =>
+    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 }));
 
 /** React 컴포넌트 밖(store, lib 등)에서도 토스트 표시 */

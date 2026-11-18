@@ -7,14 +7,14 @@ export interface ThemeColor {
 }
 
 export const THEME_COLORS: ThemeColor[] = [
-  { label: "핑크",   color: "#ec91d3", hover: "#e070c4" },
-  { label: "퍼플",   color: "#c57dea", hover: "#b060d8" },
-  { label: "로즈",   color: "#e788b7", hover: "#d468a0" },
-  { label: "골드",   color: "#eeb423", hover: "#d49c0d" },
-  { label: "시안",   color: "#08aac5", hover: "#0692a8" },
-  { label: "블루",   color: "#010d96", hover: "#0c19c0" },
-  { label: "그레이",   color: "#7c7c7c", hover: "#676767" },
-  { label: "블랙",   color: "#090909", hover: "#313131" },
+  { label: "핑크", color: "#ec91d3", hover: "#e070c4" },
+  { label: "퍼플", color: "#c57dea", hover: "#b060d8" },
+  { label: "로즈", color: "#e788b7", hover: "#d468a0" },
+  { label: "골드", color: "#eeb423", hover: "#d49c0d" },
+  { label: "시안", color: "#08aac5", hover: "#0692a8" },
+  { label: "블루", color: "#010d96", hover: "#0c19c0" },
+  { label: "그레이", color: "#7c7c7c", hover: "#676767" },
+  { label: "블랙", color: "#090909", hover: "#313131" },
 ];
 
 interface ThemeStore {
@@ -37,7 +37,9 @@ export const useThemeStore = create<ThemeStore>((set) => ({
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ color, hover }));
     }
     // tauri-store 저장
-    import("@/lib/tauri-store").then(({ storeSet }) => storeSet(STORAGE_KEY, { color, hover }));
+    import("@/lib/tauri-store").then(({ storeSet }) =>
+      storeSet(STORAGE_KEY, { color, hover }),
+    );
   },
 
   loadSaved: () => {

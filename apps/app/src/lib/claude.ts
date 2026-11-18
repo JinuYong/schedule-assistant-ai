@@ -20,7 +20,10 @@ export interface ParsedEvent {
 
 async function getApiKey(): Promise<string> {
   const key = await storeGet<string>("anthropic.apiKey");
-  if (!key) throw new Error("Anthropic API 키가 설정되지 않았습니다. 설정 페이지에서 입력해주세요.");
+  if (!key)
+    throw new Error(
+      "Anthropic API 키가 설정되지 않았습니다. 설정 페이지에서 입력해주세요.",
+    );
   return key;
 }
 
@@ -28,17 +31,18 @@ async function getApiKey(): Promise<string> {
 export async function parseScheduleText(
   text: string,
   now: string,
-  calendarNames?: string[]
+  calendarNames?: string[],
 ): Promise<ParsedEvent | null> {
   const apiKey = await getApiKey();
 
-  const calendarContext = calendarNames && calendarNames.length > 0
-    ? `\n\n사용 가능한 캘린더 목록:\n${calendarNames.map((n) => `- ${n}`).join("\n")}\n` +
-      `calendarName은 사용자가 일정을 특정 캘린더에 넣으라고 **명시적으로 지시**한 경우에만 반환하세요. ` +
-      `보통 "○○ 캘린더에", "○○에 추가해줘"처럼 캘린더를 가리키는 표현이 있어야 합니다. ` +
-      `**일정 제목·내용에 들어간 단어(사람 이름 등)가 캘린더 이름과 우연히 일치하는 것은 캘린더 지정이 아닙니다** — ` +
-      `그 단어는 제목의 일부로 두고 calendarName은 비워두세요. 애매하면 비워두세요.`
-    : "";
+  const calendarContext =
+    calendarNames && calendarNames.length > 0
+      ? `\n\n사용 가능한 캘린더 목록:\n${calendarNames.map((n) => `- ${n}`).join("\n")}\n` +
+        `calendarName은 사용자가 일정을 특정 캘린더에 넣으라고 **명시적으로 지시**한 경우에만 반환하세요. ` +
+        `보통 "○○ 캘린더에", "○○에 추가해줘"처럼 캘린더를 가리키는 표현이 있어야 합니다. ` +
+        `**일정 제목·내용에 들어간 단어(사람 이름 등)가 캘린더 이름과 우연히 일치하는 것은 캘린더 지정이 아닙니다** — ` +
+        `그 단어는 제목의 일부로 두고 calendarName은 비워두세요. 애매하면 비워두세요.`
+      : "";
 
   const body = {
     model: DEFAULT_MODEL,
@@ -58,7 +62,8 @@ export async function parseScheduleText(
             isAllDay: { type: "boolean" },
             calendarName: {
               type: "string",
-              description: "사용자가 일정을 넣을 캘린더를 명시적으로 지시한 경우에만 반환(예: '회사 캘린더에'). 제목에 우연히 캘린더명과 같은 단어가 있어도 지정이 아니면 비워둘 것.",
+              description:
+                "사용자가 일정을 넣을 캘린더를 명시적으로 지시한 경우에만 반환(예: '회사 캘린더에'). 제목에 우연히 캘린더명과 같은 단어가 있어도 지정이 아니면 비워둘 것.",
             },
           },
           required: ["title", "startTime", "endTime", "isAllDay"],
@@ -75,9 +80,13 @@ export async function parseScheduleText(
     ],
   };
 
-  const result = await invoke<Record<string, unknown>>("call_claude", { apiKey, body });
+  const result = await invoke<Record<string, unknown>>("call_claude", {
+    apiKey,
+    body,
+  });
   throwIfClaudeError(result);
-  const content = result.content as Array<{ type: string; input?: unknown }> | undefined;
+  const content = result.content as
+    Array<{ type: string; input?: unknown }> | undefined;
   const toolUse = content?.find((c) => c.type === "tool_use");
   if (!toolUse?.input) return null;
   return toolUse.input as ParsedEvent;
@@ -93,8 +102,7 @@ function throwIfClaudeError(result: Record<string, unknown>): void {
 
 /** 자동완성에서 선택한 기존 일정에 대한 명령(삭제/수정) */
 export type EditCommand =
-  | { action: "delete" }
-  | { action: "update"; changes: ParsedEventChanges };
+  { action: "delete" } | { action: "update"; changes: ParsedEventChanges };
 
 export interface ParsedEventChanges {
   title?: string;
@@ -119,7 +127,7 @@ interface TargetEventContext {
 export async function parseEditCommand(
   text: string,
   now: string,
-  target: TargetEventContext
+  target: TargetEventContext,
 ): Promise<EditCommand | null> {
   const apiKey = await getApiKey();
 
@@ -137,7 +145,8 @@ export async function parseEditCommand(
     tools: [
       {
         name: "delete_schedule_event",
-        description: "사용자가 대상 일정을 삭제(취소/제거)하려 할 때 호출합니다.",
+        description:
+          "사용자가 대상 일정을 삭제(취소/제거)하려 할 때 호출합니다.",
         input_schema: { type: "object", properties: {} },
       },
       {
@@ -165,14 +174,21 @@ export async function parseEditCommand(
     ],
   };
 
-  const result = await invoke<Record<string, unknown>>("call_claude", { apiKey, body });
+  const result = await invoke<Record<string, unknown>>("call_claude", {
+    apiKey,
+    body,
+  });
   throwIfClaudeError(result);
-  const content = result.content as Array<{ type: string; name?: string; input?: unknown }> | undefined;
+  const content = result.content as
+    Array<{ type: string; name?: string; input?: unknown }> | undefined;
   const toolUse = content?.find((c) => c.type === "tool_use");
   if (!toolUse) return null;
   if (toolUse.name === "delete_schedule_event") return { action: "delete" };
   if (toolUse.name === "update_schedule_event") {
-    return { action: "update", changes: (toolUse.input ?? {}) as ParsedEventChanges };
+    return {
+      action: "update",
+      changes: (toolUse.input ?? {}) as ParsedEventChanges,
+    };
   }
   return null;
 }
@@ -182,12 +198,14 @@ export async function streamChat(
   messages: Array<{ role: string; content: string }>,
   onChunk: (text: string) => void,
   onDone: () => void,
-  systemOverride?: string
+  systemOverride?: string,
 ): Promise<() => void> {
   const apiKey = await getApiKey();
   const system = systemOverride ?? SYSTEM_PROMPT;
 
-  const unlistenChunk = await listen<string>("chat-chunk", (e) => onChunk(e.payload));
+  const unlistenChunk = await listen<string>("chat-chunk", (e) =>
+    onChunk(e.payload),
+  );
   const unlistenDone = await listen("chat-done", () => {
     onDone();
     unlistenChunk();

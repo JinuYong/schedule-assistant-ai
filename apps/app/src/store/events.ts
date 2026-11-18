@@ -1,7 +1,14 @@
 import { create } from "zustand";
-import { listUpcomingEvents, listEventsInRange, GCalEvent } from "@/lib/google-calendar";
+import {
+  listUpcomingEvents,
+  listEventsInRange,
+  GCalEvent,
+} from "@/lib/google-calendar";
 import { storeSet } from "@/lib/tauri-store";
-import { scheduleNotification, cancelNotificationsByPrefix } from "@/lib/notifications";
+import {
+  scheduleNotification,
+  cancelNotificationsByPrefix,
+} from "@/lib/notifications";
 import { MOCK_ENABLED, MOCK_EVENTS } from "@/lib/dev-mock";
 import { parseLocationLabel } from "@/lib/location";
 import { showToast } from "./toast";
@@ -76,9 +83,17 @@ interface EventsStore {
   events: CalendarEvent[];
   isLoading: boolean;
   error: string | null;
-  fetchEvents: (accessToken: string, timeMin?: string, timeMax?: string) => Promise<void>;
+  fetchEvents: (
+    accessToken: string,
+    timeMin?: string,
+    timeMax?: string,
+  ) => Promise<void>;
   syncEventNotifications: (accessToken: string) => Promise<void>;
-  prefetchEvents: (accessToken: string, timeMin: string, timeMax: string) => Promise<void>;
+  prefetchEvents: (
+    accessToken: string,
+    timeMin: string,
+    timeMax: string,
+  ) => Promise<void>;
   invalidateCache: () => void;
   setEvents: (events: CalendarEvent[]) => void;
 }
@@ -102,9 +117,15 @@ export const useEventsStore = create<EventsStore>((set) => ({
   syncEventNotifications: async (accessToken) => {
     if (MOCK_ENABLED) return;
     const now = new Date();
-    const until = new Date(now.getTime() + NOTIFY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const until = new Date(
+      now.getTime() + NOTIFY_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
     try {
-      const raw = await listEventsInRange(accessToken, now.toISOString(), until.toISOString());
+      const raw = await listEventsInRange(
+        accessToken,
+        now.toISOString(),
+        until.toISOString(),
+      );
       await scheduleEventNotifications(raw.map(mapGCalEvent));
     } catch {
       // 알림 동기화 실패는 화면에 영향을 주지 않으므로 조용히 넘어간다
@@ -135,7 +156,8 @@ export const useEventsStore = create<EventsStore>((set) => ({
       set({ events: mapped });
       await storeSet("events.cache", mapped);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "일정 조회에 실패했습니다.";
+      const msg =
+        err instanceof Error ? err.message : "일정 조회에 실패했습니다.";
       set({ error: msg });
       showToast(msg);
     } finally {

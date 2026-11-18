@@ -9,7 +9,9 @@ interface ChatStore {
   messages: ChatMessage[];
   input: string;
   /** useState와 동일하게 값 또는 updater 모두 허용 */
-  setMessages: (m: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
+  setMessages: (
+    m: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[]),
+  ) => void;
   setInput: (v: string) => void;
   clear: () => void;
 }

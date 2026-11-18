@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isoDate, graphDateTimeToMs, formatTime, formatDue } from "./date-utils";
+import {
+  isoDate,
+  graphDateTimeToMs,
+  formatTime,
+  formatDue,
+} from "./date-utils";
 
 describe("isoDate", () => {
   it("month는 0-based를 1-based로 변환하고 2자리로 패딩한다", () => {
@@ -11,15 +16,21 @@ describe("isoDate", () => {
 
 describe("graphDateTimeToMs", () => {
   it("오프셋 없는 값은 UTC로 간주한다 (Graph 기본 동작)", () => {
-    expect(graphDateTimeToMs("2026-06-15T03:20:00")).toBe(Date.UTC(2026, 5, 15, 3, 20, 0));
+    expect(graphDateTimeToMs("2026-06-15T03:20:00")).toBe(
+      Date.UTC(2026, 5, 15, 3, 20, 0),
+    );
   });
 
   it("분수초(.0000000)는 제거하고 파싱한다", () => {
-    expect(graphDateTimeToMs("2026-06-15T03:20:00.0000000")).toBe(Date.UTC(2026, 5, 15, 3, 20, 0));
+    expect(graphDateTimeToMs("2026-06-15T03:20:00.0000000")).toBe(
+      Date.UTC(2026, 5, 15, 3, 20, 0),
+    );
   });
 
   it("명시적 Z는 그대로 UTC로 파싱한다", () => {
-    expect(graphDateTimeToMs("2026-06-15T03:20:00Z")).toBe(Date.UTC(2026, 5, 15, 3, 20, 0));
+    expect(graphDateTimeToMs("2026-06-15T03:20:00Z")).toBe(
+      Date.UTC(2026, 5, 15, 3, 20, 0),
+    );
   });
 });
 

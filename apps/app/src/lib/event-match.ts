@@ -36,7 +36,8 @@ export function getEventDateKeys(ev: CalendarEvent): string[] {
 
   const keys: string[] = [];
   let cur = startKey;
-  for (let i = 0; i < 366 && cur <= endKey; i++) { // 366: 무한 루프 방지 상한
+  for (let i = 0; i < 366 && cur <= endKey; i++) {
+    // 366: 무한 루프 방지 상한
     keys.push(cur);
     cur = addDayKey(cur, 1);
   }
@@ -48,7 +49,11 @@ export function eventShortLabel(ev: CalendarEvent): string {
   const d = new Date(ev.startTime);
   const md = `${d.getMonth() + 1}/${d.getDate()}`;
   if (ev.isAllDay) return `${md} 종일`;
-  const t = d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const t = d.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
   return `${md} ${t}`;
 }
 
@@ -93,12 +98,18 @@ export function parseDateHint(query: string, now = new Date()): string | null {
       let mo = now.getMonth(); // 0-based
       if (da < now.getDate()) {
         mo += 1;
-        if (mo > 11) { mo = 0; y += 1; }
+        if (mo > 11) {
+          mo = 0;
+          y += 1;
+        }
       }
       // 해당 월에 그 날짜가 없으면(예: 6월 31일) 다음 달로
       if (new Date(y, mo, da).getDate() !== da) {
         mo += 1;
-        if (mo > 11) { mo = 0; y += 1; }
+        if (mo > 11) {
+          mo = 0;
+          y += 1;
+        }
         if (new Date(y, mo, da).getDate() !== da) return null;
       }
       return isoDate(y, mo, da);
@@ -117,7 +128,7 @@ export function matchEventsByText(
   query: string,
   events: CalendarEvent[],
   limit = 6,
-  now = new Date()
+  now = new Date(),
 ): CalendarEvent[] {
   const q = query.trim().toLowerCase();
   if (q.length < 2) return [];
@@ -138,7 +149,11 @@ export function matchEventsByText(
     return events
       .filter((ev) => getEventDateKeys(ev).includes(dateHint)) // 멀티데이 일정은 걸친 날짜 어디로도 매칭
 
-      .sort((a, b) => titleScore(b.title.toLowerCase()) - titleScore(a.title.toLowerCase()) || byTime(a, b))
+      .sort(
+        (a, b) =>
+          titleScore(b.title.toLowerCase()) -
+            titleScore(a.title.toLowerCase()) || byTime(a, b),
+      )
       .slice(0, limit);
   }
 
@@ -153,16 +168,26 @@ export function matchEventsByText(
 
 /** 이모지 제거 후 공백 정리 */
 function stripEmoji(s: string): string {
-  return s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}⭐★☆♥♦♣♠]/gu, "").trim();
+  return s
+    .replace(
+      /[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}⭐★☆♥♦♣♠]/gu,
+      "",
+    )
+    .trim();
 }
 
 /** AI가 반환한 calendarName을 실제 캘린더 목록에서 매칭 */
-export function matchCalendar(name: string, calendars: CalendarListItem[]): CalendarListItem | undefined {
+export function matchCalendar(
+  name: string,
+  calendars: CalendarListItem[],
+): CalendarListItem | undefined {
   if (!name) return undefined;
   // 1) 완전 일치
   const exact = calendars.find((c) => c.summary === name);
   if (exact) return exact;
   // 2) 이모지 제거 후 일치
   const stripped = stripEmoji(name);
-  return calendars.find((c) => stripEmoji(c.summary) === stripped || c.summary.includes(stripped));
+  return calendars.find(
+    (c) => stripEmoji(c.summary) === stripped || c.summary.includes(stripped),
+  );
 }
