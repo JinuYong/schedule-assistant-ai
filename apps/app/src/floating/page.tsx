@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { isTauri, storeGet } from "@/lib/tauri-store";
 import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { hideFloatingWindow, showMainWindow } from "@/lib/floating-window";
+import { hideFloatingWindow, openMainWindow } from "@/lib/floating-window";
 import { registerHotkey, unregisterHotkey } from "@/lib/hotkey";
 import {
   getCalendarList,
@@ -19,6 +19,8 @@ import { eventShortLabel } from "@/lib/event-match";
 import styles from "./page.module.css";
 
 const BASE_HEIGHT = 64;
+/** 입력창 아래 로그인 안내 한 줄 높이(.notice) */
+const NOTICE_HEIGHT = 44;
 
 export default function FloatingPage() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -26,6 +28,8 @@ export default function FloatingPage() {
   const loadFromStore = useAuthStore((s) => s.loadFromStore);
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  // 로그인 없이 실행하려 했을 때 입력창 아래에 안내를 띄운다. 이 상태에서 Enter → 로그인 화면
+  const [needsSignIn, setNeedsSignIn] = useState(false);
   const [calendars, setCalendars] = useState<CalendarListItem[]>([]);
   const primaryCalendarId = calendars.find((c) => c.primary)?.id ?? "primary";
   const [defaultCalendarId, reloadDefaultCal] = useDefaultCalendarId(
@@ -85,11 +89,15 @@ export default function FloatingPage() {
     }
   }, [refreshGoogle, loadFromStore, reloadDefaultCal]);
 
-  // 후보 드롭다운 노출 시 창 높이 확장, 닫히면 원복 (Rust setFrame 경유)
+  const dropdownVisible = showDropdown && !needsSignIn;
+
+  // 후보 드롭다운·로그인 안내 노출 시 창 높이 확장, 닫히면 원복 (Rust setFrame 경유)
   useEffect(() => {
     if (!isTauri()) return;
     let height = BASE_HEIGHT;
-    if (showDropdown) {
+    if (needsSignIn) {
+      height = 6 + 52 + 6 + NOTICE_HEIGHT + 6;
+    } else if (showDropdown) {
       if (matches.length > 0) {
         const n = Math.min(matches.length, 5);
         height = 6 + 52 + 6 + (28 + n * 37) + 6;
@@ -98,7 +106,7 @@ export default function FloatingPage() {
       }
     }
     invoke("set_floating_height", { height }).catch(() => {});
-  }, [showDropdown, matches.length]);
+  }, [showDropdown, matches.length, needsSignIn]);
 
   // window.focus 이벤트: document가 이미 focused 상태이므로 딜레이 없이 바로 input.focus()
   useEffect(() => {
@@ -138,6 +146,7 @@ export default function FloatingPage() {
       unlistenShown = await listen("floating-shown", () => {
         registerEsc();
         reset(); // 입력/선택 초기화
+        setNeedsSignIn(false);
         loadMatchData(); // 자동완성 데이터 갱신
       });
       unlisten = await listen("floating-should-hide", async () => {
@@ -153,19 +162,24 @@ export default function FloatingPage() {
     };
   }, [reset, loadMatchData]);
 
-  // 창은 로그인 없이도 열리지만 실행은 Cali 계정이 있어야 한다 → 없으면 메인 창(로그인 화면)으로 보낸다.
+  // 창은 로그인 없이도 열리지만 실행은 Cali 계정이 있어야 한다 → 없으면 입력창 아래에 안내,
+  // 한 번 더 Enter(또는 버튼)면 메인 창(로그인 화면)으로. 바로 넘기면 창이 갑자기 사라져 보인다.
   // 로그인·로그아웃은 메인 창에서 일어나므로 실행할 때마다 저장소에서 다시 읽는다
   const handleSubmit = useCallback(
     async (e: { preventDefault(): void }) => {
       e.preventDefault();
+      if (needsSignIn) {
+        setNeedsSignIn(false);
+        await openMainWindow();
+        return;
+      }
       if (isTauri() && !MOCK_ENABLED && !(await readStoredSession())) {
-        await hideFloatingWindow();
-        await showMainWindow();
+        setNeedsSignIn(true);
         return;
       }
       void submit();
     },
-    [submit],
+    [submit, needsSignIn],
   );
 
   return (
@@ -195,7 +209,10 @@ export default function FloatingPage() {
             ref={inputRef}
             className={styles.input}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              setNeedsSignIn(false);
+            }}
             onKeyDown={handleKeyDown}
             placeholder={
               lockedTarget
@@ -219,7 +236,26 @@ export default function FloatingPage() {
         </form>
       </div>
 
-      {showDropdown && (
+      {needsSignIn && (
+        <div className={styles.notice} role="alert">
+          <span className={styles.noticeText}>
+            로그인해야 일정을 추가할 수 있어요
+          </span>
+          <button
+            type="button"
+            className={styles.noticeButton}
+            onMouseDown={(e) => e.preventDefault()} // 입력창 포커스 유지
+            onClick={() => {
+              setNeedsSignIn(false);
+              void openMainWindow();
+            }}
+          >
+            로그인 <kbd className={styles.kbd}>↵</kbd>
+          </button>
+        </div>
+      )}
+
+      {dropdownVisible && (
         <ul className={styles.dropdown}>
           {loading && matches.length === 0 ? (
             [0, 1].map((i) => (

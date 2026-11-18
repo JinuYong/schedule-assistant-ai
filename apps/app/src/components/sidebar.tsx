@@ -3,11 +3,11 @@ import { Link } from "@tanstack/react-router";
 import SidebarAccount from "./sidebar-account";
 import styles from "./sidebar.module.css";
 
+// 설정은 아래 계정 메뉴(⋯)에서 연다
 const NAV_ITEMS = [
   { href: "/schedule", label: "일정", icon: "📅" },
   { href: "/todo", label: "할일", icon: "✅" },
   { href: "/chat", label: "AI 브리핑", icon: "💬" },
-  { href: "/settings", label: "설정", icon: "⚙️" },
 ] as const;
 
 const ICON_ONLY_THRESHOLD = 130;

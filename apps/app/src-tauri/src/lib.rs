@@ -27,6 +27,7 @@ pub fn run() {
             claude::stream_chat,
             floating_macos::show_floating,
             floating_macos::hide_floating,
+            floating_macos::open_main_window,
             floating_macos::set_floating_height,
             floating_macos::set_global_shortcut,
             notification::send_os_notification,

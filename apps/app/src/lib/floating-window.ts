@@ -22,13 +22,14 @@ export async function hideFloatingWindow(restore = false): Promise<void> {
   await win.hide();
 }
 
-/** 메인 창을 앞으로(숨김·최소화돼 있어도). 플로팅 창에서 로그인이 필요할 때 로그인 화면으로 보낸다 */
-export async function showMainWindow(): Promise<void> {
+/**
+ * 플로팅 창을 닫고 메인 창을 앞으로(숨김·최소화돼 있어도). 로그인이 필요할 때 로그인 화면으로 보낸다.
+ * 숨기기와 띄우기를 Rust에서 한 번에 한다 — 플로팅 창을 먼저 숨기면 그 창의 JS가 멈춰 다음 호출이 안 나갈 수 있다.
+ */
+export async function openMainWindow(): Promise<void> {
   if (!isTauri()) return;
-  const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-  const main = await WebviewWindow.getByLabel("main");
-  if (!main) return;
-  await main.unminimize().catch(() => {});
-  await main.show();
-  await main.setFocus();
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("open_main_window").catch((e) =>
+    console.error("[floating-window] open_main_window 실패:", e),
+  );
 }

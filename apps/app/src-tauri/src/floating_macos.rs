@@ -251,6 +251,20 @@ pub fn hide_floating(app: tauri::AppHandle, restore: bool) -> Result<(), String>
     Ok(())
 }
 
+/// 플로팅 창을 닫고 메인 창을 앞으로(숨김·최소화돼 있어도). 로그인이 필요할 때 로그인 화면으로 보낸다.
+/// JS에서 hide → show 를 따로 부르면 숨겨진 플로팅 WebView의 JS가 멈춰 show 가 안 불릴 수 있어 한 번에 처리한다.
+#[tauri::command]
+pub fn open_main_window(app: tauri::AppHandle) -> Result<(), String> {
+    let main = app
+        .get_webview_window("main")
+        .ok_or("main window not found")?;
+    hide_floating(app.clone(), false)?;
+    let _ = main.unminimize();
+    main.show().map_err(|e| e.to_string())?;
+    main.set_focus().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// 플로팅 창 높이 동적 변경 (자동완성 드롭다운 노출/숨김 시)
 /// Tauri set_size 가 커스텀 NSPanel 에서 무시될 수 있어 직접 setFrame: 호출.
 /// macOS 좌표계는 좌하단 기준이므로 상단(top)을 고정한 채 아래로 늘린다.
