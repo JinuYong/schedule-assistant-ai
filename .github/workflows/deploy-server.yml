@@ -1,0 +1,115 @@
+# 서버(apps/server)가 바뀐 main push를 개인 OCI 서버(~/cali)에 배포한다. 수동 실행도 된다.
+# 앱 릴리스(release.yml)와는 따로 돈다 — 한 push가 둘 다 건드리면 둘 다 돈다.
+#
+# 서버에서 빌드하는 이유: 서버가 ARM(aarch64)이라 x86 러너에서 arm64 이미지를 만들면 에뮬레이션으로 느리다.
+# 코드는 rsync로 보낸다. 서버에 GitHub 인증을 두지 않아도 되고, .env는 서버에만 있어
+# 비밀값이 Actions를 거치지 않는다. (같은 서버의 red-shoes와 같은 방식)
+name: deploy-server
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/server/**"
+      - "packages/shared/**"
+      - "compose.yaml"
+      - ".dockerignore"
+      - "bun.lock"
+      - ".github/workflows/deploy-server.yml"
+  workflow_dispatch:
+
+# 배포가 겹치면 같은 폴더에 rsync가 동시에 쓴다. 앞선 것을 끝까지 두고 기다린다.
+concurrency:
+  group: deploy-server
+  cancel-in-progress: false
+
+env:
+  REMOTE_DIR: /home/ubuntu/cali
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.6
+
+      - name: 의존성 설치
+        run: bun install --frozen-lockfile
+
+      # 검사가 깨지면 서버에 손대지 않는다
+      - name: 검증 (typecheck / lint / test)
+        run: |
+          bun run --cwd packages/shared typecheck
+          bun run --cwd apps/server typecheck
+          bun run --cwd apps/server lint
+          bun run --cwd apps/server test
+
+      - name: SSH 키 준비
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # --delete여도 제외한 것(.env)은 서버에서 지우지 않는다. 앱 코드는 이미지에 안 들어가지만
+      # lockfile 검사에 apps/app/package.json이 필요해 저장소를 통째로 보내고 큰 폴더만 뺀다
+      - name: 코드 전송
+        run: |
+          rsync -az --delete \
+            --exclude '/.git/' \
+            --exclude '/.github/' \
+            --exclude '/.claude/' \
+            --exclude 'node_modules/' \
+            --exclude '/apps/app/src-tauri/' \
+            --exclude '/apps/app/out/' \
+            --exclude '.env*' \
+            -e "ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes" \
+            ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${REMOTE_DIR}/"
+
+      # 지금 돌고 있는 이미지를 cali-api:prev로 남겨 둔다. 새 서버가 기동 확인에 실패하면 이것으로 되돌린다.
+      # 빌드가 실패하면 compose가 컨테이너를 바꾸기 전에 멈추므로 예전 서버가 그대로 돈다
+      - name: 빌드 및 기동
+        run: |
+          ssh -i ~/.ssh/deploy "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "cd ${REMOTE_DIR} && { docker image inspect cali-api:local >/dev/null 2>&1 && docker tag cali-api:local cali-api:prev || true; } && docker compose up -d --build --remove-orphans"
+
+      # Caddy를 거치지 않고 컨테이너 안에서 묻는다(프록시·DNS 문제와 서버 기동 실패를 구분).
+      # /health는 DB까지 본다. 서버는 마이그레이션을 먼저 적용하고 뜬다 — 되돌려도 스키마는 그대로라
+      # 예전 코드가 새 스키마와 맞는지는 따로 봐야 한다
+      - name: 기동 확인
+        run: |
+          ssh -i ~/.ssh/deploy "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" bash -s <<'EOSSH'
+          cd /home/ubuntu/cali
+          rollback() {
+            echo "✗ $1"
+            docker compose ps
+            docker compose logs --tail 60 api
+            if docker image inspect cali-api:prev >/dev/null 2>&1; then
+              echo "↩ 직전 이미지로 되돌립니다"
+              docker tag cali-api:prev cali-api:local
+              docker compose up -d --no-build
+            fi
+            exit 1
+          }
+          for i in $(seq 1 30); do
+            if docker compose exec -T api bun -e \
+              'fetch("http://127.0.0.1:8787/health").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'; then
+              echo "✓ api 응답 정상"
+              exit 0
+            fi
+            sleep 2
+          done
+          rollback "api가 60초 안에 응답하지 않았습니다"
+          EOSSH
+
+      # 빌드 캐시가 쌓이지 않게 일주일 지난 것을 치운다(같은 서버의 다른 앱 것도 함께 — red-shoes와 같은 기준)
+      - name: 오래된 이미지·빌드 캐시 정리
+        if: success()
+        run: |
+          ssh -i ~/.ssh/deploy "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            'docker image prune -f --filter "until=168h" && docker builder prune -f --filter "until=168h"'

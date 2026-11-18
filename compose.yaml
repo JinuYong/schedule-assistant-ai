@@ -1,0 +1,46 @@
+# Cali API 서버 운영 구성. DB와 HTTPS 프록시는 이 파일에 없다.
+# - 운영: 개인 OCI 서버 ~/cali (README "서버 배포"). 값은 같은 폴더 .env(서버에만 있음)에서 받는다.
+#   DB는 같은 VCN의 MySQL HeatWave(사설 IP), HTTPS는 서버 공용 Caddy(~/proxy, sites/cali-api.caddy)가
+#   네트워크 web으로 cali-api:8787에 붙는다. 포트는 서버 밖으로 열지 않는다.
+# - 로컬 확인: DATABASE_URL=mysql://cali:…@host.docker.internal:3306/cali GOOGLE_CLIENT_IDS=… docker compose up --build
+#   (네트워크는 처음 한 번 docker network create web)
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    image: cali-api:local
+    container_name: cali-api
+    restart: unless-stopped
+    # 로그가 서버 디스크를 채우지 않게 10MB짜리 3개까지만 남긴다
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL을 설정하세요}
+      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:?GOOGLE_CLIENT_IDS를 설정하세요}
+      CORS_ORIGINS: ${CORS_ORIGINS:-tauri://localhost,http://tauri.localhost,https://tauri.localhost}
+      PORT: "8787"
+    # 이 기계에서만 열린다(로컬 확인용). 서버에서는 Caddy가 네트워크 web으로 들어온다
+    ports:
+      - "127.0.0.1:${API_PORT:-8787}:8787"
+    networks:
+      - web
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  # 서버 공용 Caddy(~/proxy/compose.yaml)가 만든 네트워크
+  web:
+    external: true

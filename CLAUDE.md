@@ -9,14 +9,38 @@ Google Calendar / Microsoft Todo와 연동한다.
 
 ```
 apps/app/          Tauri 앱 (src, src-tauri, scripts, index.html, vite.config.ts, .env.local …)
-apps/server/       API 서버 (Hono + Bun, https://cali-api.jinu.io) — 2단계에서 추가
-packages/shared/   앱·서버 공용 타입 — 2단계에서 추가
+apps/server/       API 서버 (Hono + Bun + Drizzle/MySQL, https://cali-api.jinu.io)
+packages/shared/   앱·서버 공용 요청·응답 형식 (zod)
 ```
 
-- **이 문서의 `src/`·`src-tauri/`·`scripts/`·`.env.local`·`out/` 경로는 모두 `apps/app/` 기준이다.**
-- `bun install`은 루트에서 한 번(lockfile도 루트 `bun.lock` 하나). 루트 스크립트 `dev`·`dev:web`·`dev:tauri`·`build`는 앱으로 넘기고, `typecheck`·`lint`·`test`는 모든 패키지에서 돈다.
-- 패키지 이름은 `@cali/app`·`@cali/server`·`@cali/shared`.
+- **이 문서의 `src/`·`src-tauri/`·`scripts/`·`.env.local`·`out/` 경로는 모두 `apps/app/` 기준이다** (서버 절은 `apps/server/` 기준).
+- `bun install`은 루트에서 한 번(lockfile도 루트 `bun.lock` 하나, Bun isolated 설치라 패키지는 각 폴더 `node_modules`에 링크). 루트 스크립트 `dev`·`dev:web`·`dev:tauri`·`build`·`dev:server`는 해당 앱으로 넘기고, `typecheck`·`lint`·`test`는 모든 패키지에서 돈다.
+- 패키지 이름은 `@cali/app`·`@cali/server`·`@cali/shared`. 앱은 서버 코드 타입(Hono RPC)을 가져오지 않는다 — 앱 타입 검사가 서버 쪽(Bun·Drizzle) 타입까지 끌어오지 않게 형식은 `@cali/shared`에만 둔다.
 - Rust `target/`에는 절대 경로가 박혀 있어 폴더를 옮기면 `cargo clean`이 필요하다(`failed to read plugin permissions …` 오류).
+
+## 서버 (apps/server)
+
+```bash
+bun run dev:server                          # 로컬 서버 http://localhost:8787 (apps/server/.env.local을 Bun이 읽음)
+bun run --cwd apps/server db:generate       # schema.ts 바꾼 뒤 → drizzle/에 마이그레이션 SQL
+bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서버는 뜰 때 자동 적용)
+```
+
+- 구조: `src/app.ts`(라우트 조립, 의존성 주입) · `src/index.ts`(진입: DB 연결 → 마이그레이션 → 서빙) · `src/env.ts`(zod) · `src/db/`(schema·연결·migrate) · `src/auth/`
+- 환경 변수: `DATABASE_URL`(mysql://…), `GOOGLE_CLIENT_IDS`(id_token `aud`로 받을 OAuth 클라이언트 ID, 쉼표로 여럿 — 앱 `VITE_GOOGLE_CLIENT_ID`와 같은 값, 안드로이드 추가 시 덧붙임), `PORT`(8787), `CORS_ORIGINS`(기본: Tauri 창 출처 + 개발 `http://localhost:3100`)
+- **로그인**: 앱이 Google OAuth(scope `openid email profile` + 캘린더)로 받은 `id_token`을 `POST /auth/google`로 보내면 서버가 Google 공개키로 검증(`auth/google.ts`: 발급자·aud·만료·`email_verified`)하고 사용자를 만들거나 갱신(Google `sub` 기준)한 뒤 세션 토큰을 준다. 이후 요청은 `Authorization: Bearer`. DB엔 토큰의 SHA-256만, 90일 안 쓰면 만료(쓰면 하루 단위로 연장). 가입은 Google 계정이면 누구나.
+- 인증 저장은 `AuthStore` 인터페이스(`auth/store.ts` DB, `auth/memory-store.ts` 테스트) — 라우트 테스트는 DB 없이 돈다. 테스트는 `bun test`.
+- 시각은 `datetime(3)` UTC, 값은 앱에서 넣는다(`$defaultFn`, mysql2 `timezone: "Z"`). ID는 `bigint unsigned` 자동 증가(`serial`은 UNIQUE 인덱스를 하나 더 만들어 안 씀).
+- 마이그레이션은 **서버가 뜰 때 자동 적용**(push = 배포 = 스키마 반영). MySQL DDL은 되돌릴 수 없으니 칸 삭제·이름 변경은 그 칸을 안 쓰는 코드를 먼저 배포한 뒤 다음 배포에서.
+- 앱 쪽: 서버 호출은 `src/lib/api.ts` 한 곳(`VITE_API_URL`, 없으면 개발 `http://localhost:8787`·배포 `https://cali-api.jinu.io`), 세션은 `src/store/account.ts`(tauri-store `server.session`). Google 연결 = Cali 계정이라 연결 해제하면 서버에서도 로그아웃.
+
+### 서버 배포
+
+개인 OCI 서버(ARM, `ssh oci`, red-shoes·make-post-together와 같은 서버)의 `~/cali`에서 Docker Compose(루트 `compose.yaml`, 이미지 `apps/server/Dockerfile`)로 돈다. HTTPS는 서버 공용 Caddy(`~/proxy/sites/cali-api.caddy` → `cali-api:8787`, 네트워크 `web`), DNS는 Cloudflare `cali-api.jinu.io` A 레코드(DNS만). DB는 같은 VCN의 MySQL HeatWave에 DB `cali` + 전용 계정 `cali`.
+
+- **자동 배포**: `apps/server/**`·`packages/shared/**`·`compose.yaml`·`bun.lock` 등이 바뀐 main push면 `.github/workflows/deploy-server.yml`이 검사 → rsync → 서버에서 `docker compose up -d --build` → 컨테이너 안에서 `/health` 확인, 실패하면 `cali-api:prev`로 되돌린다. 앱 릴리스(`release.yml`)와 따로 돈다. 저장소 secrets `SSH_KEY`·`SSH_HOST`·`SSH_USER`.
+- 비밀값은 서버 `~/cali/.env`에만(`DATABASE_URL`, `GOOGLE_CLIENT_IDS`). rsync가 `.env*`를 빼고 보낸다.
+- **앱이 운영 서버를 부르므로, 서버가 먼저 떠 있어야 한다.** 서버 없이 앱을 릴리스하면 캘린더는 되지만 설정에 "Cali 서버에 로그인하지 못했습니다"가 뜬다.
 
 ---
 
@@ -244,6 +268,7 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 | `google.clientId` | Google OAuth Client ID |
 | `google.clientSecret` | Google OAuth Client Secret |
 | `google.tokens` | Google 액세스/리프레시 토큰 |
+| `server.session` | Cali 서버 세션 `{ token, user }` (`store/account.ts`) |
 | `google.defaultCalendarId` | 기본 캘린더 ID (모달 기본 선택·자연어 추가 폴백, 없으면 primary) |
 | `microsoft.clientId` | Microsoft OAuth Client ID |
 | `microsoft.clientSecret` | Microsoft OAuth Client Secret |

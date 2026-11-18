@@ -1,0 +1,10 @@
+# 서버 이미지(apps/server/Dockerfile)의 빌드 컨텍스트는 저장소 루트다. 필요한 건 package.json·bun.lock·apps/server·packages/shared뿐
+.git
+.github
+.claude
+docs
+**/node_modules
+**/.env*
+apps/app/*
+!apps/app/package.json
+*.md
