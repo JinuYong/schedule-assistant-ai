@@ -12,6 +12,8 @@ const DEFAULT_CORS_ORIGINS = "tauri://localhost,http://tauri.localhost,https://t
 
 const schema = z.object({
   DATABASE_URL: z.string().startsWith("mysql://", "mysql://계정:비밀번호@호스트:포트/DB 형식이어야 합니다"),
+  /** id_token의 aud로 받을 Google OAuth 클라이언트 ID들(쉼표로 구분). 앱의 VITE_GOOGLE_CLIENT_ID와 같은 값 */
+  GOOGLE_CLIENT_IDS: z.string().min(1).transform(list),
   PORT: z.coerce.number().int().positive().default(8787),
   CORS_ORIGINS: z.string().default(DEFAULT_CORS_ORIGINS).transform(list),
 });

@@ -1,11 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { createApp } from "./app";
+import { createApp, type AppDeps } from "./app";
+import { createMemoryAuthStore } from "./auth/memory-store";
 
 const ORIGINS = ["tauri://localhost", "http://localhost:3100"];
+const auth: AppDeps["auth"] = {
+  store: createMemoryAuthStore(),
+  verifyGoogle: async () => {
+    throw new Error("이 테스트에서는 부르지 않는다");
+  },
+};
 
 describe("/health", () => {
   test("DB에 닿으면 200", async () => {
-    const app = createApp({ corsOrigins: ORIGINS, checkDb: async () => {} });
+    const app = createApp({ corsOrigins: ORIGINS, checkDb: async () => {}, auth });
     const res = await app.request("/health");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
@@ -17,6 +24,7 @@ describe("/health", () => {
       checkDb: async () => {
         throw new Error("down");
       },
+      auth,
     });
     const res = await app.request("/health");
     expect(res.status).toBe(503);
@@ -25,7 +33,7 @@ describe("/health", () => {
 });
 
 describe("CORS", () => {
-  const app = createApp({ corsOrigins: ORIGINS, checkDb: async () => {} });
+  const app = createApp({ corsOrigins: ORIGINS, checkDb: async () => {}, auth });
 
   test("Tauri 창 출처는 허용", async () => {
     const res = await app.request("/health", { headers: { Origin: "tauri://localhost" } });
