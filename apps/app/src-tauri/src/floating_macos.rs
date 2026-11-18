@@ -16,6 +16,11 @@ static FLOATING_FOCUSED_AT: std::sync::atomic::AtomicU64 =
 static FLOATING_SHOWN_AT: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
 
+/// 이번 표시에서 키 윈도우를 이미 다시 요청했는지 (show_floating 마다 초기화).
+/// 표시 직후 이전 앱이 키를 도로 가져가면 한 번만 되찾는다 — 계속 되찾으면 그 앱과 서로 뺏는다
+static FLOATING_REKEYED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 /// 창 표시 직전 frontmost 앱 포인터 (NSRunningApplication*, retained)
 /// ESC 닫기 시 해당 앱으로 포커스 복원 → Space 전환 방지
 static PREV_APP: std::sync::atomic::AtomicUsize =
@@ -154,6 +159,7 @@ pub fn show_floating(_app: tauri::AppHandle) -> Result<(), String> {
 
         // show_floating() 호출 시각 기록 → Space 폴링 스레드의 즉시-숨김 방지
         FLOATING_SHOWN_AT.store(now_ms(), std::sync::atomic::Ordering::Relaxed);
+        FLOATING_REKEYED.store(false, std::sync::atomic::Ordering::Relaxed);
 
         // behavior/level 재설정 + 창 표시 (set_position 이후 플래그 덮어씌워지지 않도록)
         unsafe {
@@ -459,6 +465,28 @@ pub fn on_floating_focused(app: &tauri::AppHandle) {
     }
 }
 
+/// 플로팅 창을 다시 키 윈도우로 (메인 스레드에서 부를 것). 보이는 상태일 때만
+fn make_floating_key(app: &tauri::AppHandle) {
+    let Some(win) = app.get_webview_window("floating") else { return };
+    if !win.is_visible().unwrap_or(false) {
+        return;
+    }
+    #[cfg(target_os = "macos")]
+    if let Ok(ns_win) = win.ns_window() {
+        unsafe {
+            let raw = objc_msgSend
+                as unsafe extern "C" fn(*const c_void, *const c_void, ...) -> *const c_void;
+            type FnMKOF = unsafe extern "C" fn(*const c_void, *const c_void, *const c_void);
+            let f_mkof: FnMKOF = std::mem::transmute(raw);
+            f_mkof(
+                ns_win as *const c_void,
+                sel_registerName(b"makeKeyAndOrderFront:\0".as_ptr()),
+                std::ptr::null(),
+            );
+        }
+    }
+}
+
 /// floating 창 Focused(false) 이벤트 처리.
 /// spurious 포커스 변화(Calendar 등)와 초기 안정화 구간을 필터링한 뒤
 /// 프론트엔드에 "floating-should-hide" emit
@@ -469,8 +497,13 @@ pub fn on_floating_unfocused(app: &tauri::AppHandle) {
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(10));
         let now = now_ms();
-        // 포커스 획득 후 300ms 이내 → Calendar 등 spurious 반응 → 무시
+        // 포커스 획득 후 300ms 이내 → 숨기지 않는다. 직전 앱(Finder·Calendar 등)이 키를 도로 가져간
+        // 것(비활성화 패널이라 생긴다)이므로 키 윈도우를 한 번 더 요청한다 — 안 하면 입력란을 클릭해야 입력된다
         if focused_at > 0 && now.saturating_sub(focused_at) < 300 {
+            if !FLOATING_REKEYED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                let h = handle.clone();
+                let _ = handle.run_on_main_thread(move || make_floating_key(&h));
+            }
             return;
         }
         // 창 표시 후 200ms 이내 → 초기 포커스 안정화 → 무시

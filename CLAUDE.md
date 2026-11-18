@@ -348,6 +348,8 @@ NSTextField native overlay는 WKWebView가 이벤트를 가로채서 불가. HTM
 
 `Focused(true)` Tauri 이벤트 = 창이 실제 key window가 된 시점 → 이때 `eval("input.focus()")` 호출이 가장 신뢰할 수 있는 방법.
 
+표시 직후(포커스 후 300ms 안) 직전 앱(Finder 등)이 key를 도로 가져가 `Focused(false)`가 온다(비활성화 패널이라 앱이 활성화되지 않음). 이때 입력란 포커스는 남아 있어도 창이 key가 아니라 타이핑이 안 된다 → `on_floating_unfocused`가 숨기지 않고 `makeKeyAndOrderFront:`를 **한 번만** 다시 부른다(`FLOATING_REKEYED`, 계속 부르면 그 앱과 key를 서로 뺏음).
+
 ---
 
 ## 코딩 컨벤션
