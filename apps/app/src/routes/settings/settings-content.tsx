@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/auth";
+import { useAccountStore } from "@/store/account";
 import { useThemeStore, THEME_COLORS } from "@/store/theme";
 import { storeGet, storeSet, isTauri } from "@/lib/tauri-store";
 import { startGoogleOAuth, startMicrosoftOAuth } from "@/lib/oauth";
@@ -38,7 +39,21 @@ export default function SettingsContent() {
     }
   };
 
-  const google = useOAuthConnection(startGoogleOAuth, setGoogleTokens);
+  const account = useAccountStore();
+  const { signInWithGoogle, refreshMe } = account;
+  const google = useOAuthConnection(startGoogleOAuth, setGoogleTokens, (tokens) => {
+    void signInWithGoogle(tokens.id_token);
+  });
+
+  // 설정을 열 때 서버 세션이 살아 있는지 확인(만료면 다시 로그인 안내가 뜬다)
+  useEffect(() => {
+    void refreshMe();
+  }, [refreshMe]);
+
+  const disconnectGoogle = () => {
+    setGoogleTokens(null);
+    void account.signOut();
+  };
   const microsoft = useOAuthConnection(startMicrosoftOAuth, setMicrosoftTokens);
 
   useEffect(() => {
@@ -177,9 +192,18 @@ export default function SettingsContent() {
           {googleTokens && <span className={styles.badge}>연결됨</span>}
         </div>
         <p className={styles.description}>
-          Google 계정으로 로그인하여 일정을 동기화합니다.
+          Google 계정으로 로그인하여 일정을 동기화합니다. 이 계정이 Cali 계정이 됩니다.
         </p>
         {google.error && <p className={styles.errorText}>{google.error}</p>}
+        {googleTokens && account.session && (
+          <p className={styles.hint}>Cali 계정: {account.session.user.email}</p>
+        )}
+        {googleTokens && !account.session && account.status !== "signing-in" && (
+          <p className={styles.errorText}>
+            {account.error || "Cali 계정에 로그인되어 있지 않습니다. 연결을 해제한 뒤 다시 로그인해 주세요."}
+          </p>
+        )}
+        {account.status === "signing-in" && <p className={styles.hint}>Cali 계정에 로그인하는 중...</p>}
         {googleTokens ? (
           <>
             {calendars.length > 0 && (
@@ -200,7 +224,7 @@ export default function SettingsContent() {
                 </p>
               </div>
             )}
-            <button className={styles.dangerBtn} onClick={() => setGoogleTokens(null)}>
+            <button className={styles.dangerBtn} onClick={disconnectGoogle}>
               연결 해제
             </button>
           </>

@@ -12,6 +12,11 @@ export interface BaseTokens {
    * `findMissingScopes`가 이 값으로 필수 권한 누락을 판별한다.
    */
   scope?: string;
+  /**
+   * Google 교환 응답에만 오는 OpenID id_token(scope에 openid가 있을 때).
+   * 저장하지 않고 Cali 서버 로그인에만 쓴다(`useOAuthConnection`의 afterConnect).
+   */
+  id_token?: string;
   /** 클라이언트에서 계산한 절대 만료 시각 (epoch ms) */
   expiresAt?: number;
 }

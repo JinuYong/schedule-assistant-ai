@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth";
+import { useAccountStore } from "@/store/account";
 import ThemeApplier from "@/components/theme-applier";
 import TauriInit from "@/components/tauri-init";
 
@@ -11,10 +12,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   );
 
   const loadFromStore = useAuthStore((s) => s.loadFromStore);
+  const loadAccount = useAccountStore((s) => s.loadFromStore);
 
   useEffect(() => {
     loadFromStore();
-  }, [loadFromStore]);
+    loadAccount();
+  }, [loadFromStore, loadAccount]);
 
   return (
     <QueryClientProvider client={queryClient}>

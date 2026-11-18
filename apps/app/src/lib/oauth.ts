@@ -63,7 +63,8 @@ const googleProvider: OAuthProvider = {
     `?client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
     `&redirect_uri=${encodeURIComponent(redirectUri(port))}` +
     `&response_type=code` +
-    `&scope=${encodeURIComponent("https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email")}` +
+    // openid email profile: 교환 응답에 id_token이 와서 Cali 서버 로그인에 쓴다(store/account.ts)
+    `&scope=${encodeURIComponent("openid email profile https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email")}` +
     `&access_type=offline` +
     `&prompt=consent`,
   exchangeArgs: (code, port) => ({

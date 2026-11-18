@@ -12,7 +12,12 @@ type StartOAuth = (
  * settings 페이지의 Google/Microsoft 연결이 95% 동일했던 부분
  * (waiting→토큰 저장(expiresAt 계산)→idle / 실패 시 error)을 통합한다.
  */
-export function useOAuthConnection(start: StartOAuth, setTokens: (tokens: BaseTokens) => void) {
+export function useOAuthConnection(
+  start: StartOAuth,
+  setTokens: (tokens: BaseTokens) => void,
+  /** 저장과 별개로 교환 응답 원본이 필요할 때(Google id_token → Cali 서버 로그인) */
+  afterConnect?: (tokens: BaseTokens) => void,
+) {
   const [status, setStatus] = useState<"idle" | "waiting" | "error">("idle");
   const [error, setError] = useState("");
 
@@ -31,13 +36,14 @@ export function useOAuthConnection(start: StartOAuth, setTokens: (tokens: BaseTo
           expiresAt: Date.now() + (tokens.expires_in ?? 3600) * 1000,
         });
         setStatus("idle");
+        afterConnect?.(tokens);
       },
       (err) => {
         setError(err);
         setStatus("error");
       }
     );
-  }, [start, setTokens]);
+  }, [start, setTokens, afterConnect]);
 
   return { status, error, connect };
 }
