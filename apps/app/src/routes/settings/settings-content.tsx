@@ -3,9 +3,10 @@ import { useAuthStore } from "@/store/auth";
 import { useAccountStore } from "@/store/account";
 import { useThemeStore, THEME_COLORS } from "@/store/theme";
 import { storeGet, storeSet, isTauri } from "@/lib/tauri-store";
-import { startGoogleOAuth, startMicrosoftOAuth } from "@/lib/oauth";
+import { startMicrosoftOAuth } from "@/lib/oauth";
 import { getCalendarList, type CalendarListItem } from "@/lib/google-calendar";
 import { useOAuthConnection } from "@/hooks/use-oauth-connection";
+import { useGoogleSignIn } from "@/hooks/use-google-sign-in";
 import { DEFAULT_CALENDAR_KEY } from "@/hooks/use-default-calendar";
 import { DEFAULT_SHORTCUT } from "@/lib/hotkey";
 import { fireNotification } from "@/lib/notifications";
@@ -53,20 +54,15 @@ export default function SettingsContent() {
   };
 
   const account = useAccountStore();
-  const { signInWithGoogle, refreshMe } = account;
-  const google = useOAuthConnection(
-    startGoogleOAuth,
-    setGoogleTokens,
-    (tokens) => {
-      void signInWithGoogle(tokens.id_token);
-    },
-  );
+  const { refreshMe } = account;
+  const google = useGoogleSignIn();
 
   // 설정을 열 때 서버 세션이 살아 있는지 확인(만료면 다시 로그인 안내가 뜬다)
   useEffect(() => {
     void refreshMe();
   }, [refreshMe]);
 
+  // 로그아웃하면 SignInGate가 로그인 화면으로 바꾼다
   const disconnectGoogle = () => {
     setGoogleTokens(null);
     void account.signOut();
@@ -223,17 +219,12 @@ export default function SettingsContent() {
           됩니다.
         </p>
         {google.error && <p className={styles.errorText}>{google.error}</p>}
-        {googleTokens && account.session && (
+        {account.session && (
           <p className={styles.hint}>Cali 계정: {account.session.user.email}</p>
         )}
-        {googleTokens &&
-          !account.session &&
-          account.status !== "signing-in" && (
-            <p className={styles.errorText}>
-              {account.error ||
-                "Cali 계정에 로그인되어 있지 않습니다. 연결을 해제한 뒤 다시 로그인해 주세요."}
-            </p>
-          )}
+        {account.status === "error" && (
+          <p className={styles.errorText}>{account.error}</p>
+        )}
         {account.status === "signing-in" && (
           <p className={styles.hint}>Cali 계정에 로그인하는 중...</p>
         )}
@@ -261,7 +252,7 @@ export default function SettingsContent() {
               </div>
             )}
             <button className={styles.dangerBtn} onClick={disconnectGoogle}>
-              연결 해제
+              로그아웃
             </button>
           </>
         ) : (

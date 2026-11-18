@@ -16,6 +16,8 @@ interface AccountStore {
   session: ServerSession | null;
   status: "idle" | "signing-in" | "error";
   error: string;
+  /** 저장된 세션을 한 번 읽었는지. 읽기 전에는 로그인 화면을 띄우지 않는다(로그인돼 있어도 깜빡임) */
+  ready: boolean;
   loadFromStore: () => Promise<void>;
   /** Google 로그인 직후 부른다. id_token이 없으면(예전 권한으로 받은 토큰) 다시 로그인을 안내 */
   signInWithGoogle: (idToken: string | undefined) => Promise<void>;
@@ -26,7 +28,8 @@ interface AccountStore {
 
 /**
  * Cali 서버 계정(로그인 세션). Google 로그인이 곧 Cali 계정이다 — Google 캘린더 연결과 함께 맺고 함께 끊는다.
- * 서버가 안 돼도 캘린더 연결은 그대로 쓰게 둔다(실패는 상태로만 알린다).
+ * 세션이 없으면 앱 대신 로그인 화면이 뜬다(SignInGate). 로컬 전용 모드는 두지 않는다.
+ * 저장된 세션은 서버가 잠깐 안 돼도 지우지 않는다(401일 때만) — 오프라인이어도 앱이 열린다.
  */
 export const useAccountStore = create<AccountStore>((set, get) => {
   const clear = async () => {
@@ -38,18 +41,18 @@ export const useAccountStore = create<AccountStore>((set, get) => {
     session: null,
     status: "idle",
     error: "",
+    ready: false,
 
     loadFromStore: async () => {
-      if (MOCK_ENABLED) return;
-      set({ session: await storeGet<ServerSession>(STORE_KEY) });
+      if (MOCK_ENABLED) return set({ ready: true });
+      set({ session: await storeGet<ServerSession>(STORE_KEY), ready: true });
     },
 
     signInWithGoogle: async (idToken) => {
       if (!idToken) {
         set({
           status: "error",
-          error:
-            "Cali 계정 정보를 받지 못했습니다. 연결을 해제한 뒤 다시 로그인해 주세요.",
+          error: "Cali 계정 정보를 받지 못했습니다. 다시 로그인해 주세요.",
         });
         return;
       }
