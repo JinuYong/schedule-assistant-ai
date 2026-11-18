@@ -24,7 +24,6 @@ export default function SettingsContent() {
   const [calendars, setCalendars] = useState<CalendarListItem[]>([]);
   const [defaultCal, setDefaultCal] = useState("");
 
-  const [mounted, setMounted] = useState(false);
   const [savedKeys, setSavedKeys] = useState(false);
   const [shortcutSaved, setShortcutSaved] = useState(false);
   const [notifStatus, setNotifStatus] = useState("");
@@ -57,7 +56,6 @@ export default function SettingsContent() {
   const microsoft = useOAuthConnection(startMicrosoftOAuth, setMicrosoftTokens);
 
   useEffect(() => {
-    setMounted(true);
     (async () => {
       setAnthropicKey((await storeGet<string>("anthropic.apiKey")) ?? "");
       setShortcut((await storeGet<string>("hotkey")) ?? DEFAULT_SHORTCUT);
@@ -72,7 +70,7 @@ export default function SettingsContent() {
 
   // Google 연결 시 캘린더 목록 + 저장된 기본 캘린더 로드
   useEffect(() => {
-    if (!googleTokens) { setCalendars([]); return; }
+    if (!googleTokens) return; // 연결이 없을 때 목록은 화면에서 숨긴다(아래 googleTokens 조건)
     let cancelled = false;
     (async () => {
       const token = (await refreshGoogle())?.access_token;
@@ -180,7 +178,7 @@ export default function SettingsContent() {
         <button className={styles.saveBtn} onClick={saveKeys} style={{ marginTop: 12 }}>
           {savedKeys ? "저장됨 ✓" : "저장"}
         </button>
-        {mounted && !isTauri() && (
+        {!isTauri() && (
           <p className={styles.hint}>※ Tauri 앱 환경에서만 저장됩니다.</p>
         )}
       </section>

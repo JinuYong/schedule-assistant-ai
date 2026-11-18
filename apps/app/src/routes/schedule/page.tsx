@@ -106,6 +106,14 @@ export default function SchedulePage() {
     return () => { cancelled = true; clearInterval(timer); };
   }, [googleTokens?.access_token]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존
 
+  const cells = useMemo(() => buildCells(currentYear, currentMonth), [currentYear, currentMonth]);
+
+  /** 현재 그리드에 실제로 표시되는 날짜 범위 (RFC 3339, UTC ISO) */
+  const gridRange = useMemo(() => ({
+    timeMin: new Date(cells[0].date + "T00:00:00").toISOString(),
+    timeMax: new Date(cells[cells.length - 1].date + "T23:59:59").toISOString(),
+  }), [cells]);
+
   // 월별 이벤트 로드 + 인접 달 백그라운드 프리페치
   useEffect(() => {
     if (!googleTokens) return;
@@ -134,8 +142,6 @@ export default function SchedulePage() {
     fetchTodos(microsoftTokens.access_token);
   }, [microsoftTokens?.access_token]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존(객체 재생성 시 재실행 방지), 나머지 누락 deps는 안정적 액션
 
-  const cells = useMemo(() => buildCells(currentYear, currentMonth), [currentYear, currentMonth]);
-
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     for (const ev of events) {
@@ -162,11 +168,6 @@ export default function SchedulePage() {
   // 설정의 기본 캘린더(없으면 primary) — 모달 기본 선택·자연어 추가 폴백에 사용
   const [defaultCalendarId] = useDefaultCalendarId(calendars, primaryCalendarId);
 
-  /** 현재 그리드에 실제로 표시되는 날짜 범위 (RFC 3339, UTC ISO) */
-  const gridRange = useMemo(() => ({
-    timeMin: new Date(cells[0].date + "T00:00:00").toISOString(),
-    timeMax: new Date(cells[cells.length - 1].date + "T23:59:59").toISOString(),
-  }), [cells]);
 
   // gridRange stale closure 방지용 ref
   const gridRangeRef = useRef(gridRange);

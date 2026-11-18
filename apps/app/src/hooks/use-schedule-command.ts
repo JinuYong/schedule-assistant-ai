@@ -49,34 +49,28 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
 
   // 날짜 표현이 있으면 그날 일정을 직접 조회 (로드 안 된 달도 매칭되도록)
   const dateHint = useMemo(() => parseDateHint(input), [input]);
-  const [dateEvents, setDateEvents] = useState<CalendarEvent[]>([]);
-  const [dateLoading, setDateLoading] = useState(false);
+  // 조회 결과를 어느 날짜 것인지와 함께 둔다. 지금 날짜의 결과가 아직 없으면 조회 중이다
+  // (effect 안에서 상태를 비우거나 로딩을 켜지 않고 렌더 때 계산 — react-hooks set-state-in-effect)
+  const [dateResult, setDateResult] = useState<{ hint: string; events: CalendarEvent[] } | null>(null);
+  const dateLoading = !!dateHint && dateResult?.hint !== dateHint;
 
   useEffect(() => {
-    if (!dateHint) {
-      setDateEvents([]);
-      setDateLoading(false);
-      return;
-    }
+    if (!dateHint) return;
     let cancelled = false;
-    setDateLoading(true);
     const timer = setTimeout(async () => {
       const token = await getToken();
       if (cancelled) return;
-      if (!token) {
-        setDateLoading(false);
-        return;
+      let found: CalendarEvent[] = [];
+      if (token) {
+        try {
+          const min = new Date(`${dateHint}T00:00:00`).toISOString();
+          const max = new Date(`${dateHint}T23:59:59`).toISOString();
+          found = (await listEventsInRange(token, min, max)).map(mapGCalEvent);
+        } catch {
+          /* 조회 실패는 후보 없음으로 */
+        }
       }
-      try {
-        const min = new Date(`${dateHint}T00:00:00`).toISOString();
-        const max = new Date(`${dateHint}T23:59:59`).toISOString();
-        const raw = await listEventsInRange(token, min, max);
-        if (!cancelled) setDateEvents(raw.map(mapGCalEvent));
-      } catch {
-        /* 조회 실패는 무시 */
-      } finally {
-        if (!cancelled) setDateLoading(false);
-      }
+      if (!cancelled) setDateResult({ hint: dateHint, events: found });
     }, 250);
     return () => {
       cancelled = true;
@@ -86,8 +80,9 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
 
   const matches = useMemo(() => {
     if (lockedTarget || dismissed) return [];
-    return matchEventsByText(input, dateHint ? dateEvents : events);
-  }, [input, events, dateEvents, dateHint, dismissed, lockedTarget]);
+    if (!dateHint) return matchEventsByText(input, events);
+    return matchEventsByText(input, dateResult?.hint === dateHint ? dateResult.events : []);
+  }, [input, events, dateResult, dateHint, dismissed, lockedTarget]);
   // 후보가 있거나, 날짜 조회 중이면 드롭다운(로딩 행 포함) 노출
   const loading = dateLoading && !lockedTarget && !dismissed;
   const showDropdown = (matches.length > 0 || loading) && status !== "loading";
