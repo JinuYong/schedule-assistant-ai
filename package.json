@@ -10,6 +10,7 @@
     "dev": "bun run --cwd apps/app dev",
     "dev:web": "bun run --cwd apps/app dev:web",
     "dev:tauri": "bun run --cwd apps/app dev:tauri",
+    "dev:server": "bun run --cwd apps/server dev",
     "build": "bun run --cwd apps/app build",
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "bun run --filter '*' lint",
