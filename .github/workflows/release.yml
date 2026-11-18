@@ -9,13 +9,13 @@ on:
   push:
     branches:
       - main
-    # 문서만 고친 push로 15분짜리 빌드를 돌리지 않는다.
-    # 이 목록의 파일'만' 바뀐 push는 무시된다.
-    paths-ignore:
-      - "**.md"
-      - ".gitignore"
-      - ".github/**"
-      - "scripts/**"
+    # 앱에 들어가는 파일이 바뀐 push만 릴리스한다(모노레포: 서버만 고친 push로 앱을 내지 않는다).
+    # 문서·버전 스크립트만 바뀐 push도 15분짜리 빌드를 돌리지 않는다.
+    paths:
+      - "apps/app/**"
+      - "packages/shared/**"
+      - "!**.md"
+      - "!apps/app/scripts/**"
   workflow_dispatch:
     inputs:
       bump:
@@ -41,6 +41,10 @@ jobs:
     # (GITHUB_TOKEN으로 push하면 원래 재트리거되지 않지만, PAT로 바꿀 경우를 대비)
     # (문자열 안에 콜론이 있어 전체를 따옴표로 감싼다 — 안 그러면 YAML 매핑으로 오인됨)
     if: "${{ !startsWith(github.event.head_commit.message, 'chore: 버전 ') }}"
+    # 앱은 apps/app에 있다. 아래 상대 경로(package.json, src-tauri/…, scripts/…, dist/)는 모두 여기 기준
+    defaults:
+      run:
+        working-directory: apps/app
 
     steps:
       # 항상 main의 최신 상태를 기준으로 빌드한다.
@@ -108,9 +112,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: apps/app/src-tauri -> target
 
+      # lockfile은 루트 하나(Bun workspaces)
       - name: 의존성 설치
+        working-directory: .
         run: bun install --frozen-lockfile
 
       - name: 검증 (typecheck / lint / test)

@@ -371,8 +371,8 @@ bun run dev:tauri
 
 ```bash
 bun run build:tauri
-# → src-tauri/target/release/bundle/macos/ 에 .app 생성
-# → src-tauri/target/release/bundle/dmg/ 에 .dmg 생성
+# → apps/app/src-tauri/target/release/bundle/macos/ 에 .app 생성
+# → apps/app/src-tauri/target/release/bundle/dmg/ 에 .dmg 생성
 ```
 
 ### macOS 전용 주의사항
@@ -404,16 +404,17 @@ GitHub Actions는 push 이벤트마다 1회 실행된다. 커밋 5개를 모아 
 | `fix:` / `design:` / `refactor:` 등만 | patch | 0.2.0 → 0.2.1 |
 | `feat!:` 또는 `BREAKING CHANGE` | minor (0.x 구간이므로) | 0.2.0 → 0.3.0 |
 
-계산 로직은 `scripts/next-version.sh`에 있고 로컬에서도 미리 확인할 수 있다.
+계산 로직은 `apps/app/scripts/next-version.sh`에 있고 로컬에서도 미리 확인할 수 있다.
+앱 경로(`apps/app`·`packages/shared`)를 건드린 커밋만 센다 — 서버만 고친 `feat:`로 앱 minor가 오르지 않는다.
 
 ```bash
-./scripts/next-version.sh          # 다음 버전이 무엇이 될지 출력
-./scripts/next-version.sh minor    # 강제 지정했을 때의 값
+apps/app/scripts/next-version.sh          # 다음 버전이 무엇이 될지 출력
+apps/app/scripts/next-version.sh minor    # 강제 지정했을 때의 값
 ```
 
 ### 릴리스가 나가지 않는 경우
 
-- **문서만 고친 push** — `**.md`, `.gitignore`, `.github/**`, `scripts/**` 만 바뀐 push는 무시된다 (`paths-ignore`)
+- **앱과 상관없는 push** — `apps/app/**`·`packages/shared/**`가 바뀐 push만 릴리스한다(`paths`). 서버·문서·워크플로만 바뀐 push, 그리고 그 안에서도 `**.md`·`apps/app/scripts/**`만 바뀐 push는 무시된다
 - **워크플로가 만든 버전 커밋** — `chore: 버전 x.y.z` 로 시작하는 커밋은 건너뛴다 (무한 루프 방지)
 - **검증 실패** — typecheck / lint / test 중 하나라도 깨지면 빌드 전에 중단
 

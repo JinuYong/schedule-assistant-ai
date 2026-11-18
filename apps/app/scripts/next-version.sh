@@ -23,9 +23,12 @@ else
   RANGE="HEAD"
 fi
 
+# 앱에 들어가는 경로의 커밋만 본다 — 서버(apps/server)만 고친 feat로 앱 minor가 오르지 않게
+APP_PATHS=(. ../../packages/shared)
+
 if [ "$MODE" = "auto" ]; then
-  SUBJECTS=$(git log "$RANGE" --no-merges --pretty=%s)
-  BODIES=$(git log "$RANGE" --no-merges --pretty=%B)
+  SUBJECTS=$(git log "$RANGE" --no-merges --pretty=%s -- "${APP_PATHS[@]}")
+  BODIES=$(git log "$RANGE" --no-merges --pretty=%B -- "${APP_PATHS[@]}")
 
   if echo "$BODIES" | grep -q '^BREAKING CHANGE' || echo "$SUBJECTS" | grep -qE '^[a-z]+(\([^)]*\))?!:'; then
     MODE=major
