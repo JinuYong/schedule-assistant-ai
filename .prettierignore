@@ -1,0 +1,8 @@
+# bun fmt가 읽는 무시 목록(.gitignore에 더해서). 도구가 쓰는 파일은 포맷하지 않는다.
+
+# Rust·Tauri 설정: 릴리스 스크립트(bump-version.sh)가 jq·sed로 고쳐 쓰고, Rust는 cargo fmt 몫
+apps/app/src-tauri/
+# drizzle-kit이 만드는 마이그레이션·스냅샷
+apps/server/drizzle/
+# Claude Code 설정과 작업 기록
+.claude/

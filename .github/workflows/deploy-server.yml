@@ -43,8 +43,9 @@ jobs:
         run: bun install --frozen-lockfile
 
       # 검사가 깨지면 서버에 손대지 않는다
-      - name: 검증 (typecheck / lint / test)
+      - name: 검증 (format / typecheck / lint / test)
         run: |
+          bun fmt --check apps/server packages/shared
           bun run --cwd packages/shared typecheck
           bun run --cwd apps/server typecheck
           bun run --cwd apps/server lint

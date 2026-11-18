@@ -65,7 +65,9 @@ bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서�
 
 - **Bun**: 루트 `package.json`의 `packageManager`(CI는 `bun-version-file`로 읽음). 올리면 `apps/server/Dockerfile`의 `oven/bun:*-slim`도 같이.
 - **Node**: `.node-version`(fnm `--use-on-cd`가 자동 전환, 릴리스 CI는 `setup-node`). Vite·Tauri CLI·Vitest가 Node로 돈다. `@types/node`도 같은 메이저.
-- **TypeScript 7**(Go 네이티브 `tsc`)과 **6**을 같이 둔다: `"typescript": "npm:@typescript/typescript6@…"`(typescript-eslint처럼 `typescript`를 import하는 도구용 — TS 7은 아직 JS API가 없다), `"@typescript/native": "npm:typescript@…"`(`tsc` 실행 파일). typescript-eslint가 TS 7을 지원하면 별칭을 걷어낸다. TS 7은 `baseUrl`·`moduleResolution: node`·`target: es5`를 받지 않는다.
+- **타입 검사는 `bun check`**(Bun 내장, tsc와 같은 오류, 패키지마다 0.1초 안팎). `tsc`는 쓰지 않는다.
+- **포맷은 `bun fmt`**(Bun 내장, Prettier 기본 규칙). 루트 `bun run format`·`format:check`, 무시 목록은 루트 `.prettierignore`(`src-tauri/`는 릴리스 스크립트가 jq·sed로 고쳐 써서 제외, Rust는 `cargo fmt`). package.json에 `fmt`라는 스크립트를 만들지 않는다 — `bun fmt`가 그 스크립트를 대신 실행한다.
+- **린트는 ESLint + typescript-eslint**(Bun에 린터가 없다). ESLint가 TS를 읽으려면 typescript-eslint 파서가 필요하고, 그 파서가 `typescript` 패키지를 import하므로 `typescript`는 typescript-eslint가 지원하는 최신(지금 `~6.0`)으로 둔다. TS 7은 아직 JS API가 없어 typescript-eslint가 못 쓴다.
 - **Rust**: stable 최신(`rustup update`, 릴리스 CI는 `dtolnay/rust-toolchain@stable`). 크레이트는 `cargo update` + 메이저는 crates.io 확인.
 
 ---
@@ -101,8 +103,9 @@ bun run build            # 타입체크 + Vite 빌드 → out/ 폴더 (dist/는 
 bun run build:tauri      # Tauri 앱 패키징 (macOS: .dmg, Windows: .exe)
 
 # 코드 품질
-bun run typecheck        # TypeScript 타입 체크 (tsc --noEmit)
+bun run typecheck        # 타입 검사 (bun check, 모든 패키지)
 bun run lint             # ESLint
+bun run format           # 포맷 (bun fmt, 검사만은 format:check)
 ```
 
 > **Windows에서 `cargo` 사용 시**: PATH에 Rust toolchain 추가 필요

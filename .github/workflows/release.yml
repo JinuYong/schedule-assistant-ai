@@ -124,8 +124,9 @@ jobs:
         working-directory: .
         run: bun install --frozen-lockfile
 
-      - name: 검증 (typecheck / lint / test)
+      - name: 검증 (format / typecheck / lint / test)
         run: |
+          bun fmt --check --cwd ../.. apps/app packages/shared   # 무시 목록(.prettierignore)이 루트에 있다
           bun run typecheck
           bun run lint
           bun run test

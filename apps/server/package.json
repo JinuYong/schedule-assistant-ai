@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bun check",
     "lint": "eslint src",
     "test": "bun test",
     "db:generate": "drizzle-kit generate",
@@ -24,8 +24,7 @@
     "@types/bun": "^1.4.4",
     "drizzle-kit": "^0.31.11",
     "eslint": "^10.15.0",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.73.0",
-    "@typescript/native": "npm:typescript@^7.0.2"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.73.0"
   }
 }
