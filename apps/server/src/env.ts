@@ -11,6 +11,7 @@ const list = (s: string) =>
 const DEFAULT_CORS_ORIGINS = "tauri://localhost,http://tauri.localhost,https://tauri.localhost,http://localhost:3100";
 
 const schema = z.object({
+  DATABASE_URL: z.string().startsWith("mysql://", "mysql://계정:비밀번호@호스트:포트/DB 형식이어야 합니다"),
   PORT: z.coerce.number().int().positive().default(8787),
   CORS_ORIGINS: z.string().default(DEFAULT_CORS_ORIGINS).transform(list),
 });
@@ -31,3 +32,5 @@ export function getEnv(): Env {
   }
   return cached;
 }
+
+export const getDatabaseUrl = () => getEnv().DATABASE_URL;
