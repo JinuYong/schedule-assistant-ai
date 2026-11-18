@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { Link } from "@tanstack/react-router";
+import SidebarAccount from "./sidebar-account";
 import styles from "./sidebar.module.css";
 
 const NAV_ITEMS = [
@@ -95,6 +96,7 @@ export default function Sidebar() {
           </Link>
         ))}
       </nav>
+      <SidebarAccount iconOnly={isIconOnly} />
       <div
         className={styles.resizeHandle}
         onPointerDown={handlePointerDown}

@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import type { PublicUser } from "@cali/shared";
 import { api, ApiRequestError } from "@/lib/api";
-import { MOCK_ENABLED } from "@/lib/dev-mock";
+import { MOCK_ENABLED, MOCK_SESSION } from "@/lib/dev-mock";
 import { storeDelete, storeGet, storeSet } from "@/lib/tauri-store";
+import { useAuthStore } from "@/store/auth";
 
 const STORE_KEY = "server.session";
 
@@ -23,8 +24,12 @@ interface AccountStore {
   signInWithGoogle: (idToken: string | undefined) => Promise<void>;
   /** 서버에 세션이 살아 있는지 확인하고 사용자 정보를 갱신. 만료면 세션을 지운다 */
   refreshMe: () => Promise<void>;
+  /** Google 연결도 함께 끊는다(Google 로그인 = Cali 계정). 세션이 사라지면 SignInGate가 로그인 화면을 띄운다 */
   signOut: () => Promise<void>;
 }
+
+/** 플로팅 창처럼 이 스토어를 거치지 않는 곳에서 로그인 여부를 볼 때(창마다 스토어가 따로라 저장소에서 읽는다) */
+export const readStoredSession = () => storeGet<ServerSession>(STORE_KEY);
 
 /**
  * Cali 서버 계정(로그인 세션). Google 로그인이 곧 Cali 계정이다 — Google 캘린더 연결과 함께 맺고 함께 끊는다.
@@ -44,7 +49,7 @@ export const useAccountStore = create<AccountStore>((set, get) => {
     ready: false,
 
     loadFromStore: async () => {
-      if (MOCK_ENABLED) return set({ ready: true });
+      if (MOCK_ENABLED) return set({ session: MOCK_SESSION, ready: true });
       set({ session: await storeGet<ServerSession>(STORE_KEY), ready: true });
     },
 
@@ -74,7 +79,7 @@ export const useAccountStore = create<AccountStore>((set, get) => {
 
     refreshMe: async () => {
       const session = get().session;
-      if (!session) return;
+      if (!session || MOCK_ENABLED) return;
       try {
         const { user } = await api.me(session.token);
         const next = { ...session, user };
@@ -89,6 +94,7 @@ export const useAccountStore = create<AccountStore>((set, get) => {
 
     signOut: async () => {
       const session = get().session;
+      useAuthStore.getState().setGoogleTokens(null);
       await clear();
       set({ status: "idle", error: "" });
       if (session)

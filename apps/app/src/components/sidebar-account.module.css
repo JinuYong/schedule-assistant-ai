@@ -1,0 +1,138 @@
+.account {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding: 12px 4px 0 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.iconOnly {
+  justify-content: center;
+  padding: 12px 0 0;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.name,
+.email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.email {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.moreButton,
+.avatarButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+
+.moreButton {
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  color: var(--color-text-secondary);
+}
+
+.avatarButton {
+  padding: 4px;
+  border-radius: 50%;
+}
+
+.moreButton:hover,
+.avatarButton:hover,
+.moreButton[aria-expanded="true"],
+.avatarButton[aria-expanded="true"] {
+  background: var(--color-accent-ultra-soft);
+  color: var(--color-text-primary);
+}
+
+.menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+/* 아이콘 전용 모드: 사이드바(56px)보다 넓게 오른쪽으로 펼친다 */
+.iconOnly .menu {
+  right: auto;
+  width: 200px;
+}
+
+.menuHeader {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.menuItem {
+  padding: 7px 8px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-size: var(--control-font-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: var(--color-accent-ultra-soft);
+}
+
+.danger {
+  color: var(--color-danger);
+}

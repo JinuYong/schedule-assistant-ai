@@ -21,3 +21,14 @@ export async function hideFloatingWindow(restore = false): Promise<void> {
   if (!win) return;
   await win.hide();
 }
+
+/** 메인 창을 앞으로(숨김·최소화돼 있어도). 플로팅 창에서 로그인이 필요할 때 로그인 화면으로 보낸다 */
+export async function showMainWindow(): Promise<void> {
+  if (!isTauri()) return;
+  const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+  const main = await WebviewWindow.getByLabel("main");
+  if (!main) return;
+  await main.unminimize().catch(() => {});
+  await main.show();
+  await main.setFocus();
+}

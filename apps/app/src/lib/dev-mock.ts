@@ -3,6 +3,7 @@
 // 화면을 더미데이터로 볼 수 있다 (네트워크 호출은 건너뜀).
 // 프로덕션/Tauri 빌드에는 영향 없음 (플래그가 꺼져 있으면 모든 값이 빈 값).
 
+import type { PublicUser } from "@cali/shared";
 import type { BaseTokens } from "@/types/tokens";
 import type { CalendarEvent } from "@/store/events";
 import type { TodoItem } from "@/store/todos";
@@ -22,6 +23,20 @@ export const MOCK_GOOGLE_TOKENS: BaseTokens | null = MOCK_ENABLED
 export const MOCK_MICROSOFT_TOKENS: BaseTokens | null = MOCK_ENABLED
   ? mockTokens()
   : null;
+
+/** Cali 서버 세션(사이드바 계정 표시용). 사진이 없으면 이름 첫 글자가 뜬다 */
+export const MOCK_SESSION: { token: string; user: PublicUser } | null =
+  MOCK_ENABLED
+    ? {
+        token: "mock-session-token",
+        user: {
+          id: 1,
+          email: "cali.demo@gmail.com",
+          name: "칼리 데모",
+          pictureUrl: null,
+        },
+      }
+    : null;
 
 /** dayOffset일 뒤 hour:min의 ISO 문자열 */
 function at(dayOffset: number, hour: number, min = 0): string {

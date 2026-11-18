@@ -13,13 +13,8 @@ import { fireNotification } from "@/lib/notifications";
 import styles from "./page.module.css";
 
 export default function SettingsContent() {
-  const {
-    googleTokens,
-    setGoogleTokens,
-    microsoftTokens,
-    setMicrosoftTokens,
-    refreshGoogle,
-  } = useAuthStore();
+  const { googleTokens, microsoftTokens, setMicrosoftTokens, refreshGoogle } =
+    useAuthStore();
   const { accentColor, setTheme } = useThemeStore();
 
   const [anthropicKey, setAnthropicKey] = useState("");
@@ -62,11 +57,6 @@ export default function SettingsContent() {
     void refreshMe();
   }, [refreshMe]);
 
-  // 로그아웃하면 SignInGate가 로그인 화면으로 바꾼다
-  const disconnectGoogle = () => {
-    setGoogleTokens(null);
-    void account.signOut();
-  };
   const microsoft = useOAuthConnection(startMicrosoftOAuth, setMicrosoftTokens);
 
   useEffect(() => {
@@ -251,7 +241,10 @@ export default function SettingsContent() {
                 </p>
               </div>
             )}
-            <button className={styles.dangerBtn} onClick={disconnectGoogle}>
+            <button
+              className={styles.dangerBtn}
+              onClick={() => void account.signOut()}
+            >
               로그아웃
             </button>
           </>

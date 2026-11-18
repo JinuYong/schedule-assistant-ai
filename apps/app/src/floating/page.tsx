@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { isTauri, storeGet } from "@/lib/tauri-store";
 import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { hideFloatingWindow } from "@/lib/floating-window";
+import { hideFloatingWindow, showMainWindow } from "@/lib/floating-window";
 import { registerHotkey, unregisterHotkey } from "@/lib/hotkey";
 import {
   getCalendarList,
@@ -10,6 +10,8 @@ import {
   type CalendarListItem,
 } from "@/lib/google-calendar";
 import { useAuthStore } from "@/store/auth";
+import { readStoredSession } from "@/store/account";
+import { MOCK_ENABLED } from "@/lib/dev-mock";
 import { CalendarEvent, mapGCalEvent } from "@/store/events";
 import { useScheduleCommand } from "@/hooks/use-schedule-command";
 import { useDefaultCalendarId } from "@/hooks/use-default-calendar";
@@ -151,9 +153,16 @@ export default function FloatingPage() {
     };
   }, [reset, loadMatchData]);
 
+  // 창은 로그인 없이도 열리지만 실행은 Cali 계정이 있어야 한다 → 없으면 메인 창(로그인 화면)으로 보낸다.
+  // 로그인·로그아웃은 메인 창에서 일어나므로 실행할 때마다 저장소에서 다시 읽는다
   const handleSubmit = useCallback(
-    (e: { preventDefault(): void }) => {
+    async (e: { preventDefault(): void }) => {
       e.preventDefault();
+      if (isTauri() && !MOCK_ENABLED && !(await readStoredSession())) {
+        await hideFloatingWindow();
+        await showMainWindow();
+        return;
+      }
       void submit();
     },
     [submit],
