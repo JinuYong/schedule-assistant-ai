@@ -10,6 +10,7 @@ import {
 } from "jose";
 import { createApp } from "../app";
 import { createGoogleVerifier } from "./google";
+import { createMemoryTodoStore } from "../todos/memory-store";
 import { createMemoryAuthStore } from "./memory-store";
 import { SESSION_TTL_MS, hashToken } from "./session";
 
@@ -73,6 +74,7 @@ beforeEach(() => {
       }),
       now: () => clock,
     },
+    todos: { store: createMemoryTodoStore() },
   });
 });
 

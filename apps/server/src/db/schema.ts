@@ -1,9 +1,13 @@
 import {
   bigint,
   char,
+  date,
   datetime,
   index,
+  mysqlEnum,
   mysqlTable,
+  smallint,
+  text,
   varchar,
 } from "drizzle-orm/mysql-core";
 
@@ -42,5 +46,63 @@ export const sessions = mysqlTable(
   (t) => [index("sessions_user_id_idx").on(t.userId)],
 );
 
+const userId = () =>
+  bigint({ mode: "number", unsigned: true })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" });
+
+export const todoLists = mysqlTable(
+  "todo_lists",
+  {
+    id: id(),
+    userId: userId(),
+    name: varchar({ length: 100 }).notNull(),
+    createdAt: datetime({ fsp: 3 }).notNull().$defaultFn(now),
+  },
+  (t) => [index("todo_lists_user_id_idx").on(t.userId)],
+);
+
+export const todos = mysqlTable(
+  "todos",
+  {
+    id: id(),
+    // 목록을 거치지 않고 바로 주인을 거르려고 둔다(모든 조회가 userId로 시작)
+    userId: userId(),
+    listId: bigint({ mode: "number", unsigned: true })
+      .notNull()
+      .references(() => todoLists.id, { onDelete: "cascade" }),
+    title: varchar({ length: 500 }).notNull(),
+    // TEXT는 리터럴 기본값을 못 가져서 앱에서 넣는다
+    memo: text()
+      .notNull()
+      .$defaultFn(() => ""),
+    /** 마감일(시각 없음). 사용자 달력 기준 날짜 그대로 */
+    dueDate: date({ mode: "string" }),
+    importance: mysqlEnum(["normal", "high"]).notNull().default("normal"),
+    /** 반복. 둘 다 있거나 둘 다 null */
+    repeatType: mysqlEnum(["daily", "weekly", "monthly", "yearly"]),
+    repeatInterval: smallint({ unsigned: true }),
+    reminderAt: datetime({ fsp: 3 }),
+    completedAt: datetime({ fsp: 3 }),
+    createdAt: datetime({ fsp: 3 }).notNull().$defaultFn(now),
+    updatedAt: datetime({ fsp: 3 }).notNull().$defaultFn(now),
+  },
+  // 미완료(completed_at IS NULL)와 최근 완료 순 조회 둘 다 이 인덱스로
+  (t) => [index("todos_user_completed_idx").on(t.userId, t.completedAt)],
+);
+
+export const todoChecklistItems = mysqlTable("todo_checklist_items", {
+  id: id(),
+  todoId: bigint({ mode: "number", unsigned: true })
+    .notNull()
+    .references(() => todos.id, { onDelete: "cascade" }),
+  title: varchar({ length: 500 }).notNull(),
+  checkedAt: datetime({ fsp: 3 }),
+  position: smallint({ unsigned: true }).notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
+export type TodoListRow = typeof todoLists.$inferSelect;
+export type TodoRow = typeof todos.$inferSelect;
+export type TodoChecklistItemRow = typeof todoChecklistItems.$inferSelect;

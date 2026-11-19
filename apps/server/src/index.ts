@@ -4,6 +4,7 @@ import { createDbAuthStore, deleteExpiredSessions } from "./auth/store";
 import { createDb } from "./db";
 import { runMigrations } from "./db/migrate";
 import { getEnv } from "./env";
+import { createDbTodoStore } from "./todos/store";
 
 const env = getEnv();
 const conn = createDb(env.DATABASE_URL);
@@ -21,6 +22,7 @@ const app = createApp({
     store: createDbAuthStore(conn.db),
     verifyGoogle: createGoogleVerifier({ audiences: env.GOOGLE_CLIENT_IDS }),
   },
+  todos: { store: createDbTodoStore(conn.db) },
 });
 
 console.log(`cali-api: http://localhost:${env.PORT}`);

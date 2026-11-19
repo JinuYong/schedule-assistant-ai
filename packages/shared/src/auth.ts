@@ -27,5 +27,5 @@ export interface MeResponse {
 
 /** 4xx 응답 본문 */
 export interface ApiError {
-  error: "invalid_body" | "invalid_token" | "unauthorized";
+  error: "invalid_body" | "invalid_token" | "unauthorized" | "not_found";
 }
