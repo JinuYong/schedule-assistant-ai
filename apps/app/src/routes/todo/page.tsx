@@ -1,19 +1,16 @@
 import { useEffect, useCallback, useMemo, useState } from "react";
-import { useAuthStore } from "@/store/auth";
-import { useTodosStore, TodoItem } from "@/store/todos";
+import type { Todo } from "@cali/shared";
+import { useTodosStore } from "@/store/todos";
 import { useTodoActions } from "@/hooks/use-todo-actions";
 import {
   EMPTY_TODO_FORM,
   todoEditFormState,
-  buildTodoTaskFromForm,
+  buildTodoBody,
   sortChecklistByDone,
-  cleanChecklistItems,
   type TodoFormState,
 } from "@/lib/todo-form";
 import TodoFormModal from "@/routes/schedule/components/todo-form-modal";
-import styles from "./page.module.css";
 import { formatDue } from "@/lib/date-utils";
-import UnavailableContent from "@/components/unavailable-content";
 import {
   IconRefresh,
   IconChevron,
@@ -23,42 +20,38 @@ import {
   IconTrash,
   IconPlus,
 } from "@/components/icons";
+import ListHeader from "./components/list-header";
+import ListNameInput from "./components/list-name-input";
+import CompletedTodos from "./components/completed-todos";
+import styles from "./page.module.css";
 
 export default function TodoPage() {
-  // 필드별 셀렉터 구독 — 미사용 필드(lastFetchedAt 등) 변경 시 리렌더 방지
-  const microsoftTokens = useAuthStore((s) => s.microsoftTokens);
+  const lists = useTodosStore((s) => s.lists);
   const todos = useTodosStore((s) => s.todos);
-  const taskLists = useTodosStore((s) => s.taskLists);
+  const completed = useTodosStore((s) => s.completed);
   const isLoading = useTodosStore((s) => s.isLoading);
   const error = useTodosStore((s) => s.error);
   const fetchTodos = useTodosStore((s) => s.fetchTodos);
+  const fetchCompleted = useTodosStore((s) => s.fetchCompleted);
   const createTodo = useTodosStore((s) => s.createTodo);
   const updateTodo = useTodosStore((s) => s.updateTodo);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const createList = useTodosStore((s) => s.createList);
+  const todoActions = useTodoActions();
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [form, setForm] = useState<TodoFormState>(EMPTY_TODO_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [addingList, setAddingList] = useState(false);
 
-  // Microsoft Todo CRUD — 저장된 토큰 직접 사용
-  const resolveMicrosoftToken = useCallback(
-    async () => microsoftTokens?.access_token ?? null,
-    [microsoftTokens],
-  );
-  const todoActions = useTodoActions(resolveMicrosoftToken);
-
-  const loadTodos = useCallback(
-    async (force = false) => {
-      if (!microsoftTokens?.access_token) return;
-      await fetchTodos(microsoftTokens.access_token, force);
-    },
-    [microsoftTokens, fetchTodos],
+  const load = useCallback(
+    () => Promise.all([fetchTodos(), fetchCompleted()]),
+    [fetchTodos, fetchCompleted],
   );
 
   useEffect(() => {
-    if (!microsoftTokens?.access_token) return;
-    fetchTodos(microsoftTokens.access_token);
-  }, [microsoftTokens?.access_token]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존, fetchTodos는 안정적 액션
+    void load();
+  }, [load]);
 
-  const toggleExpand = useCallback((id: string) => {
+  const toggleExpand = useCallback((id: number) => {
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -67,16 +60,11 @@ export default function TodoPage() {
     });
   }, []);
 
-  const todoLists = useMemo(
-    () => taskLists.map((l) => ({ id: l.id, name: l.displayName })),
-    [taskLists],
-  );
-
-  const openCreate = useCallback((listId: string) => {
+  const openCreate = useCallback((listId: number) => {
     setForm({ ...EMPTY_TODO_FORM, open: true, mode: "create", listId });
   }, []);
 
-  const openEdit = useCallback((e: React.MouseEvent, todo: TodoItem) => {
+  const openEdit = useCallback((e: React.MouseEvent, todo: Todo) => {
     e.stopPropagation();
     setForm(todoEditFormState(todo));
   }, []);
@@ -86,58 +74,32 @@ export default function TodoPage() {
   const handleSubmit = useCallback(
     async (e: { preventDefault(): void }) => {
       e.preventDefault();
-      if (!form.title.trim() || !form.listId || !microsoftTokens?.access_token)
-        return;
+      if (!form.title.trim() || !form.listId) return;
       setSubmitting(true);
       try {
-        const task = buildTodoTaskFromForm(form);
-        const checklistItems = cleanChecklistItems(form.checklistItems);
-        if (form.mode === "create") {
-          await createTodo(
-            microsoftTokens.access_token,
-            form.listId,
-            task,
-            checklistItems,
-          );
-        } else if (form.taskId) {
-          await updateTodo(
-            microsoftTokens.access_token,
-            form.listId,
-            form.taskId,
-            task,
-            checklistItems,
-          );
-        }
-        closeForm();
+        const body = buildTodoBody(form);
+        const ok =
+          form.mode === "create"
+            ? await createTodo(body)
+            : !!form.taskId && (await updateTodo(form.taskId, body));
+        if (ok) closeForm();
       } finally {
         setSubmitting(false);
       }
     },
-    [form, microsoftTokens, createTodo, updateTodo, closeForm],
+    [form, createTodo, updateTodo, closeForm],
   );
 
-  // 카테고리는 실제 작업 목록(taskLists) 기준으로 항상 표시 → 미완료 할일이 없어도
-  // 목록·추가버튼이 사라지지 않게 한다. 각 목록의 미완료 할일만 채운다.
-  const grouped = useMemo(() => {
-    const itemsByList = new Map<string, TodoItem[]>();
-    for (const todo of todos) {
-      if (!itemsByList.has(todo.listId)) itemsByList.set(todo.listId, []);
-      itemsByList.get(todo.listId)!.push(todo);
-    }
-    return taskLists.map((l) => ({
-      listId: l.id,
-      listName: l.displayName,
-      items: itemsByList.get(l.id) ?? [],
-    }));
-  }, [todos, taskLists]);
-
-  if (!microsoftTokens) {
-    return (
-      <div className={styles.emptyContainer}>
-        <UnavailableContent type="MICROSOFT" />
-      </div>
-    );
-  }
+  // 목록은 할일이 없어도 늘 보인다(추가 버튼 자리). 각 목록에 미완료·완료 할일을 나눠 담는다
+  const grouped = useMemo(
+    () =>
+      lists.map((list) => ({
+        list,
+        items: todos.filter((t) => t.listId === list.id),
+        done: completed.filter((t) => t.listId === list.id),
+      })),
+    [lists, todos, completed],
+  );
 
   return (
     <div className={styles.container}>
@@ -146,8 +108,15 @@ export default function TodoPage() {
         <div className={styles.refreshGroup}>
           {isLoading && <span className={styles.loadingDot} />}
           <button
+            className={styles.addBtn}
+            onClick={() => setAddingList(true)}
+            disabled={addingList}
+          >
+            <IconPlus size={11} /> 목록
+          </button>
+          <button
             className={styles.refreshBtn}
-            onClick={() => loadTodos(true)}
+            onClick={() => void load()}
             disabled={isLoading}
             title="새로고침"
           >
@@ -160,36 +129,24 @@ export default function TodoPage() {
       {isLoading && grouped.length === 0 && (
         <p className={styles.loading}>불러오는 중...</p>
       )}
-      {!isLoading && grouped.length === 0 && !error && (
-        <p className={styles.empty}>작업 목록이 없습니다.</p>
-      )}
 
       <div className={styles.lists}>
-        {grouped.map(({ listId, listName, items }) => (
-          <section key={listId} className={styles.listSection}>
-            <div className={styles.listHeader}>
-              <h2 className={styles.listName}>{listName}</h2>
-              <button
-                className={styles.addBtn}
-                onClick={() => openCreate(listId)}
-              >
-                <IconPlus size={11} /> 추가
-              </button>
-            </div>
+        {grouped.map(({ list, items, done }) => (
+          <section key={list.id} className={styles.listSection}>
+            <ListHeader
+              list={list}
+              count={items.length}
+              canDelete={lists.length > 1}
+              onAdd={() => openCreate(list.id)}
+            />
             {items.length === 0 && (
-              <p className={styles.empty}>미완료 할일이 없습니다.</p>
+              <p className={styles.listEmpty}>미완료 할일이 없습니다.</p>
             )}
             <ul className={styles.todoList}>
-              {items.map((todo: TodoItem) => {
-                const due = todo.dueDateTime
-                  ? formatDue(
-                      todo.dueDateTime.dateTime,
-                      todo.dueDateTime.timeZone,
-                    )
-                  : null;
+              {items.map((todo) => {
+                const due = todo.dueDate ? formatDue(todo.dueDate) : null;
                 const hasAccordion =
-                  (todo.checklistItems?.length ?? 0) > 0 ||
-                  !!todo.body?.content?.trim();
+                  todo.checklist.length > 0 || !!todo.memo.trim();
                 const isOpen = expanded.has(todo.id);
                 return (
                   <li key={todo.id} className={styles.todoItem}>
@@ -201,7 +158,7 @@ export default function TodoPage() {
                         className={styles.checkBtn}
                         onClick={(e) => {
                           e.stopPropagation();
-                          todoActions.complete(todo);
+                          void todoActions.complete(todo);
                         }}
                         title="완료"
                       />
@@ -216,13 +173,13 @@ export default function TodoPage() {
                         </button>
                         <button
                           className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                          onClick={(e) => todoActions.remove(e, todo)}
+                          onClick={(e) => void todoActions.remove(e, todo)}
                           title="삭제"
                         >
                           <IconTrash />
                         </button>
                       </div>
-                      {todo.recurrence && <IconRepeat />}
+                      {todo.repeat && <IconRepeat />}
                       {due && (
                         <span
                           className={`${styles.due}${due.isPast ? ` ${styles.overdue}` : ""}`}
@@ -232,7 +189,9 @@ export default function TodoPage() {
                       )}
                       <button
                         className={styles.starBtn}
-                        onClick={(e) => todoActions.toggleImportance(e, todo)}
+                        onClick={(e) =>
+                          void todoActions.toggleImportance(e, todo)
+                        }
                         title={
                           todo.importance === "high"
                             ? "즐겨찾기 해제"
@@ -248,48 +207,34 @@ export default function TodoPage() {
 
                     {hasAccordion && isOpen && (
                       <div className={styles.accordionBody}>
-                        {todo.body?.content?.trim() &&
-                          (todo.body.contentType === "html" ? (
-                            <div
-                              className={styles.bodyNote}
-                              dangerouslySetInnerHTML={{
-                                __html: todo.body.content,
-                              }}
-                            />
-                          ) : (
-                            <p className={styles.bodyNote}>
-                              {todo.body.content}
-                            </p>
-                          ))}
-                        {(todo.checklistItems?.length ?? 0) > 0 && (
+                        {todo.memo.trim() && (
+                          <p className={styles.bodyNote}>{todo.memo}</p>
+                        )}
+                        {todo.checklist.length > 0 && (
                           <ul className={styles.checklistItems}>
-                            {sortChecklistByDone(todo.checklistItems!).map(
-                              (item) => (
-                                <li
-                                  key={item.id}
-                                  className={styles.checklistItem}
+                            {sortChecklistByDone(todo.checklist).map((item) => (
+                              <li
+                                key={item.id}
+                                className={styles.checklistItem}
+                              >
+                                <button
+                                  className={`${styles.checklistBtn}${item.checkedAt ? ` ${styles.checklistChecked}` : ""}`}
+                                  onClick={() =>
+                                    void todoActions.toggleChecklist(
+                                      todo,
+                                      item.id,
+                                      !item.checkedAt,
+                                    )
+                                  }
+                                  title={item.checkedAt ? "완료 취소" : "완료"}
+                                />
+                                <span
+                                  className={`${styles.checklistText}${item.checkedAt ? ` ${styles.checklistDone}` : ""}`}
                                 >
-                                  <button
-                                    className={`${styles.checklistBtn}${item.isChecked ? ` ${styles.checklistChecked}` : ""}`}
-                                    onClick={() =>
-                                      todoActions.toggleChecklist(
-                                        todo,
-                                        item.id,
-                                        !item.isChecked,
-                                      )
-                                    }
-                                    title={
-                                      item.isChecked ? "완료 취소" : "완료"
-                                    }
-                                  />
-                                  <span
-                                    className={`${styles.checklistText}${item.isChecked ? ` ${styles.checklistDone}` : ""}`}
-                                  >
-                                    {item.displayName}
-                                  </span>
-                                </li>
-                              ),
-                            )}
+                                  {item.title}
+                                </span>
+                              </li>
+                            ))}
                           </ul>
                         )}
                       </div>
@@ -298,8 +243,21 @@ export default function TodoPage() {
                 );
               })}
             </ul>
+            <CompletedTodos items={done} />
           </section>
         ))}
+
+        {addingList && (
+          <section className={styles.listSection}>
+            <div className={styles.listHeader}>
+              <ListNameInput
+                placeholder="새 목록 이름"
+                onSave={createList}
+                onCancel={() => setAddingList(false)}
+              />
+            </div>
+          </section>
+        )}
       </div>
 
       {/* 생성/수정 모달 (공유) */}
@@ -307,7 +265,7 @@ export default function TodoPage() {
         <TodoFormModal
           form={form}
           setForm={setForm}
-          todoLists={todoLists}
+          todoLists={lists}
           submitting={submitting}
           onClose={closeForm}
           onSubmit={handleSubmit}

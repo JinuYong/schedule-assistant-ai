@@ -1,345 +1,274 @@
 import { create } from "zustand";
-import { createSingleFlight } from "@/lib/promise-cache";
+import type {
+  CreateTodoBody,
+  Todo,
+  TodoList,
+  UpdateTodoBody,
+} from "@cali/shared";
+import { api, ApiRequestError } from "@/lib/api";
+import { MOCK_ENABLED, MOCK_TODOS, MOCK_TODO_LISTS } from "@/lib/dev-mock";
 import {
   scheduleNotification,
-  cancelNotification,
   cancelNotificationsByPrefix,
 } from "@/lib/notifications";
-import { graphDateTimeToMs } from "@/lib/date-utils";
-import { MOCK_ENABLED, MOCK_TODOS, MOCK_TASKLISTS } from "@/lib/dev-mock";
+import { createSingleFlight } from "@/lib/promise-cache";
+import { useAccountStore } from "./account";
 import { showToast } from "./toast";
-import {
-  getTaskLists,
-  getTasks,
-  createTask as apiCreateTask,
-  updateTask as apiUpdateTask,
-  deleteTask as apiDeleteTask,
-  completeTask as apiCompleteTask,
-  toggleChecklistItem as apiToggleChecklistItem,
-  createChecklistItem as apiCreateChecklistItem,
-  updateChecklistItem as apiUpdateChecklistItem,
-  deleteChecklistItem as apiDeleteChecklistItem,
-  TodoTask,
-  TodoTaskUpdates,
-  ChecklistItem,
-} from "@/lib/microsoft-todo";
-
-export interface TodoItem extends TodoTask {
-  id: string;
-  listId: string;
-  listName: string;
-}
 
 interface TodosStore {
-  todos: TodoItem[];
-  taskLists: { id: string; displayName: string }[]; // 실제 작업 목록(빈 목록도 카테고리·추가버튼 유지용)
+  lists: TodoList[];
+  /** 미완료 할일(마감일 순, 마감일 없는 건 뒤) */
+  todos: Todo[];
+  /** 최근에 완료한 할일. 할일 화면을 열 때 불러온다 */
+  completed: Todo[];
   isLoading: boolean;
   error: string | null;
-  lastFetchedAt: number;
-  throttledUntil: number; // 429 쿨다운 만료 시각 (force 포함 모든 요청 차단)
-  fetchTodos: (accessToken: string, force?: boolean) => Promise<void>;
-  createTodo: (
-    accessToken: string,
-    listId: string,
-    task: TodoTaskUpdates & Pick<TodoTask, "title">,
-    checklistItems?: ChecklistDraftItem[],
-  ) => Promise<void>;
-  updateTodo: (
-    accessToken: string,
-    listId: string,
-    taskId: string,
-    updates: TodoTaskUpdates,
-    checklistItems?: ChecklistDraftItem[],
-  ) => Promise<void>;
-  deleteTodo: (
-    accessToken: string,
-    listId: string,
-    taskId: string,
-  ) => Promise<void>;
-  completeTodo: (
-    accessToken: string,
-    listId: string,
-    taskId: string,
-  ) => Promise<void>;
-  toggleImportance: (
-    accessToken: string,
-    listId: string,
-    taskId: string,
-    current: "low" | "normal" | "high" | undefined,
-  ) => Promise<void>;
+  fetchTodos: () => Promise<void>;
+  fetchCompleted: () => Promise<void>;
+  /** 실패하면 토스트를 띄우고 false — 폼을 닫지 않게 */
+  createTodo: (body: CreateTodoBody) => Promise<boolean>;
+  updateTodo: (id: number, body: UpdateTodoBody) => Promise<boolean>;
+  deleteTodo: (id: number) => Promise<void>;
+  completeTodo: (id: number) => Promise<void>;
+  reopenTodo: (id: number) => Promise<void>;
+  toggleImportance: (todo: Todo) => Promise<void>;
   toggleChecklistItem: (
-    accessToken: string,
-    listId: string,
-    taskId: string,
-    itemId: string,
-    isChecked: boolean,
+    todoId: number,
+    itemId: number,
+    checked: boolean,
   ) => Promise<void>;
+  createList: (name: string) => Promise<boolean>;
+  renameList: (id: number, name: string) => Promise<boolean>;
+  /** 목록 안 할일도 함께 지워진다 */
+  deleteList: (id: number) => Promise<void>;
 }
 
-const fetchTodosFlight = createSingleFlight<void>();
+const fetchFlight = createSingleFlight<void>();
 
-/** 알림 켜진 할일의 reminderDateTime에 데스크탑 알림 예약 (목록 갱신 시마다 재예약) */
-function scheduleTodoNotifications(todos: TodoItem[]) {
+function sortOpen(todos: Todo[]): Todo[] {
+  return todos.toSorted(
+    (a, b) =>
+      (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || a.id - b.id,
+  );
+}
+
+const replaceIn = (todos: Todo[], todo: Todo) =>
+  todos.map((t) => (t.id === todo.id ? todo : t));
+
+/** 로그인 세션 토큰. 앱은 SignInGate 안에서만 할일을 다루므로 없으면 이상한 상태다 */
+function token(): string {
+  const t = useAccountStore.getState().session?.token;
+  if (!t) throw new Error("로그인이 필요합니다");
+  return t;
+}
+
+/** 실패 처리: 세션이 만료(401)면 계정 확인으로 로그인 화면을 띄우고, 아니면 토스트 */
+function fail(e: unknown, message: string) {
+  console.error(`[todos] ${message}`, e);
+  if (e instanceof ApiRequestError && e.status === 401) {
+    void useAccountStore.getState().refreshMe();
+    return;
+  }
+  showToast(message);
+}
+
+/** 알림 켠 할일의 알림 시각에 데스크톱 알림 예약(할일이 바뀔 때마다 다시) */
+function scheduleTodoNotifications(todos: Todo[], lists: TodoList[]) {
   cancelNotificationsByPrefix("todo-");
+  const now = Date.now();
   for (const t of todos) {
-    if (!t.id || !t.isReminderOn || !t.reminderDateTime?.dateTime) continue;
-    // Graph는 reminderDateTime을 보통 UTC로 돌려주므로 timeZone을 반영해 실제 순간으로 변환
-    const ms = graphDateTimeToMs(
-      t.reminderDateTime.dateTime,
-      t.reminderDateTime.timeZone,
-    );
-    if (Number.isNaN(ms) || ms <= Date.now()) continue;
+    if (!t.reminderAt) continue;
+    const time = Date.parse(t.reminderAt);
+    if (Number.isNaN(time) || time <= now) continue;
+    const listName = lists.find((l) => l.id === t.listId)?.name;
     void scheduleNotification({
       id: `todo-${t.id}`,
       title: t.title,
-      body: t.listName ? `${t.listName} · 할일 알림` : "할일 알림",
-      time: ms,
+      body: listName ? `${listName} · 할일 알림` : "할일 알림",
+      time,
     });
   }
 }
 
-export interface ChecklistDraftItem {
-  id?: string;
-  displayName: string;
-  isChecked?: boolean;
-}
+export const useTodosStore = create<TodosStore>((set, get) => {
+  /** 서버 응답을 반영. 실패하면 서버 상태로 다시 맞춘다 */
+  const refetch = () => get().fetchTodos();
 
-async function syncChecklistItems(
-  accessToken: string,
-  listId: string,
-  taskId: string,
-  currentItems: ChecklistItem[] = [],
-  nextItems: ChecklistDraftItem[] = [],
-) {
-  const nextById = new Map(
-    nextItems.filter((item) => item.id).map((item) => [item.id!, item]),
-  );
-  for (const current of currentItems) {
-    const next = nextById.get(current.id);
-    if (!next || !next.displayName.trim()) {
-      await apiDeleteChecklistItem(accessToken, listId, taskId, current.id);
-    } else if (
-      next.displayName.trim() !== current.displayName ||
-      next.isChecked !== current.isChecked
-    ) {
-      await apiUpdateChecklistItem(accessToken, listId, taskId, current.id, {
-        displayName: next.displayName.trim(),
-        isChecked: next.isChecked ?? false,
-      });
-    }
-  }
+  return {
+    lists: MOCK_TODO_LISTS,
+    todos: sortOpen(MOCK_TODOS),
+    completed: [],
+    isLoading: false,
+    error: null,
 
-  for (const item of nextItems) {
-    if (!item.id && item.displayName.trim()) {
-      await apiCreateChecklistItem(
-        accessToken,
-        listId,
-        taskId,
-        item.displayName.trim(),
-      );
-    }
-  }
-}
-
-export const useTodosStore = create<TodosStore>((set, get) => ({
-  todos: MOCK_TODOS,
-  taskLists: MOCK_TASKLISTS,
-  isLoading: false,
-  error: null,
-  lastFetchedAt: 0,
-  throttledUntil: 0,
-
-  fetchTodos: async (accessToken, force = false) => {
-    if (MOCK_ENABLED) return; // 더미 모드: 네트워크 건너뛰고 주입된 할일 유지
-    if (fetchTodosFlight.inflight) return fetchTodosFlight.inflight;
-
-    const now = Date.now();
-    // 429 쿨다운 중이면 force 포함 모든 요청 차단
-    if (now < get().throttledUntil) return;
-    // 5분 이내 재요청 방지 (normal fetch만)
-    if (
-      !force &&
-      get().lastFetchedAt > 0 &&
-      now - get().lastFetchedAt < 5 * 60 * 1000
-    )
-      return;
-
-    return fetchTodosFlight.run(async () => {
-      set({ isLoading: true, error: null });
-      try {
-        const lists = await getTaskLists(accessToken);
-        const results: TodoItem[] = [];
-
-        // Microsoft Graph 429 방지를 위해 목록별 task 요청은 순차 처리한다.
-        for (const list of lists) {
-          const tasks = await getTasks(accessToken, list.id);
-          for (const task of tasks) {
-            if (task.id) {
-              results.push({
-                ...task,
-                id: task.id,
-                listId: list.id,
-                listName: list.displayName,
-              });
-            }
-          }
+    fetchTodos: async () => {
+      if (MOCK_ENABLED) return; // 더미 모드: 주입된 할일 유지
+      if (fetchFlight.inflight) return fetchFlight.inflight;
+      return fetchFlight.run(async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const { lists, todos } = await api.todos(token());
+          set({ lists, todos: sortOpen(todos) });
+        } catch (e) {
+          console.error("[todos] 조회 실패", e);
+          if (e instanceof ApiRequestError && e.status === 401)
+            void useAccountStore.getState().refreshMe();
+          set({ error: "할일을 불러오지 못했습니다." });
+        } finally {
+          set({ isLoading: false });
         }
+      });
+    },
 
-        // 마감일 순 정렬 (마감일 없는 항목은 뒤로)
-        results.sort((a, b) => {
-          const da = a.dueDateTime?.dateTime ?? "9999";
-          const db = b.dueDateTime?.dateTime ?? "9999";
-          return da.localeCompare(db);
-        });
-
-        set({ todos: results, taskLists: lists, lastFetchedAt: Date.now() });
-        scheduleTodoNotifications(results);
-      } catch (err) {
-        const retryAfter = (err as { retryAfter?: number }).retryAfter;
-        const now2 = Date.now();
-        // 429는 최소 5분 쿨다운 (Retry-After가 짧아도 루프 방지)
-        const cooldown = retryAfter ? Math.max(retryAfter, 300) * 1000 : 0;
-        set({
-          error: err instanceof Error ? err.message : "할일 조회 실패",
-          lastFetchedAt: now2,
-          throttledUntil: cooldown ? now2 + cooldown : 0,
-        });
-      } finally {
-        set({ isLoading: false });
+    fetchCompleted: async () => {
+      if (MOCK_ENABLED) return;
+      try {
+        const { todos } = await api.completedTodos(token());
+        set({ completed: todos });
+      } catch (e) {
+        fail(e, "완료한 할일을 불러오지 못했습니다.");
       }
-    });
-  },
+    },
 
-  createTodo: async (accessToken, listId, task, checklistItems = []) => {
-    const created = await apiCreateTask(accessToken, listId, task as TodoTask);
-    if (created.id && checklistItems.length > 0) {
-      await syncChecklistItems(
-        accessToken,
-        listId,
-        created.id,
-        [],
-        checklistItems,
-      );
-    }
-    await get().fetchTodos(accessToken, true);
-  },
-
-  updateTodo: async (accessToken, listId, taskId, updates, checklistItems) => {
-    // 낙관적 업데이트 (null로 해제되는 필드는 제외 — 다음 fetch가 반영)
-    const { recurrence, reminderDateTime, ...restUpdates } = updates;
-    const optimisticUpdates: Partial<TodoTask> = {
-      ...restUpdates,
-      ...(recurrence ? { recurrence } : {}),
-      ...(reminderDateTime ? { reminderDateTime } : {}),
-    };
-    set((s) => ({
-      todos: s.todos.map((t) =>
-        t.id !== taskId ? t : { ...t, ...optimisticUpdates },
-      ),
-    }));
-    try {
-      await apiUpdateTask(accessToken, listId, taskId, updates);
-      if (checklistItems) {
-        const current =
-          get().todos.find((t) => t.id === taskId)?.checklistItems ?? [];
-        await syncChecklistItems(
-          accessToken,
-          listId,
-          taskId,
-          current,
-          checklistItems,
-        );
+    createTodo: async (body) => {
+      try {
+        const { todo } = await api.createTodo(token(), body);
+        set((s) => ({ todos: sortOpen([...s.todos, todo]) }));
+        return true;
+      } catch (e) {
+        fail(e, "할일을 추가하지 못했습니다.");
+        return false;
       }
-      if (checklistItems) {
-        await get().fetchTodos(accessToken, true);
+    },
+
+    updateTodo: async (id, body) => {
+      try {
+        const { todo } = await api.updateTodo(token(), id, body);
+        set((s) => ({
+          todos: sortOpen(replaceIn(s.todos, todo)),
+          completed: replaceIn(s.completed, todo),
+        }));
+        return true;
+      } catch (e) {
+        fail(e, "할일을 고치지 못했습니다.");
+        return false;
       }
-    } catch (e) {
-      console.error("[updateTodo] 실패:", e);
-      showToast(
-        e instanceof Error ? `수정 실패: ${e.message}` : "할일 수정 실패",
-      );
-      await get().fetchTodos(accessToken, true);
-    }
-  },
+    },
 
-  deleteTodo: async (accessToken, listId, taskId) => {
-    cancelNotification(`todo-${taskId}`);
-    set((s) => ({ todos: s.todos.filter((t) => t.id !== taskId) }));
-    try {
-      await apiDeleteTask(accessToken, listId, taskId);
-    } catch {
-      await get().fetchTodos(accessToken, true);
-    }
-  },
+    deleteTodo: async (id) => {
+      set((s) => ({
+        todos: s.todos.filter((t) => t.id !== id),
+        completed: s.completed.filter((t) => t.id !== id),
+      }));
+      try {
+        await api.deleteTodo(token(), id);
+      } catch (e) {
+        fail(e, "할일을 지우지 못했습니다.");
+        await refetch();
+      }
+    },
 
-  toggleImportance: async (accessToken, listId, taskId, current) => {
-    const next = current === "high" ? "normal" : "high";
-    set((s) => ({
-      todos: s.todos.map((t) =>
-        t.id !== taskId ? t : { ...t, importance: next },
-      ),
-    }));
-    try {
-      await apiUpdateTask(accessToken, listId, taskId, { importance: next });
-    } catch {
-      await get().fetchTodos(accessToken, true);
-    }
-  },
+    completeTodo: async (id) => {
+      // 바로 목록에서 뺀다. 반복 할일은 응답의 다음 회차를 넣는다
+      set((s) => ({ todos: s.todos.filter((t) => t.id !== id) }));
+      try {
+        const { todo, next } = await api.completeTodo(token(), id);
+        set((s) => ({
+          completed: [todo, ...s.completed.filter((t) => t.id !== id)],
+          todos: next ? sortOpen([...s.todos, next]) : s.todos,
+        }));
+      } catch (e) {
+        fail(e, "할일을 완료하지 못했습니다.");
+        await refetch();
+      }
+    },
 
-  completeTodo: async (accessToken, listId, taskId) => {
-    // 낙관적 업데이트 — 즉시 목록에서 제거
-    set((s) => ({ todos: s.todos.filter((t) => t.id !== taskId) }));
-    try {
-      await apiCompleteTask(accessToken, listId, taskId);
-      // 반복 할일(recurrence) 완료 시 새 항목이 생성되므로 강제 새로고침
-      await get().fetchTodos(accessToken, true);
-    } catch {
-      await get().fetchTodos(accessToken, true);
-    }
-  },
+    reopenTodo: async (id) => {
+      set((s) => ({ completed: s.completed.filter((t) => t.id !== id) }));
+      try {
+        const { todo } = await api.reopenTodo(token(), id);
+        set((s) => ({
+          todos: sortOpen([...s.todos.filter((t) => t.id !== id), todo]),
+        }));
+      } catch (e) {
+        fail(e, "할일을 되돌리지 못했습니다.");
+        await Promise.all([refetch(), get().fetchCompleted()]);
+      }
+    },
 
-  toggleChecklistItem: async (
-    accessToken,
-    listId,
-    taskId,
-    itemId,
-    isChecked,
-  ) => {
-    // 낙관적 업데이트
-    set((s) => ({
-      todos: s.todos.map((t) =>
-        t.id !== taskId
-          ? t
-          : {
-              ...t,
-              checklistItems: t.checklistItems?.map((c) =>
-                c.id !== itemId
-                  ? c
-                  : {
-                      ...c,
-                      isChecked,
-                      // 완료 시각 즉시 반영 → "방금 완료한 항목이 맨 아래로" 정렬이 새로고침 전에도 동작
-                      checkedDateTime: isChecked
-                        ? {
-                            dateTime: new Date().toISOString(),
-                            timeZone: "UTC",
-                          }
-                        : undefined,
-                    },
-              ),
-            },
-      ),
-    }));
-    try {
-      await apiToggleChecklistItem(
-        accessToken,
-        listId,
-        taskId,
-        itemId,
-        isChecked,
-      );
-    } catch {
-      await get().fetchTodos(accessToken, true);
-    }
-  },
-}));
+    toggleImportance: async (todo) => {
+      const importance = todo.importance === "high" ? "normal" : "high";
+      set((s) => ({ todos: replaceIn(s.todos, { ...todo, importance }) }));
+      try {
+        await api.updateTodo(token(), todo.id, { importance });
+      } catch (e) {
+        fail(e, "중요 표시를 바꾸지 못했습니다.");
+        await refetch();
+      }
+    },
+
+    toggleChecklistItem: async (todoId, itemId, checked) => {
+      const checkedAt = checked ? new Date().toISOString() : null;
+      set((s) => ({
+        todos: s.todos.map((t) =>
+          t.id !== todoId
+            ? t
+            : {
+                ...t,
+                checklist: t.checklist.map((c) =>
+                  c.id === itemId ? { ...c, checkedAt } : c,
+                ),
+              },
+        ),
+      }));
+      try {
+        await api.checkTodoItem(token(), todoId, itemId, checked);
+      } catch (e) {
+        fail(e, "체크리스트를 바꾸지 못했습니다.");
+        await refetch();
+      }
+    },
+
+    createList: async (name) => {
+      try {
+        const { list } = await api.createTodoList(token(), name);
+        set((s) => ({ lists: [...s.lists, list] }));
+        return true;
+      } catch (e) {
+        fail(e, "목록을 만들지 못했습니다.");
+        return false;
+      }
+    },
+
+    renameList: async (id, name) => {
+      try {
+        const { list } = await api.renameTodoList(token(), id, name);
+        set((s) => ({ lists: s.lists.map((l) => (l.id === id ? list : l)) }));
+        return true;
+      } catch (e) {
+        fail(e, "목록 이름을 바꾸지 못했습니다.");
+        return false;
+      }
+    },
+
+    deleteList: async (id) => {
+      set((s) => ({
+        lists: s.lists.filter((l) => l.id !== id),
+        todos: s.todos.filter((t) => t.listId !== id),
+        completed: s.completed.filter((t) => t.listId !== id),
+      }));
+      try {
+        await api.deleteTodoList(token(), id);
+      } catch (e) {
+        fail(e, "목록을 지우지 못했습니다.");
+        await refetch();
+      }
+    },
+  };
+});
+
+// 미완료 할일이나 목록 이름이 바뀌면 알림을 다시 예약한다(어느 동작이 바꿨든 한 곳에서)
+useTodosStore.subscribe((s, prev) => {
+  if (s.todos !== prev.todos || s.lists !== prev.lists)
+    scheduleTodoNotifications(s.todos, s.lists);
+});

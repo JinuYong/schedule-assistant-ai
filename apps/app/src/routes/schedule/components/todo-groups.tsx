@@ -1,11 +1,7 @@
 import { memo } from "react";
-import { TodoItem } from "@/store/todos";
-import { sortChecklistByDone, recurrenceLabel } from "@/lib/todo-form";
-import {
-  formatDue,
-  formatDateTimeLabel,
-  graphDateTimeToMs,
-} from "@/lib/date-utils";
+import type { Todo } from "@cali/shared";
+import { sortChecklistByDone, repeatLabel } from "@/lib/todo-form";
+import { formatDue, formatDateTimeLabel } from "@/lib/date-utils";
 import {
   IconPencil,
   IconTrash,
@@ -17,9 +13,9 @@ import {
 import styles from "../page.module.css";
 
 export interface TodoGroup {
-  listId: string;
+  listId: number;
   listName: string;
-  items: TodoItem[];
+  items: Todo[];
 }
 
 interface TodoGroupsProps {
@@ -27,17 +23,13 @@ interface TodoGroupsProps {
   emptyMessage: string;
   todosError: string | null;
   todosLoading: boolean;
-  expandedTodos: Set<string>;
-  onToggleExpand: (id: string) => void;
-  onComplete: (todo: TodoItem) => void;
-  onEditTodo: (e: React.MouseEvent, todo: TodoItem) => void;
-  onDeleteTodo: (e: React.MouseEvent, todo: TodoItem) => void;
-  onToggleImportance: (e: React.MouseEvent, todo: TodoItem) => void;
-  onToggleChecklist: (
-    todo: TodoItem,
-    itemId: string,
-    isChecked: boolean,
-  ) => void;
+  expandedTodos: Set<number>;
+  onToggleExpand: (id: number) => void;
+  onComplete: (todo: Todo) => void;
+  onEditTodo: (e: React.MouseEvent, todo: Todo) => void;
+  onDeleteTodo: (e: React.MouseEvent, todo: Todo) => void;
+  onToggleImportance: (e: React.MouseEvent, todo: Todo) => void;
+  onToggleChecklist: (todo: Todo, itemId: number, checked: boolean) => void;
 }
 
 function TodoGroups({
@@ -68,19 +60,12 @@ function TodoGroups({
             </div>
             <ul className={styles.todoAccordionList}>
               {items.map((todo) => {
-                const due = todo.dueDateTime
-                  ? formatDue(
-                      todo.dueDateTime.dateTime,
-                      todo.dueDateTime.timeZone,
-                    )
-                  : null;
-                const hasReminder =
-                  !!todo.isReminderOn && !!todo.reminderDateTime?.dateTime;
+                const due = todo.dueDate ? formatDue(todo.dueDate) : null;
                 const hasAccordion =
-                  (todo.checklistItems?.length ?? 0) > 0 ||
-                  !!todo.body?.content?.trim() ||
-                  hasReminder ||
-                  !!todo.recurrence;
+                  todo.checklist.length > 0 ||
+                  !!todo.memo.trim() ||
+                  !!todo.reminderAt ||
+                  !!todo.repeat;
                 const isOpen = expandedTodos.has(todo.id);
                 return (
                   <li key={todo.id} className={styles.todoAccordionItem}>
@@ -118,7 +103,7 @@ function TodoGroups({
                                 <IconTrash />
                               </button>
                             </div>
-                            {todo.recurrence && <IconRepeat />}
+                            {todo.repeat && <IconRepeat />}
                             <button
                               className={styles.todoStarBtn}
                               onClick={(e) => onToggleImportance(e, todo)}
@@ -148,74 +133,52 @@ function TodoGroups({
                     </div>
                     {hasAccordion && isOpen && (
                       <div className={styles.todoAccordionBody}>
-                        {(hasReminder || todo.recurrence) && (
+                        {(todo.reminderAt || todo.repeat) && (
                           <div className={styles.todoDetailRows}>
-                            {hasReminder && (
+                            {todo.reminderAt && (
                               <span className={styles.todoDetailRow}>
                                 <IconBell />
                                 {formatDateTimeLabel(
-                                  graphDateTimeToMs(
-                                    todo.reminderDateTime!.dateTime,
-                                    todo.reminderDateTime!.timeZone,
-                                  ),
+                                  Date.parse(todo.reminderAt),
                                 )}
                               </span>
                             )}
-                            {todo.recurrence && (
+                            {todo.repeat && (
                               <span className={styles.todoDetailRow}>
                                 <IconRepeat />
-                                {recurrenceLabel(
-                                  todo.recurrence.pattern.type as Parameters<
-                                    typeof recurrenceLabel
-                                  >[0],
-                                )}{" "}
-                                반복
+                                {repeatLabel(todo.repeat)} 반복
                               </span>
                             )}
                           </div>
                         )}
-                        {todo.body?.content?.trim() &&
-                          (todo.body.contentType === "html" ? (
-                            <div
-                              className={styles.todoBodyNote}
-                              dangerouslySetInnerHTML={{
-                                __html: todo.body.content,
-                              }}
-                            />
-                          ) : (
-                            <p className={styles.todoBodyNote}>
-                              {todo.body.content}
-                            </p>
-                          ))}
-                        {(todo.checklistItems?.length ?? 0) > 0 && (
+                        {todo.memo.trim() && (
+                          <p className={styles.todoBodyNote}>{todo.memo}</p>
+                        )}
+                        {todo.checklist.length > 0 && (
                           <ul className={styles.todoChecklistItems}>
-                            {sortChecklistByDone(todo.checklistItems!).map(
-                              (item) => (
-                                <li
-                                  key={item.id}
-                                  className={styles.todoChecklistItem}
+                            {sortChecklistByDone(todo.checklist).map((item) => (
+                              <li
+                                key={item.id}
+                                className={styles.todoChecklistItem}
+                              >
+                                <button
+                                  className={`${styles.todoChecklistBtn}${item.checkedAt ? ` ${styles.todoChecklistChecked}` : ""}`}
+                                  onClick={() =>
+                                    onToggleChecklist(
+                                      todo,
+                                      item.id,
+                                      !item.checkedAt,
+                                    )
+                                  }
+                                  title={item.checkedAt ? "완료 취소" : "완료"}
+                                />
+                                <span
+                                  className={`${styles.todoChecklistText}${item.checkedAt ? ` ${styles.todoChecklistDone}` : ""}`}
                                 >
-                                  <button
-                                    className={`${styles.todoChecklistBtn}${item.isChecked ? ` ${styles.todoChecklistChecked}` : ""}`}
-                                    onClick={() =>
-                                      onToggleChecklist(
-                                        todo,
-                                        item.id,
-                                        !item.isChecked,
-                                      )
-                                    }
-                                    title={
-                                      item.isChecked ? "완료 취소" : "완료"
-                                    }
-                                  />
-                                  <span
-                                    className={`${styles.todoChecklistText}${item.isChecked ? ` ${styles.todoChecklistDone}` : ""}`}
-                                  >
-                                    {item.displayName}
-                                  </span>
-                                </li>
-                              ),
-                            )}
+                                  {item.title}
+                                </span>
+                              </li>
+                            ))}
                           </ul>
                         )}
                       </div>

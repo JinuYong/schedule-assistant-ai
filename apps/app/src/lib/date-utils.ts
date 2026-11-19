@@ -1,60 +1,27 @@
-/** Microsoft Graph dueDateTime을 로컬 날짜로 변환
- *  - timeZone 필드를 사용해 정확히 파싱 (Temporal 우선, fallback으로 "Z" 붙이기)
- *  - "Korea Standard Time" 같은 Windows 형식도 Temporal이 처리
- */
-export function formatDue(dateTime: string, timeZone = "UTC") {
-  let d: Date;
-  try {
-    const tz = (window as any).Temporal
-      ? (window as any).Temporal.ZonedDateTime.from(
-          `${dateTime}[${timeZone}]`,
-        ).toInstant().epochMilliseconds
-      : null;
-    d =
-      tz !== null
-        ? new Date(tz)
-        : new Date(
-            dateTime.endsWith("Z") || dateTime.includes("+")
-              ? dateTime
-              : dateTime + "Z",
-          );
-  } catch {
-    d = new Date(
-      dateTime.endsWith("Z") || dateTime.includes("+")
-        ? dateTime
-        : dateTime + "Z",
-    );
-  }
-  const today = new Date();
-  const isPast = d < today && d.toDateString() !== today.toDateString();
-  const isToday = d.toDateString() === today.toDateString();
-  const label = isToday
-    ? "오늘"
-    : d.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
-  return { label, isPast };
+/** 마감일("YYYY-MM-DD", 시각 없음) → 표시 라벨. 오늘이면 "오늘", 어제 이전이면 isPast */
+export function formatDue(date: string) {
+  const now = new Date();
+  const today = isoDate(now.getFullYear(), now.getMonth(), now.getDate());
+  const [y, m, d] = date.split("-").map(Number);
+  const label =
+    date === today
+      ? "오늘"
+      : new Date(y!, m! - 1, d!).toLocaleDateString("ko-KR", {
+          month: "short",
+          day: "numeric",
+        });
+  return { label, isPast: date < today };
+}
+
+/** 오늘(로컬) "YYYY-MM-DD" */
+export function todayIsoDate(): string {
+  const now = new Date();
+  return isoDate(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
 /** (year, month0-based, day) → "YYYY-MM-DD" */
 export function isoDate(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-}
-
-/** Microsoft Graph dateTimeTimeZone → Unix ms (timeZone 반영).
- *  Graph는 기본적으로 UTC로 값을 돌려주므로 timeZone을 반영해 실제 순간으로 변환한다.
- *  Temporal 우선, fallback은 오프셋 없으면 UTC(Z)로 간주.
- */
-export function graphDateTimeToMs(dateTime: string, timeZone = "UTC"): number {
-  const base = dateTime.slice(0, 19); // 분수초 제거
-  try {
-    const T = (window as any).Temporal;
-    if (T)
-      return T.ZonedDateTime.from(`${base}[${timeZone}]`).toInstant()
-        .epochMilliseconds;
-  } catch {
-    /* fallthrough */
-  }
-  const hasZone = base.endsWith("Z") || /[+-]\d\d:?\d\d$/.test(base);
-  return new Date(hasZone ? base : base + "Z").getTime();
 }
 
 /** "2026년 6월" 형식의 월/연 라벨 */

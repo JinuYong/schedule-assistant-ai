@@ -8,9 +8,7 @@ type StartOAuth = (
 
 /**
  * OAuth 연결 흐름(상태 + 에러 + connect)을 provider별로 캡슐화.
- *
- * settings 페이지의 Google/Microsoft 연결이 95% 동일했던 부분
- * (waiting→토큰 저장(expiresAt 계산)→idle / 실패 시 error)을 통합한다.
+ * (waiting→토큰 저장(expiresAt 계산)→idle / 실패 시 error)
  */
 export function useOAuthConnection(
   start: StartOAuth,

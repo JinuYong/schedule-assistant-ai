@@ -3,11 +3,11 @@
 // 화면을 더미데이터로 볼 수 있다 (네트워크 호출은 건너뜀).
 // 프로덕션/Tauri 빌드에는 영향 없음 (플래그가 꺼져 있으면 모든 값이 빈 값).
 
-import type { PublicUser } from "@cali/shared";
+import type { PublicUser, Todo, TodoList } from "@cali/shared";
 import type { BaseTokens } from "@/types/tokens";
 import type { CalendarEvent } from "@/store/events";
-import type { TodoItem } from "@/store/todos";
 import type { CalendarListItem } from "@/lib/google-calendar";
+import { isoDate } from "@/lib/date-utils";
 
 export const MOCK_ENABLED = import.meta.env.VITE_MOCK === "1";
 
@@ -18,9 +18,6 @@ const mockTokens = (): BaseTokens => ({
 });
 
 export const MOCK_GOOGLE_TOKENS: BaseTokens | null = MOCK_ENABLED
-  ? mockTokens()
-  : null;
-export const MOCK_MICROSOFT_TOKENS: BaseTokens | null = MOCK_ENABLED
   ? mockTokens()
   : null;
 
@@ -46,11 +43,11 @@ function at(dayOffset: number, hour: number, min = 0): string {
   return d.toISOString();
 }
 
-/** dayOffset일 뒤 날짜(YYYY-MM-DD) */
+/** dayOffset일 뒤 로컬 날짜(YYYY-MM-DD). toISOString은 UTC라 한국 오전 9시 전엔 어제가 된다 */
 function dayKey(dayOffset: number): string {
   const d = new Date();
   d.setDate(d.getDate() + dayOffset);
-  return d.toISOString().split("T")[0];
+  return isoDate(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
 export const MOCK_CALENDARS: CalendarListItem[] = [
@@ -164,73 +161,52 @@ export const MOCK_EVENTS: CalendarEvent[] = MOCK_ENABLED
     ]
   : [];
 
-export const MOCK_TASKLISTS: { id: string; displayName: string }[] =
-  MOCK_ENABLED
-    ? [
-        { id: "tasks", displayName: "작업" },
-        { id: "personal", displayName: "개인" },
-        { id: "shopping", displayName: "쇼핑" }, // 미완료 할일 없는 목록(빈 카테고리 확인용)
-      ]
-    : [];
-
-export const MOCK_TODOS: TodoItem[] = MOCK_ENABLED
+export const MOCK_TODO_LISTS: TodoList[] = MOCK_ENABLED
   ? [
-      {
-        id: "t1",
-        listId: "tasks",
-        listName: "작업",
+      { id: 1, name: "작업" },
+      { id: 2, name: "개인" },
+      { id: 3, name: "쇼핑" }, // 미완료 할일 없는 목록(빈 카테고리 확인용)
+    ]
+  : [];
+
+const mockTodo = (
+  t: Partial<Todo> & Pick<Todo, "id" | "listId" | "title">,
+): Todo => ({
+  memo: "",
+  dueDate: null,
+  importance: "normal",
+  repeat: null,
+  reminderAt: null,
+  completedAt: null,
+  checklist: [],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...t,
+});
+
+export const MOCK_TODOS: Todo[] = MOCK_ENABLED
+  ? [
+      mockTodo({
+        id: 1,
+        listId: 1,
         title: "분기 보고서 작성 및 팀 리뷰 미팅 자료 정리하기",
         importance: "high",
-        status: "notStarted",
-        dueDateTime: {
-          dateTime: `${dayKey(0)}T00:00:00.0000000`,
-          timeZone: "UTC",
-        },
-        isReminderOn: true,
-        reminderDateTime: {
-          dateTime: `${dayKey(0)}T09:00:00.0000000`,
-          timeZone: "UTC",
-        },
-      },
-      {
-        id: "t2",
-        listId: "tasks",
-        listName: "작업",
-        title: "이메일 회신",
-        importance: "normal",
-        status: "notStarted",
-      },
-      {
-        id: "t3",
-        listId: "tasks",
-        listName: "작업",
+        dueDate: dayKey(0),
+        reminderAt: new Date(`${dayKey(0)}T09:00:00`).toISOString(),
+      }),
+      mockTodo({ id: 2, listId: 1, title: "이메일 회신" }),
+      mockTodo({
+        id: 3,
+        listId: 1,
         title: "주간 미팅 준비",
-        importance: "normal",
-        status: "notStarted",
-        dueDateTime: {
-          dateTime: `${dayKey(2)}T00:00:00.0000000`,
-          timeZone: "UTC",
-        },
-        recurrence: {
-          pattern: { type: "weekly", interval: 1 },
-          range: { type: "noEnd" },
-        },
-        checklistItems: [
-          { id: "c1", displayName: "자료 정리", isChecked: true },
-          { id: "c2", displayName: "발표 연습", isChecked: false },
+        dueDate: dayKey(2),
+        repeat: { type: "weekly", interval: 1 },
+        memo: "회의실 예약 확인",
+        checklist: [
+          { id: 1, title: "자료 정리", checkedAt: new Date().toISOString() },
+          { id: 2, title: "발표 연습", checkedAt: null },
         ],
-      },
-      {
-        id: "t4",
-        listId: "personal",
-        listName: "개인",
-        title: "운동 가기",
-        importance: "normal",
-        status: "notStarted",
-        dueDateTime: {
-          dateTime: `${dayKey(1)}T00:00:00.0000000`,
-          timeZone: "UTC",
-        },
-      },
+      }),
+      mockTodo({ id: 4, listId: 2, title: "운동 가기", dueDate: dayKey(1) }),
     ]
   : [];

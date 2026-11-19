@@ -1,27 +1,20 @@
 import { Link } from "@tanstack/react-router";
 import styles from "./unavailable-content.module.css";
 
-export default function UnavailableContent({
-  type,
-}: {
-  type: "GOOGLE" | "MICROSOFT";
-}) {
-  const contents =
-    type === "GOOGLE"
-      ? { iconTitle: "G", title: "Google Calendar", text: "Google" }
-      : { iconTitle: "M", title: "Microsoft Todo", text: "Microsoft" };
+/** Google 캘린더 연결이 없을 때 일정 화면 대신 보여 주는 안내 */
+export default function UnavailableContent() {
   return (
     <section className={styles.unavailable}>
       <div className={styles.unavailableContent}>
         <div className={styles.unavailableIcon} aria-hidden="true">
-          {contents.iconTitle}
+          G
         </div>
         <div className={styles.unavailableCopy}>
           <p className={styles.unavailableTitle}>
-            {contents.title} 연결이 필요합니다.
+            Google Calendar 연결이 필요합니다.
           </p>
           <p className={styles.unavailableText}>
-            할일을 보려면 설정에서 {contents.text} 계정을 다시 연결해주세요.
+            일정을 보려면 설정에서 Google 계정을 다시 연결해주세요.
           </p>
         </div>
         <Link to="/settings" className={styles.linkBtn}>

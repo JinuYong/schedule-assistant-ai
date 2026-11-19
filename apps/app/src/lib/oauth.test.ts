@@ -18,16 +18,13 @@ describe("findMissingScopes", () => {
     expect(findMissingScopes(partial, [CALENDAR])).toEqual([CALENDAR]);
   });
 
-  it("Microsoft처럼 전체 URI로 돌려줘도 인식한다", () => {
-    const granted =
-      "https://graph.microsoft.com/Tasks.ReadWrite https://graph.microsoft.com/User.Read";
-    expect(findMissingScopes(granted, ["Tasks.ReadWrite"])).toEqual([]);
+  it("짧은 이름과 전체 URI를 같은 것으로 본다", () => {
+    expect(findMissingScopes(`${CALENDAR} ${EMAIL}`, ["calendar"])).toEqual([]);
+    expect(findMissingScopes("calendar", [CALENDAR])).toEqual([]);
   });
 
   it("대소문자 차이를 무시한다", () => {
-    expect(findMissingScopes("tasks.readwrite", ["Tasks.ReadWrite"])).toEqual(
-      [],
-    );
+    expect(findMissingScopes(CALENDAR.toUpperCase(), [CALENDAR])).toEqual([]);
   });
 
   it("구분자가 여러 공백/개행이어도 파싱한다", () => {

@@ -6,9 +6,6 @@ import type { BaseTokens } from "@/types/tokens";
 // 빌드 시 번들된 OAuth credentials (개발자가 .env.local에 VITE_* 로 설정)
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET ?? "";
-const MICROSOFT_CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID ?? "";
-const MICROSOFT_CLIENT_SECRET =
-  import.meta.env.VITE_MICROSOFT_CLIENT_SECRET ?? "";
 
 /** Rust refresh 커맨드 응답 형태 */
 interface RefreshResponse {
@@ -23,7 +20,7 @@ interface RefreshResponse {
  * Google 동의 화면은 캘린더 같은 민감한 범위를 사용자가 개별적으로 해제할 수 있고,
  * 그래도 토큰은 정상 발급된다. 그래서 요청한 스코프가 아니라 **승인된 스코프**를 봐야 한다.
  *
- * 스코프 표기가 provider마다 달라("Tasks.ReadWrite" vs "https://graph.microsoft.com/Tasks.ReadWrite")
+ * 스코프 표기가 짧은 이름("calendar")일 수도 전체 URI일 수도 있어
  * 마지막 경로 세그먼트를 소문자로 맞춰 비교한다.
  *
  * `granted`가 비어 있으면 판별할 근거가 없으므로 통과시킨다 —
@@ -86,37 +83,6 @@ const googleProvider: OAuthProvider = {
   requiredScopes: ["https://www.googleapis.com/auth/calendar"],
   missingScopeError:
     "캘린더 접근 권한이 없어 연결하지 못했습니다. 다시 로그인한 뒤 동의 화면에서 캘린더 관련 항목을 모두 체크해 주세요.",
-};
-
-const microsoftProvider: OAuthProvider = {
-  clientId: MICROSOFT_CLIENT_ID,
-  missingIdError:
-    "Microsoft Client ID가 설정되지 않았습니다. 개발자에게 문의하세요.",
-  exchangeCommand: "exchange_microsoft_token",
-  refreshCommand: "refresh_microsoft_token",
-  buildAuthUrl: (port) =>
-    `https://login.microsoftonline.com/common/oauth2/v2.0/authorize` +
-    `?client_id=${encodeURIComponent(MICROSOFT_CLIENT_ID)}` +
-    `&redirect_uri=${encodeURIComponent(redirectUri(port))}` +
-    `&response_type=code` +
-    `&scope=${encodeURIComponent("Tasks.ReadWrite offline_access User.Read")}` +
-    `&response_mode=query`,
-  exchangeArgs: (code, port) => ({
-    code,
-    clientId: MICROSOFT_CLIENT_ID,
-    clientSecret: MICROSOFT_CLIENT_SECRET,
-    redirectUri: redirectUri(port),
-    tenant: "common",
-  }),
-  refreshArgs: (refreshToken) => ({
-    refreshToken,
-    clientId: MICROSOFT_CLIENT_ID,
-    clientSecret: MICROSOFT_CLIENT_SECRET,
-    tenant: "common",
-  }),
-  requiredScopes: ["Tasks.ReadWrite"],
-  missingScopeError:
-    "할일 접근 권한이 없어 연결하지 못했습니다. 다시 로그인한 뒤 동의 화면에서 할일 관련 항목을 체크해 주세요.",
 };
 
 /** 로컬 OAuth 서버 시작 → 시스템 브라우저 인증 → code 교환 공통 흐름 */
@@ -227,11 +193,4 @@ export const startGoogleOAuth = (
   onError: (err: string) => void,
 ) => startOAuth(googleProvider, onTokens, onError);
 
-export const startMicrosoftOAuth = (
-  onTokens: (tokens: BaseTokens) => void,
-  onError: (err: string) => void,
-) => startOAuth(microsoftProvider, onTokens, onError);
-
 export const refreshGoogleTokenIfNeeded = createTokenRefresher(googleProvider);
-export const refreshMicrosoftTokenIfNeeded =
-  createTokenRefresher(microsoftProvider);

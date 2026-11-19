@@ -1,9 +1,9 @@
 /**
  * 인증 fetch 공통 골격.
  *
- * google-calendar.ts(`request`)와 microsoft-todo.ts(`graphFetch`)가 공유하던
+ * google-calendar.ts(`request`)가 쓰는
  * "사전 토큰 갱신 → fetch → 401 시 강제 갱신 후 1회 재시도 → 에러 처리 → 204 처리"
- * 흐름을 통합한다. provider별 차이(Content-Type 조건, 429 메시지, 204 반환값,
+ * 흐름을 담는다. provider별 차이(Content-Type 조건, 429 메시지, 204 반환값,
  * 비-OK 응답 파싱)는 옵션/콜백으로 주입한다.
  */
 import { RateLimitError } from "./api-errors";

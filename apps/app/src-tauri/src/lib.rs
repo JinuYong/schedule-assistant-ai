@@ -33,8 +33,6 @@ pub fn run() {
             notification::send_os_notification,
             oauth::exchange_google_token,
             oauth::refresh_google_token,
-            oauth::exchange_microsoft_token,
-            oauth::refresh_microsoft_token,
             places::search_places,
         ])
         .build(tauri::generate_context!())

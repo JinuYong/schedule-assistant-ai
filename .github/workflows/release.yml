@@ -64,14 +64,12 @@ jobs:
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}
-          MICROSOFT_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_ID }}
-          MICROSOFT_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET }}
           NAVER_SEARCH_CLIENT_ID: ${{ secrets.NAVER_SEARCH_CLIENT_ID }}
           NAVER_SEARCH_CLIENT_SECRET: ${{ secrets.NAVER_SEARCH_CLIENT_SECRET }}
         run: |
           set -euo pipefail
           MISSING=""
-          for NAME in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET; do
+          for NAME in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
             [ -n "${!NAME:-}" ] || MISSING="$MISSING NEXT_PUBLIC_$NAME"
           done
           for NAME in NAVER_SEARCH_CLIENT_ID NAVER_SEARCH_CLIENT_SECRET; do
@@ -182,8 +180,6 @@ jobs:
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           VITE_GOOGLE_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}
-          VITE_MICROSOFT_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_ID }}
-          VITE_MICROSOFT_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET }}
           # 네이버 키는 JS 번들이 아니라 Rust 바이너리로 구워진다(src-tauri/build.rs).
           NAVER_SEARCH_CLIENT_ID: ${{ secrets.NAVER_SEARCH_CLIENT_ID }}
           NAVER_SEARCH_CLIENT_SECRET: ${{ secrets.NAVER_SEARCH_CLIENT_SECRET }}

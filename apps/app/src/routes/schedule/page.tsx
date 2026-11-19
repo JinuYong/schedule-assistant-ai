@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useAuthStore } from "@/store/auth";
 import { useEventsStore, CalendarEvent } from "@/store/events";
-import { useTodosStore, TodoItem } from "@/store/todos";
+import type { Todo } from "@cali/shared";
+import { useTodosStore } from "@/store/todos";
 import {
   createEvent,
   updateEvent,
@@ -36,11 +37,10 @@ import {
 } from "./calendar-utils";
 import { getEventDateKeys, eventShortLabel } from "@/lib/event-match";
 import {
-  buildTodoTaskFromForm,
+  buildTodoBody,
   todoEditFormState,
   EMPTY_TODO_FORM,
   type TodoFormState,
-  cleanChecklistItems,
 } from "@/lib/todo-form";
 import { useTodayInfo } from "./hooks/use-today-info";
 import { useSidePanelWidth } from "./hooks/use-side-panel-width";
@@ -58,9 +58,7 @@ import TodoFormModal from "./components/todo-form-modal";
 export default function SchedulePage() {
   // 필드별 셀렉터 구독 — 미사용 스토어 필드(todos.lastFetchedAt 등) 변경 시 리렌더 방지
   const googleTokens = useAuthStore((s) => s.googleTokens);
-  const microsoftTokens = useAuthStore((s) => s.microsoftTokens);
   const refreshGoogle = useAuthStore((s) => s.refreshGoogle);
-  const refreshMicrosoft = useAuthStore((s) => s.refreshMicrosoft);
 
   const events = useEventsStore((s) => s.events);
   const isLoading = useEventsStore((s) => s.isLoading);
@@ -73,6 +71,7 @@ export default function SchedulePage() {
   const invalidateCache = useEventsStore((s) => s.invalidateCache);
 
   const todos = useTodosStore((s) => s.todos);
+  const todoLists = useTodosStore((s) => s.lists);
   const todosLoading = useTodosStore((s) => s.isLoading);
   const todosError = useTodosStore((s) => s.error);
   const fetchTodos = useTodosStore((s) => s.fetchTodos);
@@ -88,7 +87,7 @@ export default function SchedulePage() {
   const [eventForm, setEventForm] = useState<EventForm>(EMPTY_FORM);
   const [todoForm, setTodoForm] = useState<TodoFormState>(EMPTY_TODO_FORM);
   const [todoSubmitting, setTodoSubmitting] = useState(false);
-  const [expandedTodos, setExpandedTodos] = useState<Set<string>>(new Set());
+  const [expandedTodos, setExpandedTodos] = useState<Set<number>>(new Set());
   const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
 
   const goToToday = useCallback(() => {
@@ -189,12 +188,10 @@ export default function SchedulePage() {
     })();
   }, [googleTokens?.access_token, currentYear, currentMonth]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존(객체 재생성 시 재실행 방지), 나머지 누락 deps는 안정적 액션
 
-  // Microsoft Todo 로드 — refreshMicrosoft() 거치지 않고 저장된 토큰 직접 사용
-  // (refresh 중 Rust invoke 실패 시 fetchTodos가 아예 호출되지 않는 문제 방지)
+  // 할일(Cali 서버) — 화면을 열 때마다 새로
   useEffect(() => {
-    if (!microsoftTokens?.access_token) return;
-    fetchTodos(microsoftTokens.access_token);
-  }, [microsoftTokens?.access_token]); // eslint-disable-line react-hooks/exhaustive-deps -- 토큰 문자열에만 의존(객체 재생성 시 재실행 방지), 나머지 누락 deps는 안정적 액션
+    void fetchTodos();
+  }, [fetchTodos]);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -340,13 +337,12 @@ export default function SchedulePage() {
 
   const handleRefreshAll = useCallback(async () => {
     clearCalendarListCache();
-    const [g, m] = await Promise.all([refreshGoogle(), refreshMicrosoft()]);
-    const p: Promise<void>[] = [];
+    const p: Promise<void>[] = [fetchTodos()];
+    const g = await refreshGoogle();
     if (g?.access_token)
       p.push(fetchEvents(g.access_token, gridRange.timeMin, gridRange.timeMax));
-    if (m?.access_token) p.push(fetchTodos(m.access_token));
     await Promise.all(p);
-  }, [refreshGoogle, refreshMicrosoft, fetchEvents, fetchTodos, gridRange]);
+  }, [refreshGoogle, fetchEvents, fetchTodos, gridRange]);
 
   const {
     input: quickInput,
@@ -530,14 +526,9 @@ export default function SchedulePage() {
     onClick: setDetailEvent,
   });
 
-  // Microsoft Todo CRUD — refreshMicrosoft()로 토큰 확보 후 스토어 액션 호출
-  const resolveMicrosoftToken = useCallback(
-    async () => (await refreshMicrosoft())?.access_token ?? null,
-    [refreshMicrosoft],
-  );
-  const todoActions = useTodoActions(resolveMicrosoftToken);
+  const todoActions = useTodoActions();
 
-  const toggleTodoExpand = useCallback((id: string) => {
+  const toggleTodoExpand = useCallback((id: number) => {
     setExpandedTodos((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -546,16 +537,9 @@ export default function SchedulePage() {
     });
   }, []);
 
-  // 할일의 고유 리스트 목록 (listId → listName)
-  const todoLists = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const t of todos) map.set(t.listId, t.listName);
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [todos]);
-
   const openTodoForm = useCallback(
-    (listId?: string) => {
-      const defaultList = listId ?? todoLists[0]?.id ?? "";
+    (listId?: number) => {
+      const defaultList = listId ?? todoLists[0]?.id ?? 0;
       setTodoForm({
         ...EMPTY_TODO_FORM,
         open: true,
@@ -567,74 +551,47 @@ export default function SchedulePage() {
     [todoLists, selectedDate],
   );
 
-  const openTodoEditForm = useCallback(
-    (e: React.MouseEvent, todo: TodoItem) => {
-      e.stopPropagation();
-      setTodoForm(todoEditFormState(todo));
-    },
-    [],
-  );
+  const openTodoEditForm = useCallback((e: React.MouseEvent, todo: Todo) => {
+    e.stopPropagation();
+    setTodoForm(todoEditFormState(todo));
+  }, []);
 
   const closeTodoForm = useCallback(() => setTodoForm(EMPTY_TODO_FORM), []);
 
   const handleTodoSubmit = useCallback(
     async (e: { preventDefault(): void }) => {
       e.preventDefault();
-      if (
-        !todoForm.title.trim() ||
-        !todoForm.listId ||
-        !microsoftTokens?.access_token
-      )
-        return;
+      if (!todoForm.title.trim() || !todoForm.listId) return;
       setTodoSubmitting(true);
       try {
-        const task = buildTodoTaskFromForm(todoForm);
-        const checklistItems = cleanChecklistItems(todoForm.checklistItems);
-        if (todoForm.mode === "create") {
-          await createTodo(
-            microsoftTokens.access_token,
-            todoForm.listId,
-            task as Parameters<typeof createTodo>[2],
-            checklistItems,
-          );
-        } else if (todoForm.taskId) {
-          await updateTodo(
-            microsoftTokens.access_token,
-            todoForm.listId,
-            todoForm.taskId,
-            task,
-            checklistItems,
-          );
-        }
-        closeTodoForm();
+        const body = buildTodoBody(todoForm);
+        const ok =
+          todoForm.mode === "create"
+            ? await createTodo(body)
+            : !!todoForm.taskId && (await updateTodo(todoForm.taskId, body));
+        if (ok) closeTodoForm();
       } finally {
         setTodoSubmitting(false);
       }
     },
-    [todoForm, microsoftTokens, createTodo, updateTodo, closeTodoForm],
+    [todoForm, createTodo, updateTodo, closeTodoForm],
   );
 
   const dueTodoGroups = useMemo(() => {
-    const map = new Map<
-      string,
-      { listId: string; listName: string; items: TodoItem[] }
-    >();
-    for (const todo of todos.filter((t) => t.dueDateTime)) {
-      if (!map.has(todo.listId))
-        map.set(todo.listId, {
-          listId: todo.listId,
-          listName: todo.listName,
-          items: [],
-        });
-      map.get(todo.listId)!.items.push(todo);
-    }
-    return Array.from(map.values());
-  }, [todos]);
+    // 목록 순서대로, 마감일 있는 할일이 있는 목록만
+    return todoLists
+      .map((l) => ({
+        listId: l.id,
+        listName: l.name,
+        items: todos.filter((t) => t.listId === l.id && t.dueDate),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [todos, todoLists]);
 
   if (!googleTokens) {
     return (
       <div className={styles.container}>
-        <UnavailableContent type="GOOGLE" />
+        <UnavailableContent />
       </div>
     );
   }
@@ -818,39 +775,30 @@ export default function SchedulePage() {
               />
             </section>
             <Divider />
-            {microsoftTokens ? (
-              <section>
-                <div className={styles.dayDetailHeader}>
-                  <h3 className={styles.dayDetailTitle}>마감 예정 할일</h3>
-                  <button
-                    className={styles.dayAddBtn}
-                    onClick={() => openTodoForm()}
-                  >
-                    <IconPlus /> 추가
-                  </button>
-                </div>
-                <TodoGroups
-                  groups={dueTodoGroups}
-                  emptyMessage="마감일 있는 할일이 없습니다."
-                  todosError={todosError}
-                  todosLoading={todosLoading}
-                  expandedTodos={expandedTodos}
-                  onToggleExpand={toggleTodoExpand}
-                  onComplete={todoActions.complete}
-                  onEditTodo={openTodoEditForm}
-                  onDeleteTodo={todoActions.remove}
-                  onToggleImportance={todoActions.toggleImportance}
-                  onToggleChecklist={todoActions.toggleChecklist}
-                />
-              </section>
-            ) : (
-              <section>
-                <div className={styles.dayDetailHeader}>
-                  <h3 className={styles.dayDetailTitle}>마감 예정 할일</h3>
-                </div>
-                <UnavailableContent type="MICROSOFT" />
-              </section>
-            )}
+            <section>
+              <div className={styles.dayDetailHeader}>
+                <h3 className={styles.dayDetailTitle}>마감 예정 할일</h3>
+                <button
+                  className={styles.dayAddBtn}
+                  onClick={() => openTodoForm()}
+                >
+                  <IconPlus /> 추가
+                </button>
+              </div>
+              <TodoGroups
+                groups={dueTodoGroups}
+                emptyMessage="마감일 있는 할일이 없습니다."
+                todosError={todosError}
+                todosLoading={todosLoading}
+                expandedTodos={expandedTodos}
+                onToggleExpand={toggleTodoExpand}
+                onComplete={todoActions.complete}
+                onEditTodo={openTodoEditForm}
+                onDeleteTodo={todoActions.remove}
+                onToggleImportance={todoActions.toggleImportance}
+                onToggleChecklist={todoActions.toggleChecklist}
+              />
+            </section>
           </div>
         </div>
       </div>

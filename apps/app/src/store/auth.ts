@@ -1,31 +1,20 @@
 import { create } from "zustand";
 import { storeDelete, storeGet, storeSet } from "@/lib/tauri-store";
-import {
-  refreshGoogleTokenIfNeeded,
-  refreshMicrosoftTokenIfNeeded,
-} from "@/lib/oauth";
+import { refreshGoogleTokenIfNeeded } from "@/lib/oauth";
 import { AuthError } from "@/lib/api-errors";
 import { createSingleFlight, type SingleFlight } from "@/lib/promise-cache";
 import type { BaseTokens } from "@/types/tokens";
-import {
-  MOCK_ENABLED,
-  MOCK_GOOGLE_TOKENS,
-  MOCK_MICROSOFT_TOKENS,
-} from "@/lib/dev-mock";
+import { MOCK_ENABLED, MOCK_GOOGLE_TOKENS } from "@/lib/dev-mock";
 import { showToast } from "@/store/toast";
 
 export type GoogleTokens = BaseTokens;
-export type MicrosoftTokens = BaseTokens;
 
 interface AuthStore {
   googleTokens: GoogleTokens | null;
-  microsoftTokens: MicrosoftTokens | null;
   setGoogleTokens: (tokens: GoogleTokens | null) => void;
-  setMicrosoftTokens: (tokens: MicrosoftTokens | null) => void;
   loadFromStore: () => Promise<void>;
   /** 만료 임박 시 토큰 갱신 후 최신 토큰 반환 */
   refreshGoogle: (force?: boolean) => Promise<GoogleTokens | null>;
-  refreshMicrosoft: (force?: boolean) => Promise<MicrosoftTokens | null>;
 }
 
 /** provider별 토큰 갱신 흐름 (single-flight + 상태/스토어 반영 + AuthError 처리) */
@@ -89,46 +78,27 @@ export const useAuthStore = create<AuthStore>((set, get) => {
     expiredMessage: "Google 연결이 만료되었습니다. 설정에서 다시 연결해주세요.",
   });
 
-  const refreshMicrosoft = createTokenRefresh<MicrosoftTokens>({
-    flight: createSingleFlight<MicrosoftTokens | null>(),
-    getTokens: () => get().microsoftTokens,
-    applyTokens: async (tokens) => {
-      set({ microsoftTokens: tokens });
-      await storeSet("microsoft.tokens", tokens);
-    },
-    clearTokens: async () => {
-      set({ microsoftTokens: null });
-      await storeDelete("microsoft.tokens");
-    },
-    refreshIfNeeded: refreshMicrosoftTokenIfNeeded,
-    expiredMessage:
-      "Microsoft 연결이 만료되었습니다. 설정에서 다시 연결해주세요.",
-  });
-
   return {
     googleTokens: MOCK_GOOGLE_TOKENS,
-    microsoftTokens: MOCK_MICROSOFT_TOKENS,
 
     setGoogleTokens: (tokens) => {
       set({ googleTokens: tokens });
       storeSet("google.tokens", tokens);
     },
 
-    setMicrosoftTokens: (tokens) => {
-      set({ microsoftTokens: tokens });
-      storeSet("microsoft.tokens", tokens);
-    },
-
     loadFromStore: async () => {
       if (MOCK_ENABLED) return; // 더미 모드에선 주입된 토큰 유지
-      const [googleTokens, microsoftTokens] = await Promise.all([
-        storeGet<GoogleTokens>("google.tokens"),
-        storeGet<MicrosoftTokens>("microsoft.tokens"),
-      ]);
-      set({ googleTokens, microsoftTokens });
+      set({ googleTokens: await storeGet<GoogleTokens>("google.tokens") });
+      // Microsoft 할일 연동을 걷어낸 뒤(0.6.0) 남은 토큰·클라이언트 값 정리
+      void Promise.all(
+        [
+          "microsoft.tokens",
+          "microsoft.clientId",
+          "microsoft.clientSecret",
+        ].map((key) => storeDelete(key)),
+      );
     },
 
     refreshGoogle,
-    refreshMicrosoft,
   };
 });

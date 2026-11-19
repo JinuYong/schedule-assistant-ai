@@ -1,4 +1,4 @@
-/** OAuth 토큰 공통 형태 (Google / Microsoft 공용) */
+/** OAuth 토큰 형태 (Google) */
 export interface BaseTokens {
   access_token: string;
   refresh_token?: string;

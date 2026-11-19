@@ -3,9 +3,7 @@ import { useAuthStore } from "@/store/auth";
 import { useAccountStore } from "@/store/account";
 import { useThemeStore, THEME_COLORS } from "@/store/theme";
 import { storeGet, storeSet, isTauri } from "@/lib/tauri-store";
-import { startMicrosoftOAuth } from "@/lib/oauth";
 import { getCalendarList, type CalendarListItem } from "@/lib/google-calendar";
-import { useOAuthConnection } from "@/hooks/use-oauth-connection";
 import { useGoogleSignIn } from "@/hooks/use-google-sign-in";
 import { DEFAULT_CALENDAR_KEY } from "@/hooks/use-default-calendar";
 import { DEFAULT_SHORTCUT } from "@/lib/hotkey";
@@ -13,8 +11,7 @@ import { fireNotification } from "@/lib/notifications";
 import styles from "./page.module.css";
 
 export default function SettingsContent() {
-  const { googleTokens, microsoftTokens, setMicrosoftTokens, refreshGoogle } =
-    useAuthStore();
+  const { googleTokens, refreshGoogle } = useAuthStore();
   const { accentColor, setTheme } = useThemeStore();
 
   const [anthropicKey, setAnthropicKey] = useState("");
@@ -56,8 +53,6 @@ export default function SettingsContent() {
   useEffect(() => {
     void refreshMe();
   }, [refreshMe]);
-
-  const microsoft = useOAuthConnection(startMicrosoftOAuth, setMicrosoftTokens);
 
   useEffect(() => {
     (async () => {
@@ -257,48 +252,6 @@ export default function SettingsContent() {
             {google.status === "waiting"
               ? "브라우저에서 인증 중..."
               : "Google로 로그인"}
-          </button>
-        )}
-      </section>
-
-      {/* Microsoft Todo */}
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Microsoft Todo</h2>
-          {microsoftTokens && (
-            <span
-              className={
-                microsoftTokens.access_token ? styles.badge : styles.badgeWarn
-              }
-            >
-              {microsoftTokens.access_token
-                ? "연결됨"
-                : "토큰 오류 (재연결 필요)"}
-            </span>
-          )}
-        </div>
-        <p className={styles.description}>
-          Microsoft 계정으로 로그인하여 할일을 동기화합니다.
-        </p>
-        {microsoft.error && (
-          <p className={styles.errorText}>{microsoft.error}</p>
-        )}
-        {microsoftTokens ? (
-          <button
-            className={styles.dangerBtn}
-            onClick={() => setMicrosoftTokens(null)}
-          >
-            연결 해제
-          </button>
-        ) : (
-          <button
-            className={styles.connectBtn}
-            onClick={microsoft.connect}
-            disabled={microsoft.status === "waiting"}
-          >
-            {microsoft.status === "waiting"
-              ? "브라우저에서 인증 중..."
-              : "Microsoft로 로그인"}
           </button>
         )}
       </section>

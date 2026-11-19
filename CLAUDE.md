@@ -1,7 +1,7 @@
 # schedule-assistant-ai
 
 AI 기반 일정 비서 앱. **macOS 메인 타겟**, 전역 단축키로 플로팅 입력창을 열어 자연어로 일정을 등록하고
-Google Calendar / Microsoft Todo와 연동한다.
+Google Calendar와 연동한다. 할일은 Cali 서버(apps/server)에 저장한다.
 
 ---
 
@@ -26,9 +26,10 @@ bun run --cwd apps/server db:generate       # schema.ts 바꾼 뒤 → drizzle/�
 bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서버는 뜰 때 자동 적용)
 ```
 
-- 구조: `src/app.ts`(라우트 조립, 의존성 주입) · `src/index.ts`(진입: DB 연결 → 마이그레이션 → 서빙) · `src/env.ts`(zod) · `src/db/`(schema·연결·migrate) · `src/auth/`
+- 구조: `src/app.ts`(라우트 조립, 의존성 주입) · `src/index.ts`(진입: DB 연결 → 마이그레이션 → 서빙) · `src/env.ts`(zod) · `src/db/`(schema·연결·migrate) · `src/auth/` · `src/todos/`
 - 환경 변수: `DATABASE_URL`(mysql://…), `GOOGLE_CLIENT_IDS`(id_token `aud`로 받을 OAuth 클라이언트 ID, 쉼표로 여럿 — 앱 `VITE_GOOGLE_CLIENT_ID`와 같은 값, 안드로이드 추가 시 덧붙임), `PORT`(8787), `CORS_ORIGINS`(기본: Tauri 창 출처 + 개발 `http://localhost:3100`)
 - **로그인**: 앱이 Google OAuth(scope `openid email profile` + 캘린더)로 받은 `id_token`을 `POST /auth/google`로 보내면 서버가 Google 공개키로 검증(`auth/google.ts`: 발급자·aud·만료·`email_verified`)하고 사용자를 만들거나 갱신(Google `sub` 기준)한 뒤 세션 토큰을 준다. 이후 요청은 `Authorization: Bearer`. DB엔 토큰의 SHA-256만, 90일 안 쓰면 만료(쓰면 하루 단위로 연장). 가입은 Google 계정이면 누구나.
+- **할일**: `todo_lists`·`todos`·`todo_checklist_items`. 저장소(`todos/store.ts`의 `TodoStore`, 테스트는 `memory-store.ts`)는 통째로 쓰기만 하고, 합치기·기본값·반복은 `todos/routes.ts`. 반복 할일은 완료할 때 서버가 다음 회차를 같은 트랜잭션에서 만들고(`recurrence.ts`, 없는 날은 말일로), 완료한 쪽은 반복을 비운다. 완료한 할일은 지우지 않고 `completedAt`으로 보관(`GET /todos/completed`). 목록이 없으면 `GET /todos`가 "할일" 목록을 만든다. 체크리스트는 저장할 때마다 다시 넣어 항목 id가 바뀐다
 - 인증 저장은 `AuthStore` 인터페이스(`auth/store.ts` DB, `auth/memory-store.ts` 테스트) — 라우트 테스트는 DB 없이 돈다. 테스트는 `bun test`.
 - 시각은 `datetime(3)` UTC, 값은 앱에서 넣는다(`$defaultFn`, mysql2 `timezone: "Z"`). ID는 `bigint unsigned` 자동 증가(`serial`은 UNIQUE 인덱스를 하나 더 만들어 안 씀).
 - 마이그레이션은 **서버가 뜰 때 자동 적용**(push = 배포 = 스키마 반영). MySQL DDL은 되돌릴 수 없으니 칸 삭제·이름 변경은 그 칸을 안 쓰는 코드를 먼저 배포한 뒤 다음 배포에서.
@@ -54,7 +55,7 @@ bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서�
 | 상태 관리     | Zustand                                                                                     |
 | AI            | Claude API (Rust `reqwest` 경유, CORS 우회)                                                 |
 | 캘린더        | Google Calendar REST API (직접 fetch)                                                       |
-| 할일          | Microsoft Graph REST API (직접 fetch)                                                       |
+| 할일          | Cali 서버 `/todos`·`/todo-lists` (`src/lib/api.ts`, 세션 Bearer)                            |
 | 로컬 저장소   | `tauri-plugin-store` (`LazyStore`) — DB 없음, Google Calendar가 source of truth             |
 | OAuth         | `@fabianlars/tauri-plugin-oauth` (`start()` + `onUrl()` 패턴)                               |
 | 알림          | `tauri-plugin-notification` + JS setTimeout                                                 |
@@ -126,7 +127,7 @@ apps/app/
 │   │   ├── main.rs              # 진입점
 │   │   ├── lib.rs               # run() 빌더 (setup·invoke_handler·run-event)
 │   │   ├── claude.rs            # call_claude / stream_chat
-│   │   ├── oauth.rs             # Google/Microsoft 토큰 교환·갱신
+│   │   ├── oauth.rs             # Google 토큰 교환·갱신
 │   │   ├── places.rs           # NAVER API HUB 지역검색 (장소명 → 주소, 인증키 컴파일 타임 주입)
 │   │   ├── floating_macos.rs    # 플로팅 창 (NSPanel) + 전역 단축키
 │   │   └── error.rs             # auth_error/oauth_error 문자열 헬퍼
@@ -147,7 +148,7 @@ apps/app/
 │   │   │   ├── hooks/           # use-today-info / use-side-panel-width / use-event-drag
 │   │   │   └── components/      # calendar-grid, event-list, todo-groups, *-modal
 │   │   ├── chat/                # Claude AI 채팅 + 브리핑
-│   │   ├── todo/                # Microsoft Todo 할일 목록
+│   │   ├── todo/                # 할일 목록 (components/: 목록 머리·이름 입력·완료됨)
 │   │   └── settings/            # OAuth 연동, 테마, 단축키 설정
 │   ├── floating/                # 플로팅 입력창 (main.tsx 진입, layout·page)
 │   ├── components/
@@ -157,18 +158,18 @@ apps/app/
 │   │   ├── Providers/           # QueryClient + ThemeApplier + TauriInit
 │   │   └── icons.tsx            # 공통 아이콘 컴포넌트 (평탄화)
 │   ├── hooks/                   # 페이지 간 공유 훅
-│   │   ├── use-todo-actions.ts  # MS Todo CRUD 핸들러 (토큰 resolver 주입)
+│   │   ├── use-todo-actions.ts  # 할일 행 동작(완료·중요·삭제·체크리스트, schedule·todo 공용)
 │   │   └── use-oauth-connection.ts # OAuth 연결 상태/흐름
 │   ├── lib/
 │   │   ├── claude.ts            # Claude API (invoke "call_claude" / "stream_chat")
 │   │   ├── google-calendar.ts   # Google Calendar REST API + buildEventFromParsed
-│   │   ├── microsoft-todo.ts    # Microsoft Graph REST API (직접 fetch)
-│   │   ├── todo-form.ts         # 할일 폼 상태/빌더 (TodoFormState·buildTodoTaskFromForm 등, 공유)
+│   │   ├── api.ts               # Cali 서버 호출 단일 진입점 (로그인·할일)
+│   │   ├── todo-form.ts         # 할일 폼 상태/빌더 (TodoFormState·buildTodoBody 등, 공유)
 │   │   ├── event-match.ts       # 이벤트 자동완성·매칭 (matchEventsByText·parseDateHint·matchCalendar, 공유)
 │   │   ├── location.ts          # 장소 라벨·지도 가능 판별·네이버지도 열기
 │   │   ├── naver-place.ts       # NAVER API HUB 지역검색 래퍼 (invoke "search_places")
 │   │   ├── dev-mock.ts          # 개발용 더미데이터 (VITE_MOCK=1)
-│   │   ├── oauth.ts             # Google/Microsoft OAuth 흐름 (provider 팩토리)
+│   │   ├── oauth.ts             # Google OAuth 흐름 (provider 팩토리)
 │   │   ├── authenticated-fetch.ts # 공통 인증 fetch 골격 (401 재시도·429 처리)
 │   │   ├── api-errors.ts        # AuthError / RateLimitError
 │   │   ├── promise-cache.ts     # createSingleFlight (인플라이트 Promise 공유)
@@ -180,9 +181,10 @@ apps/app/
 │   ├── types/
 │   │   └── tokens.ts            # BaseTokens
 │   └── store/
-│       ├── auth.ts              # Google/Microsoft 토큰 (Zustand, createTokenRefresh)
+│       ├── auth.ts              # Google 토큰 (Zustand, createTokenRefresh)
+│       ├── account.ts           # Cali 서버 세션 (SignInGate가 봄)
 │       ├── events.ts            # 캘린더 이벤트 캐시 + 알림 스케줄
-│       ├── todos.ts            # Microsoft Todo 할일 캐시 (Zustand)
+│       ├── todos.ts             # 할일·목록·완료됨 (서버 응답 반영, 알림 재예약)
 │       ├── toast.ts            # 토스트 알림 상태 (Zustand)
 │       └── theme.ts             # 테마 색상 (Zustand + localStorage)
 ├── index.html                   # 메인 창 진입 HTML → src/main.tsx
@@ -232,16 +234,16 @@ streamChat() 호출
   → 프론트엔드에서 실시간으로 메시지 누적
 ```
 
-### 5. OAuth 흐름 (Google / Microsoft)
+### 5. OAuth 흐름 (Google)
 
 ```
 start() → 로컬 OAuth 서버 시작 (포트 자동 할당)
 onUrl(callback) → 콜백 URL 리스너 등록
 open(authUrl) → 시스템 브라우저에서 OAuth 인증
   → localhost:{port}/?code=xxx 리다이렉트
-  → invoke("exchange_google_token" | "exchange_microsoft_token")  # Rust에서 토큰 교환 (client_secret 보호)
-  → useAuthStore.setGoogleTokens() / setMicrosoftTokens()
-  → storeSet("google.tokens" | "microsoft.tokens")
+  → invoke("exchange_google_token")  # Rust에서 토큰 교환 (client_secret 보호)
+  → useAuthStore.setGoogleTokens() → storeSet("google.tokens")
+  → id_token으로 Cali 서버 로그인 (store/account.ts)
 ```
 
 ### 6. 테마 시스템
@@ -265,18 +267,16 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 
 ## Rust commands (src-tauri/src/, 모듈별)
 
-| 커맨드                     | 모듈              | 역할                                                                        |
-| -------------------------- | ----------------- | --------------------------------------------------------------------------- |
-| `call_claude`              | claude.rs         | Claude API 비스트리밍 호출 (일정 파싱용)                                    |
-| `stream_chat`              | claude.rs         | Claude SSE 스트리밍 → `chat-chunk` / `chat-done` Tauri 이벤트 emit          |
-| `exchange_google_token`    | oauth.rs          | Google OAuth code → tokens 교환                                             |
-| `refresh_google_token`     | oauth.rs          | Google access token 갱신                                                    |
-| `exchange_microsoft_token` | oauth.rs          | Microsoft OAuth code → tokens 교환                                          |
-| `refresh_microsoft_token`  | oauth.rs          | Microsoft access token 갱신                                                 |
-| `show_floating`            | floating_macos.rs | 플로팅 창 표시 (macOS NSPanel: orderFrontRegardless + makeKeyAndOrderFront) |
-| `hide_floating`            | floating_macos.rs | 플로팅 창 숨김 (`restore` 인자로 이전 앱 복원 여부 결정)                    |
-| `set_global_shortcut`      | floating_macos.rs | 전역 단축키 동적 재등록                                                     |
-| `search_places`            | places.rs         | NAVER API HUB 지역검색 (상호명 → 주소, CORS 우회 + 인증키 내장)             |
+| 커맨드                  | 모듈              | 역할                                                                        |
+| ----------------------- | ----------------- | --------------------------------------------------------------------------- |
+| `call_claude`           | claude.rs         | Claude API 비스트리밍 호출 (일정 파싱용)                                    |
+| `stream_chat`           | claude.rs         | Claude SSE 스트리밍 → `chat-chunk` / `chat-done` Tauri 이벤트 emit          |
+| `exchange_google_token` | oauth.rs          | Google OAuth code → tokens 교환                                             |
+| `refresh_google_token`  | oauth.rs          | Google access token 갱신                                                    |
+| `show_floating`         | floating_macos.rs | 플로팅 창 표시 (macOS NSPanel: orderFrontRegardless + makeKeyAndOrderFront) |
+| `hide_floating`         | floating_macos.rs | 플로팅 창 숨김 (`restore` 인자로 이전 앱 복원 여부 결정)                    |
+| `set_global_shortcut`   | floating_macos.rs | 전역 단축키 동적 재등록                                                     |
+| `search_places`         | places.rs         | NAVER API HUB 지역검색 (상호명 → 주소, CORS 우회 + 인증키 내장)             |
 
 ---
 
@@ -290,9 +290,6 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 | `google.tokens`            | Google 액세스/리프레시 토큰                                      |
 | `server.session`           | Cali 서버 세션 `{ token, user }` (`store/account.ts`)            |
 | `google.defaultCalendarId` | 기본 캘린더 ID (모달 기본 선택·자연어 추가 폴백, 없으면 primary) |
-| `microsoft.clientId`       | Microsoft OAuth Client ID                                        |
-| `microsoft.clientSecret`   | Microsoft OAuth Client Secret                                    |
-| `microsoft.tokens`         | Microsoft 액세스/리프레시 토큰                                   |
 | `hotkey`                   | 플로팅 창 단축키 문자열                                          |
 | `theme.accent`             | 저장된 테마 색상                                                 |
 | `events.cache`             | 마지막으로 fetch한 이벤트 캐시                                   |
@@ -514,8 +511,6 @@ Settings → Secrets and variables → Actions
 | ----------------------------------------------- | ---- | -------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID`                  | ✅   | 워크플로가 `VITE_GOOGLE_CLIENT_ID`로 넘겨 번들에 주입 (시크릿 이름은 Next 시절 그대로) |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET`              | ✅   | 〃                                                                                     |
-| `NEXT_PUBLIC_MICROSOFT_CLIENT_ID`               | ✅   | 〃                                                                                     |
-| `NEXT_PUBLIC_MICROSOFT_CLIENT_SECRET`           | ✅   | 〃                                                                                     |
 | `NAVER_SEARCH_CLIENT_ID`                        | ✅   | 장소 검색 인증키 (Rust 바이너리에 주입)                                                |
 | `NAVER_SEARCH_CLIENT_SECRET`                    | ✅   | 〃                                                                                     |
 | `APPLE_CERTIFICATE`                             | ⬜   | Developer ID 인증서(.p12) base64                                                       |
@@ -544,10 +539,6 @@ OAuth credentials는 `.env.local`에 설정하며 `bun run build` 시 정적 번
 VITE_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
 VITE_GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
 
-# Microsoft OAuth (Azure Portal → 앱 등록)
-VITE_MICROSOFT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-VITE_MICROSOFT_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
 # NAVER API HUB 지역검색 (ncloud.com → NAVER API HUB → 인증키)
 # VITE_ 접두사가 없다 — JS 번들이 아니라 Rust 바이너리에 구워진다
 NAVER_SEARCH_CLIENT_ID=xxxxxxxxxxxxxxxxxxxx
@@ -571,69 +562,6 @@ NAVER_SEARCH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 시크릿 존재를 먼저 확인한다.
 
 ---
-
-## Azure Portal 앱 등록 가이드 (Microsoft OAuth)
-
-> Microsoft To-Do 연동을 위한 OAuth 앱 설정 방법.
-> Azure Portal은 개인 Microsoft 계정으로도 접속 가능하며, Microsoft OAuth의 유일한 설정 창구입니다.
-
-### 1단계: 앱 등록
-
-1. [portal.azure.com](https://portal.azure.com) 접속 → Microsoft 계정 로그인
-2. 상단 검색창에 **"앱 등록"** 검색 → 클릭
-3. **"+ 새 등록"** 클릭
-4. 양식 입력:
-   - **이름**: `Schedule Assistant AI`
-   - **지원되는 계정 유형**: **"모든 Microsoft Entra ID 테넌트의 계정 및 개인 Microsoft 계정(예: Skype, Xbox)"** 선택
-   - **리디렉션 URI**: 비워두기
-5. **"등록"** 클릭
-
-### 2단계: Application ID 복사
-
-등록 완료 후 개요 페이지에서:
-
-- **애플리케이션(클라이언트) ID** 복사 → `.env.local`의 `VITE_MICROSOFT_CLIENT_ID`에 입력
-
-### 3단계: 공용 클라이언트 허용
-
-왼쪽 메뉴 → **"인증"** 클릭
-
-1. **"+ 플랫폼 추가"** → **"모바일 및 데스크톱 애플리케이션"** 선택
-2. 리디렉션 URI 목록에서 아무것도 선택 안 하고 **"구성"** 클릭
-3. **고급 설정** → **"공용 클라이언트 흐름 허용"** → **"예"**
-4. 상단 **"저장"** 클릭
-
-### 4단계: API 권한 추가
-
-왼쪽 메뉴 → **"API 권한"** → **"+ 권한 추가"** → **"Microsoft Graph"** → **"위임된 권한"**
-
-아래 권한 검색 후 체크:
-
-| 권한              | 용도             |
-| ----------------- | ---------------- |
-| `Tasks.ReadWrite` | To-Do 읽기/쓰기  |
-| `User.Read`       | 사용자 정보 조회 |
-| `offline_access`  | 토큰 자동 갱신   |
-
-**"권한 추가"** 클릭
-
-### 5단계: 클라이언트 암호 생성
-
-왼쪽 메뉴 → **"인증서 및 암호"** → **"클라이언트 암호"** 탭 → **"+ 새 클라이언트 암호"**
-
-1. **설명**: `schedule-assistant-ai`
-2. **만료**: 24개월 권장
-3. **"추가"** 클릭
-
-> ⚠️ 생성 직후에만 **"값"** 열에서 확인 가능. 페이지를 벗어나면 다시 볼 수 없으니 즉시 복사.
-
-복사한 **값** → `.env.local`의 `VITE_MICROSOFT_CLIENT_SECRET`에 입력
-
-### 6단계: 빌드
-
-```bash
-bun run build:tauri
-```
 
 ## Agent skills
 

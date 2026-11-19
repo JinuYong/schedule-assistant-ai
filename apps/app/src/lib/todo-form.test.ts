@@ -1,31 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Todo } from "@cali/shared";
 import {
   sortChecklistByDone,
   recurrenceLabel,
-  buildTodoRecurrence,
-  buildTodoTaskFromForm,
+  buildTodoBody,
+  todoEditFormState,
   EMPTY_TODO_FORM,
   type TodoFormState,
   cleanChecklistItems,
 } from "./todo-form";
 
 describe("sortChecklistByDone", () => {
-  it("미완료를 먼저, 완료는 완료시각 오름차순(최근 완료가 맨 아래)", () => {
+  it("미완료를 먼저(순서 유지), 완료는 체크 시각 오름차순(최근이 맨 아래)", () => {
     const items = [
-      {
-        displayName: "완료-나중",
-        isChecked: true,
-        checkedDateTime: { dateTime: "2026-06-15T12:00:00Z" },
-      },
-      { displayName: "미완료", isChecked: false },
-      {
-        displayName: "완료-먼저",
-        isChecked: true,
-        checkedDateTime: { dateTime: "2026-06-15T09:00:00Z" },
-      },
+      { title: "완료-나중", checkedAt: "2026-06-15T12:00:00.000Z" },
+      { title: "미완료1", checkedAt: null },
+      { title: "완료-먼저", checkedAt: "2026-06-15T09:00:00.000Z" },
+      { title: "미완료2", checkedAt: null },
     ];
-    expect(sortChecklistByDone(items).map((i) => i.displayName)).toEqual([
-      "미완료",
+    expect(sortChecklistByDone(items).map((i) => i.title)).toEqual([
+      "미완료1",
+      "미완료2",
       "완료-먼저",
       "완료-나중",
     ]);
@@ -33,8 +28,8 @@ describe("sortChecklistByDone", () => {
 
   it("원본 배열을 변형하지 않는다", () => {
     const items = [
-      { displayName: "a", isChecked: true },
-      { displayName: "b", isChecked: false },
+      { title: "a", checkedAt: "2026-06-15T12:00:00.000Z" },
+      { title: "b", checkedAt: null },
     ];
     const copy = [...items];
     sortChecklistByDone(items);
@@ -46,97 +41,107 @@ describe("recurrenceLabel", () => {
   it("반복 타입 라벨", () => {
     expect(recurrenceLabel("daily")).toBe("매일");
     expect(recurrenceLabel("weekly")).toBe("매주");
-    expect(recurrenceLabel("absoluteMonthly")).toBe("매월");
-    expect(recurrenceLabel("absoluteYearly")).toBe("매년");
+    expect(recurrenceLabel("monthly")).toBe("매월");
+    expect(recurrenceLabel("yearly")).toBe("매년");
   });
 });
 
-describe("buildTodoRecurrence", () => {
-  it("반복 꺼짐: create는 undefined, edit는 null", () => {
+describe("buildTodoBody", () => {
+  const base: TodoFormState = { ...EMPTY_TODO_FORM, mode: "create", listId: 7 };
+  afterEach(() => vi.useRealTimers());
+
+  it("title·memo를 다듬고 빈 칸은 null로 보낸다", () => {
     expect(
-      buildTodoRecurrence({
-        ...EMPTY_TODO_FORM,
-        mode: "create",
-        repeatEnabled: false,
-      }),
-    ).toBeUndefined();
-    expect(
-      buildTodoRecurrence({
-        ...EMPTY_TODO_FORM,
-        mode: "edit",
-        repeatEnabled: false,
-      }),
-    ).toBeNull();
-  });
-
-  it("주간 반복은 dueDate 요일을 daysOfWeek에 넣는다", () => {
-    const r = buildTodoRecurrence({
-      ...EMPTY_TODO_FORM,
-      repeatEnabled: true,
-      repeatType: "weekly",
-      repeatInterval: 2,
-      dueDate: "2026-06-15",
+      buildTodoBody({ ...base, title: "  회의  ", memo: " 메모 " }),
+    ).toEqual({
+      listId: 7,
+      title: "회의",
+      memo: "메모",
+      dueDate: null,
+      importance: "normal",
+      repeat: null,
+      reminderAt: null,
+      checklist: [],
     });
-    expect(r?.pattern.type).toBe("weekly");
-    expect(r?.pattern.interval).toBe(2);
-    expect((r?.pattern as { daysOfWeek?: string[] }).daysOfWeek).toEqual([
-      "monday",
-    ]); // 2026-06-15 = 월
-    expect((r?.range as { startDate?: string }).startDate).toBe("2026-06-15");
-  });
-});
-
-describe("buildTodoTaskFromForm", () => {
-  const base: TodoFormState = {
-    ...EMPTY_TODO_FORM,
-    mode: "create",
-    listId: "L",
-  };
-
-  it("title을 trim하고 dueDateTime/body를 구성한다", () => {
-    const task = buildTodoTaskFromForm({
-      ...base,
-      title: "  회의  ",
-      dueDate: "2026-06-20",
-      memo: " 메모 ",
-    });
-    expect(task.title).toBe("회의");
-    expect(task.importance).toBe("normal");
-    expect(task.dueDateTime).toEqual({
-      dateTime: "2026-06-20T00:00:00.0000000",
-      timeZone: "UTC",
-    });
-    expect(task.body).toEqual({ content: "메모", contentType: "text" });
   });
 
-  it("메모가 비면 body를 넣지 않는다", () => {
-    const task = buildTodoTaskFromForm({ ...base, title: "x", memo: "   " });
-    expect(task.body).toBeUndefined();
-  });
-
-  it("알림 켜짐: isReminderOn=true, UTC timeZone", () => {
-    const task = buildTodoTaskFromForm({
+  it("알림은 로컬 날짜·시각을 UTC ISO로", () => {
+    const body = buildTodoBody({
       ...base,
       title: "x",
       reminderEnabled: true,
       reminderDate: "2026-06-20",
       reminderTime: "15:00",
     });
-    expect(task.isReminderOn).toBe(true);
-    expect(task.reminderDateTime?.timeZone).toBe("UTC");
+    expect(body.reminderAt).toBe(new Date(2026, 5, 20, 15, 0).toISOString());
   });
 
-  it("수정 모드 + 반복 변경 없음 → recurrence를 PATCH에 넣지 않는다(서버 값 보존)", () => {
-    const task = buildTodoTaskFromForm({
-      ...EMPTY_TODO_FORM,
-      mode: "edit",
-      listId: "L",
-      taskId: "T",
+  it("알림을 꺼 두면 날짜가 있어도 null", () => {
+    expect(
+      buildTodoBody({ ...base, title: "x", reminderDate: "2026-06-20" })
+        .reminderAt,
+    ).toBeNull();
+  });
+
+  it("반복은 간격을 1~365로 맞추고, 마감일이 없으면 오늘을 마감일로", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 15, 10));
+    const body = buildTodoBody({
+      ...base,
       title: "x",
-      repeatEnabled: false,
-      repeatBaseline: { enabled: false, type: "daily", interval: 1 },
+      repeatEnabled: true,
+      repeatType: "weekly",
+      repeatInterval: 0,
     });
-    expect("recurrence" in task).toBe(false);
+    expect(body.repeat).toEqual({ type: "weekly", interval: 1 });
+    expect(body.dueDate).toBe("2026-06-15");
+  });
+});
+
+describe("todoEditFormState", () => {
+  it("할일 → 폼(알림은 로컬 시각, 체크리스트는 체크 여부)", () => {
+    const reminder = new Date(2026, 5, 20, 9, 30);
+    const todo: Todo = {
+      id: 3,
+      listId: 7,
+      title: "보고서",
+      memo: "초안",
+      dueDate: "2026-06-21",
+      importance: "high",
+      repeat: { type: "monthly", interval: 2 },
+      reminderAt: reminder.toISOString(),
+      completedAt: null,
+      checklist: [
+        { id: 1, title: "끝", checkedAt: "2026-06-15T00:00:00.000Z" },
+        { id: 2, title: "할 것", checkedAt: null },
+      ],
+      createdAt: "2026-06-01T00:00:00.000Z",
+      updatedAt: "2026-06-01T00:00:00.000Z",
+    };
+    const form = todoEditFormState(todo);
+    expect(form).toMatchObject({
+      mode: "edit",
+      listId: 7,
+      taskId: 3,
+      dueDate: "2026-06-21",
+      importance: "high",
+      repeatEnabled: true,
+      repeatType: "monthly",
+      repeatInterval: 2,
+      reminderEnabled: true,
+      reminderDate: "2026-06-20",
+      reminderTime: "09:30",
+    });
+    expect(form.checklistItems).toEqual([
+      { id: 2, title: "할 것", checked: false },
+      { id: 1, title: "끝", checked: true },
+    ]);
+    // 폼을 그대로 저장하면 같은 할일이 된다
+    expect(buildTodoBody(form)).toMatchObject({
+      dueDate: todo.dueDate,
+      reminderAt: todo.reminderAt,
+      repeat: todo.repeat,
+    });
   });
 });
 
@@ -144,37 +149,26 @@ describe("cleanChecklistItems", () => {
   it("내용 없는 항목은 저장하지 않는다", () => {
     // 폼에서 항목을 추가하면 빈 칸이 먼저 생긴다 — 그대로 두고 저장해도 남지 않아야 한다
     const items = [
-      { displayName: "우유 사기", isChecked: false },
-      { displayName: "", isChecked: false },
-      { displayName: "빵 사기", isChecked: false },
-      { displayName: "   ", isChecked: false },
+      { title: "우유 사기", checked: false },
+      { title: "", checked: false },
+      { title: "빵 사기", checked: false },
+      { title: "   ", checked: false },
     ];
-    expect(cleanChecklistItems(items).map((i) => i.displayName)).toEqual([
+    expect(cleanChecklistItems(items).map((i) => i.title)).toEqual([
       "우유 사기",
       "빵 사기",
     ]);
   });
 
-  it("앞뒤 공백을 다듬는다", () => {
+  it("앞뒤 공백을 다듬고 체크 상태와 id는 보존한다", () => {
     expect(
-      cleanChecklistItems([{ displayName: "  우유 사기  ", isChecked: false }]),
-    ).toEqual([{ displayName: "우유 사기", isChecked: false }]);
-  });
-
-  it("체크 상태와 id는 보존한다", () => {
-    const items = [{ id: "abc", displayName: "우유", isChecked: true }];
-    expect(cleanChecklistItems(items)).toEqual([
-      { id: "abc", displayName: "우유", isChecked: true },
-    ]);
-  });
-
-  it("빈 배열은 빈 배열", () => {
-    expect(cleanChecklistItems([])).toEqual([]);
+      cleanChecklistItems([{ id: 4, title: "  우유  ", checked: true }]),
+    ).toEqual([{ id: 4, title: "우유", checked: true }]);
   });
 
   it("원본을 건드리지 않는다", () => {
-    const items = [{ displayName: "  우유  ", isChecked: false }];
+    const items = [{ title: "  우유  ", checked: false }];
     cleanChecklistItems(items);
-    expect(items[0].displayName).toBe("  우유  ");
+    expect(items[0]!.title).toBe("  우유  ");
   });
 });

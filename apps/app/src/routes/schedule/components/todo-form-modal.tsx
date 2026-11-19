@@ -6,13 +6,13 @@ import {
   IconBell,
   IconPlus,
 } from "@/components/icons";
-import { TodoFormState, recurrenceLabel } from "@/lib/todo-form";
+import { TodoFormState, repeatUnit } from "@/lib/todo-form";
 import styles from "../page.module.css";
 
 interface TodoFormModalProps {
   form: TodoFormState;
   setForm: Dispatch<SetStateAction<TodoFormState>>;
-  todoLists: { id: string; name: string }[];
+  todoLists: { id: number; name: string }[];
   submitting: boolean;
   onClose: () => void;
   onSubmit: (e: { preventDefault(): void }) => void;
@@ -41,7 +41,7 @@ export default function TodoFormModal({
   const insertChecklistItem = (at: number) => {
     setForm((f) => {
       const items = [...f.checklistItems];
-      items.splice(at, 0, { displayName: "", isChecked: false });
+      items.splice(at, 0, { title: "", checked: false });
       return { ...f, checklistItems: items };
     });
     pendingFocus.current = at;
@@ -96,7 +96,7 @@ export default function TodoFormModal({
                   className={styles.formInput}
                   value={form.listId}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, listId: e.target.value }))
+                    setForm((f) => ({ ...f, listId: Number(e.target.value) }))
                   }
                 >
                   {todoLists.map((l) => (
@@ -187,15 +187,15 @@ export default function TodoFormModal({
                   >
                     <option value="daily">매일</option>
                     <option value="weekly">매주</option>
-                    <option value="absoluteMonthly">매월</option>
-                    <option value="absoluteYearly">매년</option>
+                    <option value="monthly">매월</option>
+                    <option value="yearly">매년</option>
                   </select>
                   <div className={styles.repeatIntervalControl}>
                     <input
                       className={styles.formInput}
                       type="number"
                       min={1}
-                      max={99}
+                      max={365}
                       value={form.repeatInterval}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -207,7 +207,7 @@ export default function TodoFormModal({
                         }))
                       }
                     />
-                    <span>{recurrenceLabel(form.repeatType)}</span>
+                    <span>{repeatUnit(form.repeatType)}마다</span>
                   </div>
                 </div>
               </div>
@@ -234,7 +234,7 @@ export default function TodoFormModal({
                     >
                       <button
                         type="button"
-                        className={`${styles.todoChecklistBtn}${item.isChecked ? ` ${styles.todoChecklistChecked}` : ""}`}
+                        className={`${styles.todoChecklistBtn}${item.checked ? ` ${styles.todoChecklistChecked}` : ""}`}
                         onClick={() =>
                           setForm((f) => ({
                             ...f,
@@ -243,27 +243,27 @@ export default function TodoFormModal({
                                 i === index
                                   ? {
                                       ...current,
-                                      isChecked: !current.isChecked,
+                                      checked: !current.checked,
                                     }
                                   : current,
                             ),
                           }))
                         }
-                        title={item.isChecked ? "완료 취소" : "완료"}
+                        title={item.checked ? "완료 취소" : "완료"}
                       />
                       <input
                         ref={(el) => {
                           checklistInputs.current[index] = el;
                         }}
                         className={styles.checklistEditorInput}
-                        value={item.displayName}
+                        value={item.title}
                         onChange={(e) =>
                           setForm((f) => ({
                             ...f,
                             checklistItems: f.checklistItems.map(
                               (current, i) =>
                                 i === index
-                                  ? { ...current, displayName: e.target.value }
+                                  ? { ...current, title: e.target.value }
                                   : current,
                             ),
                           }))
@@ -273,7 +273,7 @@ export default function TodoFormModal({
                           // 폼 안이라 Enter가 할일 저장으로 새는 것을 막는다
                           e.preventDefault();
                           // 빈 칸에서 또 누르면 빈 항목만 쌓이므로 무시한다
-                          if (!item.displayName.trim()) return;
+                          if (!item.title.trim()) return;
                           insertChecklistItem(index + 1);
                         }}
                         placeholder="체크리스트 항목"
