@@ -35,7 +35,9 @@ concurrency:
 
 jobs:
   release:
-    runs-on: macos-14
+    # 버전을 고정하면 GitHub가 그 이미지를 내릴 때 시작도 못 하고 취소된다(macos-14가 그랬다).
+    # universal 빌드라 러너 macOS 버전에 매이지 않으므로 latest를 따라간다
+    runs-on: macos-latest
     timeout-minutes: 60
     # 워크플로가 스스로 push한 버전 커밋에 다시 반응하지 않도록 하는 안전장치.
     # (GITHUB_TOKEN으로 push하면 원래 재트리거되지 않지만, PAT로 바꿀 경우를 대비)
