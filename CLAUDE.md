@@ -527,7 +527,10 @@ Settings → Secrets and variables → Actions
 (`src/lib/oauth.ts`가 빌드 타임 env를 정적 번들에 굽기 때문에, 비면 로그인 불가 앱이 배포됨.
 `NAVER_SEARCH_*`도 마찬가지로 비면 장소 검색이 죽은 앱이 나가므로 `build.rs`가 빌드를 끊는다).
 `APPLE_*`가 없으면 서명 단계를 건너뛰고 **서명 없는 dmg**가 나오며,
-사용자는 Gatekeeper 때문에 우클릭 → 열기로만 실행할 수 있다.
+(Tauri 기본 ad-hoc 서명뿐, 공증 없음). Gatekeeper가 "악성 코드가 없음을 확인할 수 없습니다"로 막고
+macOS 15부터는 우클릭 → 열기 우회도 없어졌다. 받은 사람은 한 번 열어 본 뒤 **시스템 설정 → 개인정보 보호 및 보안 →
+"그래도 열기"**를 누르거나, 터미널에서 `xattr -dr com.apple.quarantine /Applications/Cali.app`을 실행해야 한다.
+업데이트할 때마다 반복된다 — 없애려면 Apple Developer Program(연 $99)으로 `APPLE_*`를 채운다.
 
 ---
 
