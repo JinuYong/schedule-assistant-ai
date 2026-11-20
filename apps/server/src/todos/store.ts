@@ -80,10 +80,7 @@ export function toTodo(row: TodoRow, items: TodoChecklistItemRow[]): Todo {
     memo: row.memo,
     dueDate: row.dueDate,
     importance: row.importance,
-    repeat:
-      row.repeatType && row.repeatInterval
-        ? { type: row.repeatType, interval: row.repeatInterval }
-        : null,
+    repeat: row.repeat ?? null,
     reminderAt: iso(row.reminderAt),
     completedAt: iso(row.completedAt),
     checklist: items.toSorted((a, b) => a.position - b.position).map(toItem),
@@ -105,8 +102,7 @@ export const todoColumns = (input: TodoInput) => ({
   memo: input.memo,
   dueDate: input.dueDate,
   importance: input.importance,
-  repeatType: input.repeat?.type ?? null,
-  repeatInterval: input.repeat?.interval ?? null,
+  repeat: input.repeat,
   reminderAt: input.reminderAt,
   completedAt: input.completedAt,
 });

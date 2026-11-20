@@ -1,11 +1,13 @@
 // 할일 추가/수정 폼 도메인 — 폼 상태 타입과 서버(POST·PATCH /todos) 본문 빌더.
 // schedule 페이지·todo 페이지·todo-form-modal이 공유한다.
 
-import type {
-  CreateTodoBody,
-  Todo,
-  TodoChecklistDraft,
-  TodoRepeat,
+import {
+  firstOccurrence,
+  weekdayOf,
+  type CreateTodoBody,
+  type Todo,
+  type TodoChecklistDraft,
+  type TodoRepeat,
 } from "@cali/shared";
 import { isoDate, todayIsoDate } from "@/lib/date-utils";
 
@@ -26,8 +28,8 @@ export interface TodoFormState {
   importance: "normal" | "high";
   memo: string;
   repeatEnabled: boolean;
-  repeatType: TodoRepeat["type"];
-  repeatInterval: number;
+  /** 반복을 꺼 둬도 고른 값은 남겨 둔다(다시 켜면 그대로) */
+  repeat: TodoRepeat;
   reminderEnabled: boolean;
   reminderDate: string; // yyyy-mm-dd
   reminderTime: string; // HH:mm
@@ -44,8 +46,7 @@ export const EMPTY_TODO_FORM: TodoFormState = {
   importance: "normal",
   memo: "",
   repeatEnabled: false,
-  repeatType: "daily",
-  repeatInterval: 1,
+  repeat: { type: "daily", days: "all" },
   reminderEnabled: false,
   reminderDate: "",
   reminderTime: "09:00",
@@ -64,26 +65,110 @@ export function sortChecklistByDone<T extends { checkedAt: string | null }>(
   });
 }
 
-export function recurrenceLabel(type: TodoRepeat["type"]): string {
-  if (type === "daily") return "매일";
-  if (type === "weekly") return "매주";
-  if (type === "monthly") return "매월";
-  return "매년";
+const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+const WEEK_ORDINALS: Record<number, string> = {
+  1: "첫째",
+  2: "둘째",
+  3: "셋째",
+  4: "넷째",
+  [-1]: "마지막",
+};
+
+export const weekdayName = (weekday: number) => WEEKDAY_NAMES[weekday] ?? "";
+
+type MonthlyOn = Extract<TodoRepeat, { type: "monthly" }>["on"];
+
+/** 매월 반복 기준 이름 — "20일" / "첫날" / "마지막 날" / "셋째 주 목요일" */
+export function monthlyOnLabel(on: MonthlyOn): string {
+  if (on.kind === "lastDay") return "마지막 날";
+  if (on.kind === "weekday")
+    return `${WEEK_ORDINALS[on.week]} 주 ${weekdayName(on.weekday)}요일`;
+  return on.day === 1 ? "첫날" : `${on.day}일`;
 }
 
-/** "2주마다"처럼 간격이 1보다 클 때 붙이는 단위 */
-export function repeatUnit(type: TodoRepeat["type"]): string {
-  if (type === "daily") return "일";
-  if (type === "weekly") return "주";
-  if (type === "monthly") return "개월";
-  return "년";
-}
-
-/** 반복 설명 — "매주" / "2주마다" */
+/** 반복 설명 — "평일마다", "2주마다 월·수", "매월 마지막 날", "매년 11월 20일" */
 export function repeatLabel(repeat: TodoRepeat): string {
-  return repeat.interval > 1
-    ? `${repeat.interval}${repeatUnit(repeat.type)}마다`
-    : recurrenceLabel(repeat.type);
+  switch (repeat.type) {
+    case "daily":
+      return { all: "매일", weekdays: "평일마다", weekends: "주말마다" }[
+        repeat.days
+      ];
+    case "weekly":
+      return `${repeat.interval > 1 ? `${repeat.interval}주마다` : "매주"} ${repeat.weekdays.map(weekdayName).join("·")}`;
+    case "monthly":
+      return `${repeat.interval > 1 ? `${repeat.interval}개월마다` : "매월"} ${monthlyOnLabel(repeat.on)}`;
+    case "yearly":
+      return `매년 ${repeat.month}월 ${repeat.day}일`;
+  }
+}
+
+/** 마감일의 몇째 주인지(1~4, 다섯째는 마지막 주로) */
+function weekOfMonth(date: string): 1 | 2 | 3 | 4 | -1 {
+  const n = Math.ceil(Number(date.slice(8, 10)) / 7);
+  return n >= 5 ? -1 : (n as 1 | 2 | 3 | 4);
+}
+
+/** 매월 반복에서 고를 수 있는 기준들. 마감일에서 날짜·N번째 요일을 뽑는다 */
+export function monthlyOptions(date: string): MonthlyOn[] {
+  const day = Number(date.slice(8, 10));
+  const options: MonthlyOn[] = [];
+  if (day !== 1) options.push({ kind: "day", day });
+  options.push({ kind: "day", day: 1 }, { kind: "lastDay" });
+  options.push({
+    kind: "weekday",
+    week: weekOfMonth(date),
+    weekday: weekdayOf(date),
+  });
+  return options;
+}
+
+/** 반복 종류를 바꿀 때의 기본값 — 마감일(없으면 오늘)에 맞춘다 */
+export function defaultRepeat(
+  type: TodoRepeat["type"],
+  date: string,
+): TodoRepeat {
+  switch (type) {
+    case "daily":
+      return { type, days: "all" };
+    case "weekly":
+      return { type, interval: 1, weekdays: [weekdayOf(date)] };
+    case "monthly":
+      return {
+        type,
+        interval: 1,
+        on: { kind: "day", day: Number(date.slice(8, 10)) },
+      };
+    case "yearly":
+      return {
+        type,
+        month: Number(date.slice(5, 7)),
+        day: Number(date.slice(8, 10)),
+      };
+  }
+}
+
+/**
+ * 마감일을 손으로 바꿨을 때 마감일에서 뽑은 반복 값(매월 날짜·N번째 요일, 매년 월·일)을 새 날짜로 옮긴다.
+ * 요일을 직접 고르는 매일·매주와 "첫날"·"마지막 날"은 그대로 둔다(저장할 때 마감일을 패턴에 맞춘다).
+ */
+export function reanchorRepeat(repeat: TodoRepeat, date: string): TodoRepeat {
+  if (repeat.type === "yearly") return defaultRepeat("yearly", date);
+  if (repeat.type !== "monthly") return repeat;
+  const { on } = repeat;
+  if (on.kind === "lastDay" || (on.kind === "day" && on.day === 1))
+    return repeat;
+  if (on.kind === "day")
+    return { ...repeat, on: { kind: "day", day: Number(date.slice(8, 10)) } };
+  return {
+    ...repeat,
+    on: { kind: "weekday", week: weekOfMonth(date), weekday: weekdayOf(date) },
+  };
+}
+
+/** 반복이 켜져 있으면 첫 회차가 될 마감일(패턴에 안 맞으면 그 뒤 첫 맞는 날, 비어 있으면 오늘부터) */
+export function effectiveDueDate(form: TodoFormState): string | null {
+  if (!form.repeatEnabled) return form.dueDate || null;
+  return firstOccurrence(form.dueDate || todayIsoDate(), form.repeat);
 }
 
 /**
@@ -114,15 +199,10 @@ export function buildTodoBody(form: TodoFormState): CreateTodoBody {
     listId: form.listId,
     title: form.title.trim(),
     memo: form.memo.trim(),
-    // 반복은 마감일을 기준으로 다음 회차를 만든다 — 마감일이 없으면 오늘부터
-    dueDate: form.dueDate || (form.repeatEnabled ? todayIsoDate() : null),
+    // 반복은 마감일을 첫 회차로 다음 회차를 만든다 — 패턴에 맞는 날로 옮겨 보낸다
+    dueDate: effectiveDueDate(form),
     importance: form.importance,
-    repeat: form.repeatEnabled
-      ? {
-          type: form.repeatType,
-          interval: Math.min(365, Math.max(1, form.repeatInterval || 1)),
-        }
-      : null,
+    repeat: form.repeatEnabled ? form.repeat : null,
     reminderAt: reminderAt(form),
     checklist: cleanChecklistItems(form.checklistItems),
   };
@@ -151,8 +231,7 @@ export function todoEditFormState(todo: Todo): TodoFormState {
     importance: todo.importance,
     memo: todo.memo,
     repeatEnabled: !!todo.repeat,
-    repeatType: todo.repeat?.type ?? "daily",
-    repeatInterval: todo.repeat?.interval ?? 1,
+    repeat: todo.repeat ?? EMPTY_TODO_FORM.repeat,
     reminderEnabled: reminder !== null,
     reminderDate: reminder?.date ?? "",
     reminderTime: reminder?.time ?? "09:00",

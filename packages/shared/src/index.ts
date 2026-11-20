@@ -2,3 +2,4 @@
 // 런타임 의존은 zod 하나. 앱은 타입만 가져다 써도 된다.
 export * from "./auth";
 export * from "./todos";
+export * from "./recurrence";

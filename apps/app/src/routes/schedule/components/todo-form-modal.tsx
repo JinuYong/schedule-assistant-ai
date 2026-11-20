@@ -6,7 +6,13 @@ import {
   IconBell,
   IconPlus,
 } from "@/components/icons";
-import { TodoFormState, repeatUnit } from "@/lib/todo-form";
+import { todayIsoDate } from "@/lib/date-utils";
+import {
+  TodoFormState,
+  effectiveDueDate,
+  reanchorRepeat,
+} from "@/lib/todo-form";
+import RepeatEditor from "./repeat-editor";
 import styles from "../page.module.css";
 
 interface TodoFormModalProps {
@@ -114,9 +120,18 @@ export default function TodoFormModal({
                   className={styles.formInput}
                   type="date"
                   value={form.dueDate}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, dueDate: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    const dueDate = e.target.value;
+                    // 마감일에서 뽑은 반복 값(매월 날짜·매년 월일)은 새 마감일을 따라간다
+                    setForm((f) => ({
+                      ...f,
+                      dueDate,
+                      repeat:
+                        f.repeatEnabled && dueDate
+                          ? reanchorRepeat(f.repeat, dueDate)
+                          : f.repeat,
+                    }));
+                  }}
                 />
                 <button
                   type="button"
@@ -173,43 +188,13 @@ export default function TodoFormModal({
             {form.repeatEnabled && (
               <div className={styles.repeatPanel}>
                 <label className={styles.formLabel}>반복</label>
-                <div className={styles.repeatControls}>
-                  <select
-                    className={styles.formInput}
-                    value={form.repeatType}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        repeatType: e.target
-                          .value as TodoFormState["repeatType"],
-                      }))
-                    }
-                  >
-                    <option value="daily">매일</option>
-                    <option value="weekly">매주</option>
-                    <option value="monthly">매월</option>
-                    <option value="yearly">매년</option>
-                  </select>
-                  <div className={styles.repeatIntervalControl}>
-                    <input
-                      className={styles.formInput}
-                      type="number"
-                      min={1}
-                      max={365}
-                      value={form.repeatInterval}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          repeatInterval: Math.max(
-                            1,
-                            Number(e.target.value) || 1,
-                          ),
-                        }))
-                      }
-                    />
-                    <span>{repeatUnit(form.repeatType)}마다</span>
-                  </div>
-                </div>
+                <RepeatEditor
+                  repeat={form.repeat}
+                  anchor={form.dueDate || todayIsoDate()}
+                  dueDate={form.dueDate}
+                  firstDate={effectiveDueDate(form) ?? todayIsoDate()}
+                  onChange={(repeat) => setForm((f) => ({ ...f, repeat }))}
+                />
               </div>
             )}
             <div className={styles.formGroup}>

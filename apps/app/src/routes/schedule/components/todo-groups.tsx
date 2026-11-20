@@ -146,7 +146,7 @@ function TodoGroups({
                             {todo.repeat && (
                               <span className={styles.todoDetailRow}>
                                 <IconRepeat />
-                                {repeatLabel(todo.repeat)} 반복
+                                {repeatLabel(todo.repeat)}
                               </span>
                             )}
                           </div>

@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Todo } from "@cali/shared";
 import {
   sortChecklistByDone,
-  recurrenceLabel,
+  repeatLabel,
+  monthlyOptions,
+  reanchorRepeat,
   buildTodoBody,
   todoEditFormState,
   EMPTY_TODO_FORM,
@@ -37,12 +39,82 @@ describe("sortChecklistByDone", () => {
   });
 });
 
-describe("recurrenceLabel", () => {
-  it("반복 타입 라벨", () => {
-    expect(recurrenceLabel("daily")).toBe("매일");
-    expect(recurrenceLabel("weekly")).toBe("매주");
-    expect(recurrenceLabel("monthly")).toBe("매월");
-    expect(recurrenceLabel("yearly")).toBe("매년");
+describe("repeatLabel", () => {
+  it("종류·조건별 설명", () => {
+    expect(repeatLabel({ type: "daily", days: "all" })).toBe("매일");
+    expect(repeatLabel({ type: "daily", days: "weekdays" })).toBe("평일마다");
+    expect(repeatLabel({ type: "weekly", interval: 1, weekdays: [1, 3] })).toBe(
+      "매주 월·수",
+    );
+    expect(repeatLabel({ type: "weekly", interval: 2, weekdays: [5] })).toBe(
+      "2주마다 금",
+    );
+    expect(
+      repeatLabel({
+        type: "monthly",
+        interval: 1,
+        on: { kind: "day", day: 1 },
+      }),
+    ).toBe("매월 첫날");
+    expect(
+      repeatLabel({ type: "monthly", interval: 3, on: { kind: "lastDay" } }),
+    ).toBe("3개월마다 마지막 날");
+    expect(
+      repeatLabel({
+        type: "monthly",
+        interval: 1,
+        on: { kind: "weekday", week: 3, weekday: 4 },
+      }),
+    ).toBe("매월 셋째 주 목요일");
+    expect(repeatLabel({ type: "yearly", month: 11, day: 20 })).toBe(
+      "매년 11월 20일",
+    );
+  });
+});
+
+describe("monthlyOptions", () => {
+  it("마감일에서 날짜·첫날·마지막 날·N번째 요일을 뽑는다", () => {
+    // 2026-11-19 = 셋째 주 목요일
+    expect(monthlyOptions("2026-11-19")).toEqual([
+      { kind: "day", day: 19 },
+      { kind: "day", day: 1 },
+      { kind: "lastDay" },
+      { kind: "weekday", week: 3, weekday: 4 },
+    ]);
+  });
+  it("1일이면 날짜와 첫날이 겹치지 않게, 29일 이후는 마지막 주", () => {
+    expect(monthlyOptions("2026-11-01")).toHaveLength(3);
+    expect(monthlyOptions("2026-11-30").at(-1)).toEqual({
+      kind: "weekday",
+      week: -1,
+      weekday: 1,
+    });
+  });
+});
+
+describe("reanchorRepeat", () => {
+  it("마감일에서 뽑은 값(매월 날짜·N번째 요일, 매년)은 새 마감일을 따라간다", () => {
+    expect(
+      reanchorRepeat(
+        { type: "monthly", interval: 2, on: { kind: "day", day: 19 } },
+        "2026-11-25",
+      ),
+    ).toEqual({ type: "monthly", interval: 2, on: { kind: "day", day: 25 } });
+    expect(
+      reanchorRepeat({ type: "yearly", month: 3, day: 1 }, "2026-11-25"),
+    ).toEqual({ type: "yearly", month: 11, day: 25 });
+  });
+  it("직접 고른 요일·첫날·마지막 날은 그대로", () => {
+    const weekly = { type: "weekly", interval: 1, weekdays: [1] } as const;
+    expect(reanchorRepeat({ ...weekly, weekdays: [1] }, "2026-11-25")).toEqual(
+      weekly,
+    );
+    const last = {
+      type: "monthly",
+      interval: 1,
+      on: { kind: "lastDay" },
+    } as const;
+    expect(reanchorRepeat(last, "2026-11-25")).toEqual(last);
   });
 });
 
@@ -83,18 +155,41 @@ describe("buildTodoBody", () => {
     ).toBeNull();
   });
 
-  it("반복은 간격을 1~365로 맞추고, 마감일이 없으면 오늘을 마감일로", () => {
+  it("반복이면 마감일을 첫 회차로, 마감일이 없으면 오늘부터", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 5, 15, 10));
+    vi.setSystemTime(new Date(2026, 5, 15, 10)); // 월요일
+    const repeat = { type: "weekly", interval: 1, weekdays: [3] } as const;
     const body = buildTodoBody({
       ...base,
       title: "x",
       repeatEnabled: true,
-      repeatType: "weekly",
-      repeatInterval: 0,
+      repeat: { ...repeat, weekdays: [3] },
     });
-    expect(body.repeat).toEqual({ type: "weekly", interval: 1 });
-    expect(body.dueDate).toBe("2026-06-15");
+    expect(body.repeat).toEqual(repeat);
+    expect(body.dueDate).toBe("2026-06-17"); // 그 주 수요일
+  });
+
+  it("마감일이 패턴에 안 맞으면 그 뒤 첫 맞는 날로", () => {
+    expect(
+      buildTodoBody({
+        ...base,
+        title: "x",
+        dueDate: "2026-11-21", // 토
+        repeatEnabled: true,
+        repeat: { type: "daily", days: "weekdays" },
+      }).dueDate,
+    ).toBe("2026-11-23");
+  });
+
+  it("반복을 꺼 두면 고른 값이 있어도 보내지 않는다", () => {
+    const body = buildTodoBody({
+      ...base,
+      title: "x",
+      dueDate: "2026-11-21",
+      repeat: { type: "daily", days: "weekdays" },
+    });
+    expect(body.repeat).toBeNull();
+    expect(body.dueDate).toBe("2026-11-21");
   });
 });
 
@@ -108,7 +203,7 @@ describe("todoEditFormState", () => {
       memo: "초안",
       dueDate: "2026-06-21",
       importance: "high",
-      repeat: { type: "monthly", interval: 2 },
+      repeat: { type: "monthly", interval: 2, on: { kind: "day", day: 21 } },
       reminderAt: reminder.toISOString(),
       completedAt: null,
       checklist: [
@@ -126,8 +221,7 @@ describe("todoEditFormState", () => {
       dueDate: "2026-06-21",
       importance: "high",
       repeatEnabled: true,
-      repeatType: "monthly",
-      repeatInterval: 2,
+      repeat: todo.repeat,
       reminderEnabled: true,
       reminderDate: "2026-06-20",
       reminderTime: "09:30",

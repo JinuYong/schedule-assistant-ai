@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "7b165697-ad7d-413f-beff-0462bab93c8f",
+  "id": "baf52682-babc-41ed-9b4e-9650f8512b34",
   "prevId": "b3cf808e-8ce4-4035-a8b6-60c314f2b1f5",
   "tables": {
     "sessions": {
@@ -278,16 +278,9 @@
           "autoincrement": false,
           "default": "'normal'"
         },
-        "repeat_type": {
-          "name": "repeat_type",
-          "type": "enum('daily','weekly','monthly','yearly')",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "repeat_interval": {
-          "name": "repeat_interval",
-          "type": "smallint unsigned",
+        "repeat": {
+          "name": "repeat",
+          "type": "json",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

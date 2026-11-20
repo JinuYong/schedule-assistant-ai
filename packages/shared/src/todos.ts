@@ -5,11 +5,54 @@ import { z } from "zod";
 export const todoImportance = z.enum(["normal", "high"]);
 export type TodoImportance = z.infer<typeof todoImportance>;
 
-/** 반복. 완료하면 서버가 마감·알림을 interval만큼 뒤로 민 다음 회차를 만든다 */
-export const todoRepeat = z.object({
-  type: z.enum(["daily", "weekly", "monthly", "yearly"]),
-  interval: z.int().min(1).max(365),
-});
+const weekday = z.int().min(0).max(6); // 0=일 … 6=토
+
+/**
+ * 반복. 완료하면 서버가 다음 회차(recurrence.ts nextOccurrence)를 새 할일로 만든다.
+ * - daily: 매일 / 평일 / 주말
+ * - weekly: N주마다, 고른 요일들
+ * - monthly: N개월마다, 날짜(1일 = 첫날, 31일은 말일로) / 마지막 날 / N번째 요일(-1 = 마지막 주)
+ * - yearly: 매년 그 월·일
+ */
+export const todoRepeat = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("daily"),
+    days: z.enum(["all", "weekdays", "weekends"]),
+  }),
+  z.object({
+    type: z.literal("weekly"),
+    interval: z.int().min(1).max(52),
+    weekdays: z
+      .array(weekday)
+      .min(1)
+      .max(7)
+      .transform((days) => [...new Set(days)].sort((a, b) => a - b)),
+  }),
+  z.object({
+    type: z.literal("monthly"),
+    interval: z.int().min(1).max(12),
+    on: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("day"), day: z.int().min(1).max(31) }),
+      z.object({ kind: z.literal("lastDay") }),
+      z.object({
+        kind: z.literal("weekday"),
+        week: z.union([
+          z.literal(1),
+          z.literal(2),
+          z.literal(3),
+          z.literal(4),
+          z.literal(-1),
+        ]),
+        weekday,
+      }),
+    ]),
+  }),
+  z.object({
+    type: z.literal("yearly"),
+    month: z.int().min(1).max(12),
+    day: z.int().min(1).max(31),
+  }),
+]);
 export type TodoRepeat = z.infer<typeof todoRepeat>;
 
 export interface TodoList {

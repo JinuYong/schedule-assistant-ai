@@ -1,5 +1,7 @@
 import {
   checkTodoItemBody,
+  daysBetween,
+  nextOccurrence,
   createTodoBody,
   todoListBody,
   updateTodoBody,
@@ -16,7 +18,6 @@ import {
 import { Hono, type Context } from "hono";
 import type { z } from "zod";
 import { requireUser, type AuthDeps } from "../auth/routes";
-import { advance, advanceDate } from "./recurrence";
 import type { TodoInput, TodoStore } from "./store";
 
 export interface TodoDeps {
@@ -72,15 +73,24 @@ function mergeChecklist(
   });
 }
 
-/** 반복 할일의 다음 회차: 마감·알림을 간격만큼 뒤로, 체크리스트는 모두 해제 */
-function nextOccurrence(todo: Todo): TodoInput | null {
+const DAY_MS = 86_400_000;
+
+/**
+ * 반복 할일의 다음 회차: 마감일은 반복 규칙의 다음 날, 알림은 마감일이 밀린 만큼 같이 민다
+ * (마감일 없이 알림만 있으면 알림 날짜(UTC)를 기준으로). 체크리스트는 모두 해제.
+ */
+function nextTodo(todo: Todo): TodoInput | null {
   const repeat = todo.repeat;
   if (!repeat) return null;
   const base = inputOf(todo);
+  const from = todo.dueDate ?? todo.reminderAt?.slice(0, 10) ?? null;
+  const shift = from ? daysBetween(from, nextOccurrence(from, repeat)) : 0;
   return {
     ...base,
-    dueDate: todo.dueDate ? advanceDate(todo.dueDate, repeat) : null,
-    reminderAt: base.reminderAt ? advance(base.reminderAt, repeat) : null,
+    dueDate: todo.dueDate ? nextOccurrence(todo.dueDate, repeat) : null,
+    reminderAt: base.reminderAt
+      ? new Date(base.reminderAt.getTime() + shift * DAY_MS)
+      : null,
     completedAt: null,
     checklist: base.checklist.map((c) => ({ ...c, checkedAt: null })),
   };
@@ -229,7 +239,7 @@ export function todoRoutes(authDeps: AuthDeps, deps: TodoDeps) {
           completedAt: at,
           repeat: null,
         };
-        const next = nextOccurrence(current);
+        const next = nextTodo(current);
         if (next) {
           const res = await store.completeWithNext(userId, id, done, next, at);
           return res ? c.json<CompleteTodoResponse>(res) : notFound(c);

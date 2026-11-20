@@ -219,7 +219,11 @@ describe("할일", () => {
     for (const body of [
       { listId, title: "x", dueDate: "2026-02-30" },
       { listId, title: "x", repeat: { type: "hourly", interval: 1 } },
-      { listId, title: "x", repeat: { type: "daily", interval: 0 } },
+      {
+        listId,
+        title: "x",
+        repeat: { type: "weekly", interval: 1, weekdays: [] },
+      },
       { listId, title: "" },
     ])
       expect((await call(me, "POST", "/todos", body)).status).toBe(400);
@@ -298,7 +302,7 @@ describe("완료", () => {
       title: "월세",
       dueDate: "2026-01-31",
       reminderAt: "2026-01-31T00:00:00.000Z",
-      repeat: { type: "monthly", interval: 1 },
+      repeat: { type: "monthly", interval: 1, on: { kind: "day", day: 31 } },
       checklist: [{ title: "이체", checked: true }],
     });
 
@@ -312,7 +316,7 @@ describe("완료", () => {
       title: "월세",
       dueDate: "2026-02-28",
       reminderAt: "2026-02-28T00:00:00.000Z",
-      repeat: { type: "monthly", interval: 1 },
+      repeat: { type: "monthly", interval: 1, on: { kind: "day", day: 31 } },
       completedAt: null,
     });
     expect(data.next!.checklist.map((c) => c.checkedAt)).toEqual([null]);

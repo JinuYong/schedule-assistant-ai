@@ -4,12 +4,14 @@ import {
   date,
   datetime,
   index,
+  json,
   mysqlEnum,
   mysqlTable,
   smallint,
   text,
   varchar,
 } from "drizzle-orm/mysql-core";
+import type { TodoRepeat } from "@cali/shared";
 
 // serial은 기본 키 말고 UNIQUE 인덱스를 하나 더 만들어서 bigint 자동 증가로 쓴다
 const id = () =>
@@ -79,9 +81,8 @@ export const todos = mysqlTable(
     /** 마감일(시각 없음). 사용자 달력 기준 날짜 그대로 */
     dueDate: date({ mode: "string" }),
     importance: mysqlEnum(["normal", "high"]).notNull().default("normal"),
-    /** 반복. 둘 다 있거나 둘 다 null */
-    repeatType: mysqlEnum(["daily", "weekly", "monthly", "yearly"]),
-    repeatInterval: smallint({ unsigned: true }),
+    /** 반복 규칙(@cali/shared todoRepeat). 모양이 종류마다 달라 JSON으로 둔다 */
+    repeat: json().$type<TodoRepeat>(),
     reminderAt: datetime({ fsp: 3 }),
     completedAt: datetime({ fsp: 3 }),
     createdAt: datetime({ fsp: 3 }).notNull().$defaultFn(now),

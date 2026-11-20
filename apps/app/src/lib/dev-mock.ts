@@ -3,7 +3,12 @@
 // 화면을 더미데이터로 볼 수 있다 (네트워크 호출은 건너뜀).
 // 프로덕션/Tauri 빌드에는 영향 없음 (플래그가 꺼져 있으면 모든 값이 빈 값).
 
-import type { PublicUser, Todo, TodoList } from "@cali/shared";
+import {
+  weekdayOf,
+  type PublicUser,
+  type Todo,
+  type TodoList,
+} from "@cali/shared";
 import type { BaseTokens } from "@/types/tokens";
 import type { CalendarEvent } from "@/store/events";
 import type { CalendarListItem } from "@/lib/google-calendar";
@@ -200,7 +205,11 @@ export const MOCK_TODOS: Todo[] = MOCK_ENABLED
         listId: 1,
         title: "주간 미팅 준비",
         dueDate: dayKey(2),
-        repeat: { type: "weekly", interval: 1 },
+        repeat: {
+          type: "weekly",
+          interval: 1,
+          weekdays: [weekdayOf(dayKey(2))],
+        },
         memo: "회의실 예약 확인",
         checklist: [
           { id: 1, title: "자료 정리", checkedAt: new Date().toISOString() },

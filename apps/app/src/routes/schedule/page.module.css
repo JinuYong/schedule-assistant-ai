@@ -1367,6 +1367,79 @@
   color: var(--color-text-secondary);
 }
 
+/* 반복 편집기 — 종류 셀렉트 옆에 조건, 아래에 요일·매월 기준, 맨 아래 첫 회차 안내 */
+.repeatEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.repeatFixed {
+  align-self: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.segment,
+.weekdayChip {
+  height: var(--control-h-sm);
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--control-font-sm);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.segment {
+  flex: 1 0 auto;
+}
+
+.segment:hover,
+.weekdayChip:hover {
+  background: var(--color-accent-ultra-soft);
+}
+
+.segmentActive,
+.weekdayChipActive,
+.segmentActive:hover,
+.weekdayChipActive:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  font-weight: 600;
+}
+
+.weekdayChips {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.weekdayChip {
+  padding: 0;
+}
+
+.weekdayChipSun {
+  color: var(--color-danger);
+}
+
+.repeatSummary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
 .checklistHeader {
   display: flex;
   align-items: center;

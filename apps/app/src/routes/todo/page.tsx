@@ -6,6 +6,7 @@ import {
   EMPTY_TODO_FORM,
   todoEditFormState,
   buildTodoBody,
+  repeatLabel,
   sortChecklistByDone,
   type TodoFormState,
 } from "@/lib/todo-form";
@@ -179,7 +180,11 @@ export default function TodoPage() {
                           <IconTrash />
                         </button>
                       </div>
-                      {todo.repeat && <IconRepeat />}
+                      {todo.repeat && (
+                        <span title={repeatLabel(todo.repeat)}>
+                          <IconRepeat />
+                        </span>
+                      )}
                       {due && (
                         <span
                           className={`${styles.due}${due.isPast ? ` ${styles.overdue}` : ""}`}
