@@ -1,4 +1,4 @@
-import { isTauri } from "./tauri-store";
+import { openUrl } from "./open-url";
 
 /**
  * Google Calendar 자유 입력 장소 문자열 → 리스트 표시용 간결 라벨.
@@ -86,11 +86,5 @@ export function naverMapSearchUrl(query: string): string {
 
 /** 장소 문자열로 네이버지도 검색을 시스템 브라우저에서 연다. */
 export async function openNaverMap(query: string): Promise<void> {
-  const url = naverMapSearchUrl(query);
-  if (isTauri()) {
-    const { open } = await import("@tauri-apps/plugin-shell");
-    await open(url);
-  } else {
-    window.open(url, "_blank", "noopener");
-  }
+  await openUrl(naverMapSearchUrl(query));
 }

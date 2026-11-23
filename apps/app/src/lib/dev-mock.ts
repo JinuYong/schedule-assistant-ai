@@ -4,10 +4,19 @@
 // 프로덕션/Tauri 빌드에는 영향 없음 (플래그가 꺼져 있으면 모든 값이 빈 값).
 
 import {
+  extractMemoText,
+  normalizeMemoValues,
   weekdayOf,
+  type CreateMemoBody,
+  type CreateMemoPropertyBody,
+  type Memo,
+  type MemoProperty,
+  type MemosResponse,
   type PublicUser,
   type Todo,
   type TodoList,
+  type UpdateMemoBody,
+  type UpdateMemoPropertyBody,
 } from "@cali/shared";
 import type { BaseTokens } from "@/types/tokens";
 import type { CalendarEvent } from "@/store/events";
@@ -219,3 +228,213 @@ export const MOCK_TODOS: Todo[] = MOCK_ENABLED
       mockTodo({ id: 4, listId: 2, title: "운동 가기", dueDate: dayKey(1) }),
     ]
   : [];
+
+// 메모 -----------------------------------------------------------------------
+
+const paragraph = (text: string) => ({
+  type: "paragraph",
+  props: {},
+  content: [{ type: "text", text, styles: {} }],
+  children: [],
+});
+const heading = (text: string) => ({
+  type: "heading",
+  props: { level: 2 },
+  content: [{ type: "text", text, styles: {} }],
+  children: [],
+});
+const check = (text: string, checked: boolean) => ({
+  type: "checkListItem",
+  props: { checked },
+  content: [{ type: "text", text, styles: {} }],
+  children: [],
+});
+
+/**
+ * 더미 모드용 메모 API — 서버(apps/server/src/memos/routes.ts)와 같은 규칙을 메모리에서.
+ * 새로 고치면 처음 상태로 돌아간다.
+ */
+export function createMockMemoApi() {
+  let nextId = 100;
+  const properties: MemoProperty[] = [
+    {
+      id: 1,
+      name: "분류",
+      type: "select",
+      options: [
+        { id: "work", name: "업무", color: "blue" },
+        { id: "life", name: "생활", color: "green" },
+        { id: "idea", name: "아이디어", color: "purple" },
+      ],
+    },
+    {
+      id: 2,
+      name: "태그",
+      type: "multiSelect",
+      options: [
+        { id: "urgent", name: "급함", color: "red" },
+        { id: "later", name: "나중에", color: "gray" },
+        { id: "read", name: "읽을거리", color: "yellow" },
+      ],
+    },
+    { id: 3, name: "날짜", type: "date", options: [] },
+    { id: 4, name: "끝남", type: "checkbox", options: [] },
+    { id: 5, name: "링크", type: "url", options: [] },
+  ];
+  const time = (dayOffset: number) => at(dayOffset, 10);
+  const make = (
+    id: number,
+    title: string,
+    content: unknown[],
+    values: Memo["values"],
+    dayOffset: number,
+  ): Memo => {
+    const text = extractMemoText(content);
+    return {
+      id,
+      title,
+      content,
+      values,
+      preview: text.slice(0, 120).replace(/\s+/g, " "),
+      createdAt: time(dayOffset - 3),
+      updatedAt: time(dayOffset),
+    };
+  };
+  let memos: Memo[] = [
+    make(
+      1,
+      "주간 회의록",
+      [
+        heading("논의"),
+        paragraph("분기 보고서 초안은 금요일까지 공유"),
+        check("발표 자료 정리", true),
+        check("회의실 예약", false),
+      ],
+      { 1: "work", 2: ["urgent"], 3: dayKey(0) },
+      0,
+    ),
+    make(
+      2,
+      "장보기",
+      [paragraph("우유, 계란, 두부, 대파")],
+      { 1: "life", 4: true },
+      -1,
+    ),
+    make(
+      3,
+      "앱 아이디어",
+      [
+        paragraph("자연어로 메모를 찾아 주는 AI 도구"),
+        paragraph("메모 속성 자동 채우기"),
+      ],
+      { 1: "idea", 2: ["later", "read"], 5: "https://blocknotejs.org" },
+      -2,
+    ),
+    make(4, "", [], {}, -5),
+  ];
+
+  const find = (id: number) => {
+    const memo = memos.find((m) => m.id === id);
+    if (!memo) throw new Error("없는 메모");
+    return memo;
+  };
+  const write = (memo: Memo, body: UpdateMemoBody): Memo => {
+    const content = body.content ?? memo.content;
+    const text = extractMemoText(content);
+    return {
+      ...memo,
+      title: (body.title ?? memo.title).trim(),
+      content,
+      values: normalizeMemoValues(properties, body.values ?? memo.values),
+      preview: text.slice(0, 120).replace(/\s+/g, " "),
+      updatedAt: new Date().toISOString(),
+    };
+  };
+  const summary = (m: Memo) => ({
+    id: m.id,
+    title: m.title,
+    values: normalizeMemoValues(properties, m.values),
+    preview: m.preview,
+    createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
+  });
+
+  return {
+    memos: async (_token: string, query?: string): Promise<MemosResponse> => {
+      const q = query?.toLowerCase();
+      return {
+        properties: [...properties],
+        memos: memos
+          .filter(
+            (m) =>
+              !q ||
+              m.title.toLowerCase().includes(q) ||
+              extractMemoText(m.content).toLowerCase().includes(q),
+          )
+          .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+          .map(summary),
+      };
+    },
+    memo: async (_token: string, id: number) => ({ memo: find(id) }),
+    createMemo: async (_token: string, body: CreateMemoBody) => {
+      const now = new Date().toISOString();
+      const memo = write(
+        {
+          id: nextId++,
+          title: "",
+          content: [],
+          values: {},
+          preview: "",
+          createdAt: now,
+          updatedAt: now,
+        },
+        body,
+      );
+      memos = [memo, ...memos];
+      return { memo };
+    },
+    updateMemo: async (_token: string, id: number, body: UpdateMemoBody) => {
+      const memo = write(find(id), body);
+      memos = memos.map((m) => (m.id === id ? memo : m));
+      return { memo };
+    },
+    deleteMemo: async (_token: string, id: number) => {
+      memos = memos.filter((m) => m.id !== id);
+    },
+    createMemoProperty: async (
+      _token: string,
+      body: CreateMemoPropertyBody,
+    ) => {
+      const property: MemoProperty = {
+        id: nextId++,
+        name: body.name,
+        type: body.type,
+        options:
+          body.type === "select" || body.type === "multiSelect"
+            ? (body.options ?? [])
+            : [],
+      };
+      properties.push(property);
+      return { property };
+    },
+    updateMemoProperty: async (
+      _token: string,
+      id: number,
+      body: UpdateMemoPropertyBody,
+    ) => {
+      const property = properties.find((p) => p.id === id);
+      if (!property) throw new Error("없는 속성");
+      if (body.name) property.name = body.name;
+      if (body.options)
+        property.options =
+          property.type === "select" || property.type === "multiSelect"
+            ? body.options
+            : [];
+      return { property: { ...property } };
+    },
+    deleteMemoProperty: async (_token: string, id: number) => {
+      const i = properties.findIndex((p) => p.id === id);
+      if (i >= 0) properties.splice(i, 1);
+    },
+  };
+}

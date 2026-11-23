@@ -7,6 +7,7 @@ import styles from "./sidebar.module.css";
 const NAV_ITEMS = [
   { href: "/schedule", label: "일정", icon: "📅" },
   { href: "/todo", label: "할일", icon: "✅" },
+  { href: "/memo", label: "메모", icon: "📝" },
   { href: "/chat", label: "AI 브리핑", icon: "💬" },
 ] as const;
 

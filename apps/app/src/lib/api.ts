@@ -3,13 +3,20 @@ import type {
   ApiError,
   CompleteTodoResponse,
   CompletedTodosResponse,
+  CreateMemoBody,
+  CreateMemoPropertyBody,
   CreateTodoBody,
   LoginResponse,
   MeResponse,
+  MemoPropertyResponse,
+  MemoResponse,
+  MemosResponse,
   TodoChecklistItemResponse,
   TodoListResponse,
   TodoResponse,
   TodosResponse,
+  UpdateMemoBody,
+  UpdateMemoPropertyBody,
   UpdateTodoBody,
 } from "@cali/shared";
 
@@ -114,4 +121,47 @@ export const api = {
   /** 목록 안 할일도 함께 지워진다 */
   deleteTodoList: (token: string, id: number) =>
     request<void>(`/todo-lists/${id}`, { method: "DELETE", token }),
+
+  /** 속성 정의 + 메모 요약(최근에 고친 순). query가 있으면 제목·본문 검색 */
+  memos: (token: string, query?: string) =>
+    request<MemosResponse>(
+      query ? `/memos?q=${encodeURIComponent(query)}` : "/memos",
+      { token },
+    ),
+  memo: (token: string, id: number) =>
+    request<MemoResponse>(`/memos/${id}`, { token }),
+  createMemo: (token: string, body: CreateMemoBody) =>
+    request<MemoResponse>("/memos", {
+      method: "POST",
+      token,
+      body: JSON.stringify(body),
+    }),
+  /** 보낸 칸만 바뀐다. values는 통째로 */
+  updateMemo: (token: string, id: number, body: UpdateMemoBody) =>
+    request<MemoResponse>(`/memos/${id}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(body),
+    }),
+  deleteMemo: (token: string, id: number) =>
+    request<void>(`/memos/${id}`, { method: "DELETE", token }),
+
+  createMemoProperty: (token: string, body: CreateMemoPropertyBody) =>
+    request<MemoPropertyResponse>("/memo-properties", {
+      method: "POST",
+      token,
+      body: JSON.stringify(body),
+    }),
+  updateMemoProperty: (
+    token: string,
+    id: number,
+    body: UpdateMemoPropertyBody,
+  ) =>
+    request<MemoPropertyResponse>(`/memo-properties/${id}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(body),
+    }),
+  deleteMemoProperty: (token: string, id: number) =>
+    request<void>(`/memo-properties/${id}`, { method: "DELETE", token }),
 };

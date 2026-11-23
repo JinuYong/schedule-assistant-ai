@@ -26,10 +26,12 @@ bun run --cwd apps/server db:generate       # schema.ts 바꾼 뒤 → drizzle/�
 bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서버는 뜰 때 자동 적용)
 ```
 
-- 구조: `src/app.ts`(라우트 조립, 의존성 주입) · `src/index.ts`(진입: DB 연결 → 마이그레이션 → 서빙) · `src/env.ts`(zod) · `src/db/`(schema·연결·migrate) · `src/auth/` · `src/todos/`
+- 구조: `src/app.ts`(라우트 조립, 의존성 주입) · `src/index.ts`(진입: DB 연결 → 마이그레이션 → 서빙) · `src/env.ts`(zod) · `src/db/`(schema·연결·migrate) · `src/auth/` · `src/todos/` · `src/memos/`
 - 환경 변수: `DATABASE_URL`(mysql://…), `GOOGLE_CLIENT_IDS`(id_token `aud`로 받을 OAuth 클라이언트 ID, 쉼표로 여럿 — 앱 `VITE_GOOGLE_CLIENT_ID`와 같은 값, 안드로이드 추가 시 덧붙임), `PORT`(8787), `CORS_ORIGINS`(기본: Tauri 창 출처 + 개발 `http://localhost:3100`)
 - **로그인**: 앱이 Google OAuth(scope `openid email profile` + 캘린더)로 받은 `id_token`을 `POST /auth/google`로 보내면 서버가 Google 공개키로 검증(`auth/google.ts`: 발급자·aud·만료·`email_verified`)하고 사용자를 만들거나 갱신(Google `sub` 기준)한 뒤 세션 토큰을 준다. 이후 요청은 `Authorization: Bearer`. DB엔 토큰의 SHA-256만, 90일 안 쓰면 만료(쓰면 하루 단위로 연장). 가입은 Google 계정이면 누구나.
-- **할일**: `todo_lists`·`todos`·`todo_checklist_items`. 저장소(`todos/store.ts`의 `TodoStore`, 테스트는 `memory-store.ts`)는 통째로 쓰기만 하고, 합치기·기본값·반복은 `todos/routes.ts`. 반복 할일은 완료할 때 서버가 다음 회차를 같은 트랜잭션에서 만들고(`recurrence.ts`, 없는 날은 말일로), 완료한 쪽은 반복을 비운다. 완료한 할일은 지우지 않고 `completedAt`으로 보관(`GET /todos/completed`). 목록이 없으면 `GET /todos`가 "할일" 목록을 만든다. 체크리스트는 저장할 때마다 다시 넣어 항목 id가 바뀐다
+- **할일**: `todo_lists`·`todos`·`todo_checklist_items`. 저장소(`todos/store.ts`의 `TodoStore`, 테스트는 `memory-store.ts`)는 통째로 쓰기만 하고, 합치기·기본값·반복은 `todos/routes.ts`. 반복 할일은 완료할 때 서버가 다음 회차를 같은 트랜잭션에서 만들고(`packages/shared/src/recurrence.ts`를 앱과 같이 씀, 없는 날은 말일로), 완료한 쪽은 반복을 비운다. 완료한 할일은 지우지 않고 `completedAt`으로 보관(`GET /todos/completed`). 목록이 없으면 `GET /todos`가 "할일" 목록을 만든다. 체크리스트는 저장할 때마다 다시 넣어 항목 id가 바뀐다
+- **메모**: `memo_properties`(사용자마다 하나의 속성 정의 — 모든 메모가 같은 속성) · `memos`(제목, BlockNote 블록 JSON `content`, 본문 평문 `content_text`, 속성 값 `property_values` = `{ [속성 id]: 값 }`). 평문은 저장할 때 서버가 블록에서 뽑고(`extractMemoText`), 속성 값은 저장·응답 때 지금 정의로 거른다(`normalizeMemoValues`, 둘 다 shared) — 지운 속성·선택지의 값은 DB에 남아도 안 보인다. 검색은 서버(`GET /memos?q=`, 제목·평문 LIKE), 거르기·정렬은 앱(`lib/memo-query.ts`). 속성 종류는 만든 뒤 못 바꾼다. 이미지·파일 블록은 서버 파일 저장소가 없어 뺐다
+- 로컬에서 `db:generate`로 마이그레이션을 새로 만들면 `bun --watch`가 `drizzle/`을 안 봐서 `db:migrate`를 직접 돌려야 한다
 - 인증 저장은 `AuthStore` 인터페이스(`auth/store.ts` DB, `auth/memory-store.ts` 테스트) — 라우트 테스트는 DB 없이 돈다. 테스트는 `bun test`.
 - 시각은 `datetime(3)` UTC, 값은 앱에서 넣는다(`$defaultFn`, mysql2 `timezone: "Z"`). ID는 `bigint unsigned` 자동 증가(`serial`은 UNIQUE 인덱스를 하나 더 만들어 안 씀).
 - 마이그레이션은 **서버가 뜰 때 자동 적용**(push = 배포 = 스키마 반영). MySQL DDL은 되돌릴 수 없으니 칸 삭제·이름 변경은 그 칸을 안 쓰는 코드를 먼저 배포한 뒤 다음 배포에서.
@@ -47,20 +49,21 @@ bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서�
 
 ## 기술 스택
 
-| 영역          | 기술                                                                                        |
-| ------------- | ------------------------------------------------------------------------------------------- |
-| 데스크톱 쉘   | **Tauri v2** (Rust 백엔드, 시스템 WebView)                                                  |
-| 프론트엔드    | **Vite** + React 19 + TypeScript, 라우팅은 **TanStack Router**(코드 기반, `src/router.tsx`) |
-| 스타일링      | **CSS Modules** (`.module.css`) — Tailwind 사용 **절대 금지**                               |
-| 상태 관리     | Zustand                                                                                     |
-| AI            | Claude API (Rust `reqwest` 경유, CORS 우회)                                                 |
-| 캘린더        | Google Calendar REST API (직접 fetch)                                                       |
-| 할일          | Cali 서버 `/todos`·`/todo-lists` (`src/lib/api.ts`, 세션 Bearer)                            |
-| 로컬 저장소   | `tauri-plugin-store` (`LazyStore`) — DB 없음, Google Calendar가 source of truth             |
-| OAuth         | `@fabianlars/tauri-plugin-oauth` (`start()` + `onUrl()` 패턴)                               |
-| 알림          | `tauri-plugin-notification` + JS setTimeout                                                 |
-| 단축키        | `tauri-plugin-global-shortcut`                                                              |
-| 패키지 매니저 | **Bun** (npm/yarn/pnpm 사용 **절대 금지**)                                                  |
+| 영역          | 기술                                                                                                               |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 데스크톱 쉘   | **Tauri v2** (Rust 백엔드, 시스템 WebView)                                                                         |
+| 프론트엔드    | **Vite** + React 19 + TypeScript, 라우팅은 **TanStack Router**(코드 기반, `src/router.tsx`)                        |
+| 스타일링      | **CSS Modules** (`.module.css`) — Tailwind 사용 **절대 금지**                                                      |
+| 상태 관리     | Zustand                                                                                                            |
+| AI            | Claude API (Rust `reqwest` 경유, CORS 우회)                                                                        |
+| 캘린더        | Google Calendar REST API (직접 fetch)                                                                              |
+| 할일          | Cali 서버 `/todos`·`/todo-lists` (`src/lib/api.ts`, 세션 Bearer)                                                   |
+| 메모          | Cali 서버 `/memos`·`/memo-properties`, 본문 편집기 **BlockNote**(`@blocknote/mantine`, 메모 화면과 함께 지연 로드) |
+| 로컬 저장소   | `tauri-plugin-store` (`LazyStore`) — DB 없음, Google Calendar가 source of truth                                    |
+| OAuth         | `@fabianlars/tauri-plugin-oauth` (`start()` + `onUrl()` 패턴)                                                      |
+| 알림          | `tauri-plugin-notification` + JS setTimeout                                                                        |
+| 단축키        | `tauri-plugin-global-shortcut`                                                                                     |
+| 패키지 매니저 | **Bun** (npm/yarn/pnpm 사용 **절대 금지**)                                                                         |
 
 ### 도구 버전 (가능한 최신으로 유지)
 
@@ -139,7 +142,7 @@ apps/app/
 │   └── tauri.conf.json          # Tauri 설정 (창 구성, frontendDist 등)
 ├── src/
 │   ├── main.tsx                 # 메인 창 진입 (Providers + RouterProvider)
-│   ├── router.tsx               # 라우트 트리: / → /schedule, 레이아웃 아래 schedule·todo·chat·settings
+│   ├── router.tsx               # 라우트 트리: / → /schedule, 레이아웃 아래 schedule·todo·memo(지연 로드)·chat·settings
 │   ├── globals.css              # CSS 변수 정의
 │   ├── routes/                  # 메인 창 화면 (화면마다 page.tsx)
 │   │   ├── main-layout.tsx      # 사이드바 + <Outlet /> + 토스트
@@ -149,6 +152,7 @@ apps/app/
 │   │   │   └── components/      # calendar-grid, event-list, todo-groups, *-modal
 │   │   ├── chat/                # Claude AI 채팅 + 브리핑
 │   │   ├── todo/                # 할일 목록 (components/: 목록 머리·이름 입력·완료됨)
+│   │   ├── memo/                # 메모: 왼쪽 목록(검색·거르기·정렬) + 오른쪽 편집기(속성·BlockNote), 속성 관리 창. router.tsx에서 지연 로드
 │   │   └── settings/            # OAuth 연동, 테마, 단축키 설정
 │   ├── floating/                # 플로팅 입력창 (main.tsx 진입, layout·page)
 │   ├── components/
@@ -167,6 +171,8 @@ apps/app/
 │   │   ├── todo-form.ts         # 할일 폼 상태/빌더 (TodoFormState·buildTodoBody 등, 공유)
 │   │   ├── event-match.ts       # 이벤트 자동완성·매칭 (matchEventsByText·parseDateHint·matchCalendar, 공유)
 │   │   ├── location.ts          # 장소 라벨·지도 가능 판별·네이버지도 열기
+│   │   ├── open-url.ts          # 주소를 시스템 브라우저로(plugin-shell)
+│   │   ├── memo-query.ts        # 메모 거르기·정렬(순수 함수)
 │   │   ├── naver-place.ts       # NAVER API HUB 지역검색 래퍼 (invoke "search_places")
 │   │   ├── dev-mock.ts          # 개발용 더미데이터 (VITE_MOCK=1)
 │   │   ├── oauth.ts             # Google OAuth 흐름 (provider 팩토리)
@@ -185,6 +191,7 @@ apps/app/
 │       ├── account.ts           # Cali 서버 세션 (SignInGate가 봄)
 │       ├── events.ts            # 캘린더 이벤트 캐시 + 알림 스케줄
 │       ├── todos.ts             # 할일·목록·완료됨 (서버 응답 반영, 알림 재예약)
+│       ├── memos.ts             # 메모·속성, 자동 저장(입력 멈추고 0.7초, 못 보낸 건 localStorage `memo.unsaved`에 백업 → 다음 조회 때 재전송)
 │       ├── toast.ts            # 토스트 알림 상태 (Zustand)
 │       └── theme.ts             # 테마 색상 (Zustand + localStorage)
 ├── index.html                   # 메인 창 진입 HTML → src/main.tsx
