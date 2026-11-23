@@ -13,6 +13,7 @@ import { createGoogleVerifier } from "./google";
 import { createMemoryTodoStore } from "../todos/memory-store";
 import { createMemoryAuthStore } from "./memory-store";
 import { SESSION_TTL_MS, hashToken } from "./session";
+import { createMemoryMemoStore } from "../memos/memory-store";
 
 const CLIENT_ID = "desktop-client.apps.googleusercontent.com";
 const KID = "test-key";
@@ -75,6 +76,7 @@ beforeEach(() => {
       now: () => clock,
     },
     todos: { store: createMemoryTodoStore() },
+    memos: { store: createMemoryMemoStore() },
   });
 });
 

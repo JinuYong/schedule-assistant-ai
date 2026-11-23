@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { authRoutes, type AuthDeps } from "./auth/routes";
+import { memoRoutes, type MemoDeps } from "./memos/routes";
 import { todoRoutes, type TodoDeps } from "./todos/routes";
 
 export interface AppDeps {
@@ -9,6 +10,7 @@ export interface AppDeps {
   checkDb: () => Promise<void>;
   auth: AuthDeps;
   todos: TodoDeps;
+  memos: MemoDeps;
 }
 
 export function createApp(deps: AppDeps) {
@@ -32,5 +34,6 @@ export function createApp(deps: AppDeps) {
       }
     })
     .route("/", authRoutes(deps.auth))
-    .route("/", todoRoutes(deps.auth, deps.todos));
+    .route("/", todoRoutes(deps.auth, deps.todos))
+    .route("/", memoRoutes(deps.auth, deps.memos));
 }

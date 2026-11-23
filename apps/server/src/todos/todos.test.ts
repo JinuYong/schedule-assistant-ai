@@ -12,6 +12,7 @@ import { createMemoryAuthStore } from "../auth/memory-store";
 import { startSession } from "../auth/session";
 import { createMemoryTodoStore } from "./memory-store";
 import { DEFAULT_LIST_NAME } from "./routes";
+import { createMemoryMemoStore } from "../memos/memory-store";
 
 let app: ReturnType<typeof createApp>;
 let clock: Date;
@@ -32,6 +33,7 @@ beforeEach(async () => {
       now: () => clock,
     },
     todos: { store: createMemoryTodoStore() },
+    memos: { store: createMemoryMemoStore() },
   });
   const signIn = async (sub: string) => {
     const user = await auth.upsertGoogleUser(

@@ -5,13 +5,19 @@ import {
   datetime,
   index,
   json,
+  mediumtext,
   mysqlEnum,
   mysqlTable,
   smallint,
   text,
   varchar,
 } from "drizzle-orm/mysql-core";
-import type { TodoRepeat } from "@cali/shared";
+import {
+  memoPropertyTypes,
+  type MemoSelectOption,
+  type MemoValues,
+  type TodoRepeat,
+} from "@cali/shared";
 
 // serial은 기본 키 말고 UNIQUE 인덱스를 하나 더 만들어서 bigint 자동 증가로 쓴다
 const id = () =>
@@ -102,8 +108,44 @@ export const todoChecklistItems = mysqlTable("todo_checklist_items", {
   position: smallint({ unsigned: true }).notNull(),
 });
 
+/** 메모 속성 정의. 사용자마다 하나의 속성 묶음을 모든 메모가 같이 쓴다 */
+export const memoProperties = mysqlTable(
+  "memo_properties",
+  {
+    id: id(),
+    userId: userId(),
+    name: varchar({ length: 100 }).notNull(),
+    type: mysqlEnum(memoPropertyTypes).notNull(),
+    /** 선택·다중 선택의 선택지(@cali/shared memoSelectOption). 다른 종류는 [] */
+    options: json().$type<MemoSelectOption[]>().notNull(),
+    createdAt: datetime({ fsp: 3 }).notNull().$defaultFn(now),
+  },
+  (t) => [index("memo_properties_user_id_idx").on(t.userId)],
+);
+
+export const memos = mysqlTable(
+  "memos",
+  {
+    id: id(),
+    userId: userId(),
+    title: varchar({ length: 500 }).notNull().default(""),
+    /** BlockNote 블록 JSON. 서버는 모양을 따지지 않는다 */
+    content: json().$type<unknown[]>().notNull(),
+    /** 본문 평문(검색·미리보기). 저장할 때 서버가 content에서 뽑는다 */
+    contentText: mediumtext().notNull(),
+    /** 속성 값 { [속성 id]: 값 }. 지운 속성의 값은 남아 있을 수 있고 읽을 때 거른다 */
+    propertyValues: json().$type<MemoValues>().notNull(),
+    createdAt: datetime({ fsp: 3 }).notNull().$defaultFn(now),
+    updatedAt: datetime({ fsp: 3 }).notNull().$defaultFn(now),
+  },
+  // 최근에 고친 순 목록
+  (t) => [index("memos_user_updated_idx").on(t.userId, t.updatedAt)],
+);
+
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type TodoListRow = typeof todoLists.$inferSelect;
 export type TodoRow = typeof todos.$inferSelect;
 export type TodoChecklistItemRow = typeof todoChecklistItems.$inferSelect;
+export type MemoPropertyRow = typeof memoProperties.$inferSelect;
+export type MemoRow = typeof memos.$inferSelect;

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createApp, type AppDeps } from "./app";
 import { createMemoryAuthStore } from "./auth/memory-store";
 import { createMemoryTodoStore } from "./todos/memory-store";
+import { createMemoryMemoStore } from "./memos/memory-store";
 
 const ORIGINS = ["tauri://localhost", "http://localhost:3100"];
 const auth: AppDeps["auth"] = {
@@ -18,6 +19,7 @@ describe("/health", () => {
       checkDb: async () => {},
       auth,
       todos: { store: createMemoryTodoStore() },
+      memos: { store: createMemoryMemoStore() },
     });
     const res = await app.request("/health");
     expect(res.status).toBe(200);
@@ -32,6 +34,7 @@ describe("/health", () => {
       },
       auth,
       todos: { store: createMemoryTodoStore() },
+      memos: { store: createMemoryMemoStore() },
     });
     const res = await app.request("/health");
     expect(res.status).toBe(503);
@@ -45,6 +48,7 @@ describe("CORS", () => {
     checkDb: async () => {},
     auth,
     todos: { store: createMemoryTodoStore() },
+    memos: { store: createMemoryMemoStore() },
   });
 
   test("Tauri 창 출처는 허용", async () => {
