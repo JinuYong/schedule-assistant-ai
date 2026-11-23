@@ -15,11 +15,46 @@ const TYPES: { value: TodoRepeat["type"]; label: string }[] = [
   { value: "yearly", label: "매년" },
 ];
 
-const DAILY_DAYS = [
-  { value: "all", label: "매일" },
-  { value: "weekdays", label: "평일" },
-  { value: "weekends", label: "주말" },
-] as const;
+type DailyDays = Extract<TodoRepeat, { type: "daily" }>["days"];
+
+/** 평일·주말 켜고 끄기. 둘 다 켜면 매일, 하나는 늘 켜져 있다 */
+function DailyToggles({
+  days,
+  onChange,
+}: {
+  days: DailyDays;
+  onChange: (days: DailyDays) => void;
+}) {
+  const weekdays = days !== "weekends";
+  const weekends = days !== "weekdays";
+  const toggle = (side: "weekdays" | "weekends") => {
+    const other = side === "weekdays" ? "weekends" : "weekdays";
+    if (days === "all")
+      onChange(other); // 하나 끄기
+    else if (days === other) onChange("all"); // 하나 더 켜기
+    // 켜진 하나만 남았으면 끌 수 없다
+  };
+  return (
+    <div className={styles.segmented}>
+      {(
+        [
+          ["weekdays", "평일", weekdays],
+          ["weekends", "주말", weekends],
+        ] as const
+      ).map(([side, label, on]) => (
+        <button
+          key={side}
+          type="button"
+          aria-pressed={on}
+          className={`${styles.segment}${on ? ` ${styles.segmentActive}` : ""}`}
+          onClick={() => toggle(side)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** 하나만 고르는 버튼 묶음 */
 function Segmented<T>({
@@ -124,10 +159,9 @@ export default function RepeatEditor({
         </select>
 
         {repeat.type === "daily" && (
-          <Segmented
-            options={DAILY_DAYS.map((d) => ({ key: d.value, ...d }))}
-            isSelected={(v) => repeat.days === v}
-            onSelect={(days) => onChange({ ...repeat, days })}
+          <DailyToggles
+            days={repeat.days}
+            onChange={(days) => onChange({ ...repeat, days })}
           />
         )}
         {repeat.type === "weekly" && (

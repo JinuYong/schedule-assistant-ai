@@ -3,6 +3,7 @@ import type { Todo } from "@cali/shared";
 import {
   sortChecklistByDone,
   repeatLabel,
+  defaultRepeat,
   monthlyOptions,
   reanchorRepeat,
   buildTodoBody,
@@ -92,7 +93,29 @@ describe("monthlyOptions", () => {
   });
 });
 
+describe("defaultRepeat", () => {
+  it("매일은 마감일이 평일이면 평일, 주말이면 주말", () => {
+    expect(defaultRepeat("daily", "2026-11-20")).toEqual({
+      type: "daily",
+      days: "weekdays",
+    });
+    expect(defaultRepeat("daily", "2026-11-22")).toEqual({
+      type: "daily",
+      days: "weekends",
+    });
+  });
+});
+
 describe("reanchorRepeat", () => {
+  it("평일·주말 하나만 켜져 있으면 새 마감일 쪽으로, 둘 다(매일)면 그대로", () => {
+    expect(
+      reanchorRepeat({ type: "daily", days: "weekdays" }, "2026-11-21"),
+    ).toEqual({ type: "daily", days: "weekends" });
+    expect(
+      reanchorRepeat({ type: "daily", days: "all" }, "2026-11-21"),
+    ).toEqual({ type: "daily", days: "all" });
+  });
+
   it("마감일에서 뽑은 값(매월 날짜·N번째 요일, 매년)은 새 마감일을 따라간다", () => {
     expect(
       reanchorRepeat(

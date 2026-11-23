@@ -128,8 +128,11 @@ export function defaultRepeat(
   date: string,
 ): TodoRepeat {
   switch (type) {
-    case "daily":
-      return { type, days: "all" };
+    case "daily": {
+      // 마감일이 주말이면 주말, 아니면 평일부터 켜 둔다
+      const w = weekdayOf(date);
+      return { type, days: w === 0 || w === 6 ? "weekends" : "weekdays" };
+    }
     case "weekly":
       return { type, interval: 1, weekdays: [weekdayOf(date)] };
     case "monthly":
@@ -148,10 +151,12 @@ export function defaultRepeat(
 }
 
 /**
- * 마감일을 손으로 바꿨을 때 마감일에서 뽑은 반복 값(매월 날짜·N번째 요일, 매년 월·일)을 새 날짜로 옮긴다.
- * 요일을 직접 고르는 매일·매주와 "첫날"·"마지막 날"은 그대로 둔다(저장할 때 마감일을 패턴에 맞춘다).
+ * 마감일을 손으로 바꿨을 때 마감일에서 뽑은 반복 값(평일/주말, 매월 날짜·N번째 요일, 매년 월·일)을 새 날짜로 옮긴다.
+ * 매일(평일·주말 둘 다), 매주 요일, "첫날"·"마지막 날"은 그대로 둔다(저장할 때 마감일을 패턴에 맞춘다).
  */
 export function reanchorRepeat(repeat: TodoRepeat, date: string): TodoRepeat {
+  if (repeat.type === "daily")
+    return repeat.days === "all" ? repeat : defaultRepeat("daily", date);
   if (repeat.type === "yearly") return defaultRepeat("yearly", date);
   if (repeat.type !== "monthly") return repeat;
   const { on } = repeat;

@@ -8,7 +8,9 @@ import {
 } from "@/components/icons";
 import { todayIsoDate } from "@/lib/date-utils";
 import {
+  EMPTY_TODO_FORM,
   TodoFormState,
+  defaultRepeat,
   effectiveDueDate,
   reanchorRepeat,
 } from "@/lib/todo-form";
@@ -137,7 +139,15 @@ export default function TodoFormModal({
                   type="button"
                   className={`${styles.todoModalIconBtn}${form.repeatEnabled ? ` ${styles.todoModalIconBtnActive}` : ""}`}
                   onClick={() =>
-                    setForm((f) => ({ ...f, repeatEnabled: !f.repeatEnabled }))
+                    setForm((f) => ({
+                      ...f,
+                      repeatEnabled: !f.repeatEnabled,
+                      // 처음 켤 때만 마감일에 맞춘 기본값. 껐다 켜면 고른 값 그대로
+                      repeat:
+                        f.repeat === EMPTY_TODO_FORM.repeat
+                          ? defaultRepeat("daily", f.dueDate || todayIsoDate())
+                          : f.repeat,
+                    }))
                   }
                   title={form.repeatEnabled ? "반복 해제" : "반복"}
                 >
