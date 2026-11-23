@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-23
+
 ### 변경
 
 - 할일이 Microsoft To Do 대신 Cali 계정에 저장된다. Microsoft 로그인 없이 쓰고, 목록을 직접 만들고 이름을 바꾸거나 지울 수 있다 (`c26fcf0`)
