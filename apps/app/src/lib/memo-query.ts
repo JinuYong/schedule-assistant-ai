@@ -136,7 +136,7 @@ const compare = (a: string | number, b: string | number) =>
     : String(a).localeCompare(String(b), "ko");
 
 /**
- * 조건(모두 만족)으로 거르고 정렬한다. 속성 정렬에서 값이 없는 메모는 방향과 상관없이 뒤로.
+ * 조건(모두 만족)으로 거르고 정렬한다. 속성·제목 정렬에서 값이 없는 메모는 방향과 상관없이 뒤로.
  * 지운 속성을 가리키는 조건·정렬은 무시한다.
  */
 export function queryMemos(
@@ -161,7 +161,7 @@ export function queryMemos(
   const sortProperty =
     typeof sort.key === "number" ? byId.get(sort.key) : undefined;
   const key = (m: MemoSummary): string | number | undefined => {
-    if (sort.key === "title") return m.title;
+    if (sort.key === "title") return m.title || undefined; // 제목 없는 메모는 뒤로
     if (sort.key === "createdAt") return m.createdAt;
     if (sort.key === "updatedAt" || !sortProperty) return m.updatedAt;
     return sortValue(sortProperty, m.values[String(sortProperty.id)]);

@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
-import type { Memo, MemoProperty } from "@cali/shared";
-import { IconTrash } from "@/components/icons";
-import type { MemoSaveState } from "@/store/memos";
+import type { Memo, MemoProperty, MemoValue } from "@cali/shared";
+import { IconPlus, IconTrash } from "@/components/icons";
+import { useMemosStore, type MemoSaveState } from "@/store/memos";
+import { useConfirm } from "../use-confirm";
 import BlockEditor from "./block-editor";
+import { usePopover } from "./popover";
 import PropertyField from "./property-field";
-import { PROPERTY_TYPE_LABELS } from "../memo-labels";
+import { AddPropertyMenu, PropertyMenu } from "./property-menu";
+import PropertyTypeIcon from "./property-type-icon";
 import styles from "../page.module.css";
+import ps from "./property.module.css";
 
 const SAVE_LABELS: Record<MemoSaveState, string> = {
   idle: "",
@@ -21,22 +24,25 @@ export default function MemoEditor({
   saveState,
   onEdit,
   onDelete,
-  onManageProperties,
 }: {
   memo: Memo;
   properties: MemoProperty[];
   saveState: MemoSaveState;
   onEdit: (patch: Partial<Pick<Memo, "title" | "content" | "values">>) => void;
   onDelete: () => void;
-  onManageProperties: () => void;
 }) {
-  // 지우기는 두 번 눌러서(3초 안)
-  const [confirming, setConfirming] = useState(false);
-  useEffect(() => {
-    if (!confirming) return;
-    const t = setTimeout(() => setConfirming(false), 3000);
-    return () => clearTimeout(t);
-  }, [confirming]);
+  const remove = useConfirm();
+  const [addMenuRef, addMenu] = usePopover();
+
+  // 값을 고르는 창은 비동기(선택지 만들기)라 그사이 바뀐 값 위에 얹는다
+  const setValue = (propertyId: number, value: MemoValue | undefined) => {
+    const values = {
+      ...(useMemosStore.getState().current?.values ?? memo.values),
+    };
+    if (value === undefined) delete values[String(propertyId)];
+    else values[String(propertyId)] = value;
+    onEdit({ values });
+  };
 
   const updated = new Date(memo.updatedAt).toLocaleString("ko-KR", {
     month: "long",
@@ -55,12 +61,12 @@ export default function MemoEditor({
         </span>
         <button
           type="button"
-          className={`${styles.deleteBtn}${confirming ? ` ${styles.deleteConfirm}` : ""}`}
+          className={`${styles.deleteBtn}${remove.confirming ? ` ${styles.deleteConfirm}` : ""}`}
           title="메모 지우기"
-          onClick={() => (confirming ? onDelete() : setConfirming(true))}
+          onClick={() => remove.ask(onDelete)}
         >
           <IconTrash />
-          {confirming && <span>한 번 더 누르면 지워요</span>}
+          {remove.confirming && <span>한 번 더 누르면 지워요</span>}
         </button>
       </div>
 
@@ -72,40 +78,66 @@ export default function MemoEditor({
         onChange={(e) => onEdit({ title: e.target.value })}
       />
 
-      <div className={styles.properties}>
+      <div className={ps.properties}>
         {properties.map((p) => (
-          <div key={p.id} className={styles.propertyRow}>
-            <span
-              className={styles.propertyName}
-              title={PROPERTY_TYPE_LABELS[p.type]}
-            >
-              {p.name}
-            </span>
-            <PropertyField
-              property={p}
-              value={memo.values[String(p.id)]}
-              onChange={(value) => {
-                const values = { ...memo.values };
-                if (value === undefined) delete values[String(p.id)];
-                else values[String(p.id)] = value;
-                onEdit({ values });
-              }}
-            />
-          </div>
+          <PropertyRow
+            key={p.id}
+            property={p}
+            value={memo.values[String(p.id)]}
+            onChange={(value) => setValue(p.id, value)}
+          />
         ))}
         <button
+          ref={addMenuRef}
           type="button"
-          className={styles.manageLink}
-          onClick={onManageProperties}
+          className={ps.addProperty}
+          onClick={addMenu.toggle}
         >
-          {properties.length ? "속성 관리" : "+ 속성 추가"}
+          <IconPlus size={11} /> 속성 추가
         </button>
+        {addMenu.open && (
+          <AddPropertyMenu anchor={addMenuRef} onClose={addMenu.close} />
+        )}
       </div>
 
       <BlockEditor
         initialContent={memo.content}
         onChange={(content) => onEdit({ content })}
       />
+    </div>
+  );
+}
+
+/** 노션처럼: 왼쪽 이름(누르면 속성 메뉴) + 오른쪽 값 */
+function PropertyRow({
+  property,
+  value,
+  onChange,
+}: {
+  property: MemoProperty;
+  value: MemoValue | undefined;
+  onChange: (value: MemoValue | undefined) => void;
+}) {
+  const [menuRef, menu] = usePopover();
+  return (
+    <div className={ps.row}>
+      <button
+        ref={menuRef}
+        type="button"
+        className={`${ps.name}${menu.open ? ` ${ps.nameOpen}` : ""}`}
+        onClick={menu.toggle}
+      >
+        <PropertyTypeIcon type={property.type} />
+        <span>{property.name}</span>
+      </button>
+      {menu.open && (
+        <PropertyMenu
+          property={property}
+          anchor={menuRef}
+          onClose={menu.close}
+        />
+      )}
+      <PropertyField property={property} value={value} onChange={onChange} />
     </div>
   );
 }

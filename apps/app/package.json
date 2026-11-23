@@ -16,6 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@blocknote/code-block": "0.57.0",
     "@blocknote/core": "0.57.0",
     "@blocknote/mantine": "0.57.0",
     "@blocknote/react": "0.57.0",

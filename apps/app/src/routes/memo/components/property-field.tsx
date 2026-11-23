@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { MemoProperty, MemoValue } from "@cali/shared";
 import { IconNavigate } from "@/components/icons";
 import { openUrl } from "@/lib/open-url";
-import { optionClass } from "../memo-labels";
-import styles from "../page.module.css";
+import SelectField from "./select-field";
+import styles from "./property.module.css";
 
 /** 속성 하나의 값 입력. 비우면 undefined(값 없음) */
 export default function PropertyField({
@@ -19,7 +19,7 @@ export default function PropertyField({
     case "text":
       return (
         <input
-          className={styles.fieldInput}
+          className={styles.value}
           value={typeof value === "string" ? value : ""}
           placeholder="비어 있음"
           onChange={(e) => onChange(e.target.value || undefined)}
@@ -33,48 +33,20 @@ export default function PropertyField({
       return <DateField value={value} onChange={onChange} />;
     case "checkbox":
       return (
-        <input
-          className={styles.fieldCheckbox}
-          type="checkbox"
-          checked={value === true}
-          onChange={(e) => onChange(e.target.checked || undefined)}
-        />
+        <label className={`${styles.value} ${styles.checkboxCell}`}>
+          <input
+            className={styles.checkbox}
+            type="checkbox"
+            checked={value === true}
+            onChange={(e) => onChange(e.target.checked || undefined)}
+          />
+        </label>
       );
     case "select":
-    case "multiSelect": {
-      const selected = Array.isArray(value)
-        ? value
-        : typeof value === "string"
-          ? [value]
-          : [];
-      if (property.options.length === 0)
-        return <span className={styles.fieldEmpty}>선택지 없음</span>;
+    case "multiSelect":
       return (
-        <div className={styles.optionPicker}>
-          {property.options.map((o) => {
-            const on = selected.includes(o.id);
-            return (
-              <button
-                key={o.id}
-                type="button"
-                aria-pressed={on}
-                className={`${optionClass(o.color)}${on ? "" : ` ${styles.optionOff}`}`}
-                onClick={() => {
-                  if (property.type === "select")
-                    return onChange(on ? undefined : o.id);
-                  const next = on
-                    ? selected.filter((id) => id !== o.id)
-                    : [...selected, o.id];
-                  onChange(next.length ? next : undefined);
-                }}
-              >
-                {o.name}
-              </button>
-            );
-          })}
-        </div>
+        <SelectField property={property} value={value} onChange={onChange} />
       );
-    }
   }
 }
 
@@ -91,7 +63,7 @@ function NumberField({
   );
   return (
     <input
-      className={styles.fieldInput}
+      className={styles.value}
       inputMode="decimal"
       value={text}
       placeholder="비어 있음"
@@ -118,7 +90,7 @@ function UrlField({
   return (
     <div className={styles.urlField}>
       <input
-        className={styles.fieldInput}
+        className={styles.value}
         type="url"
         value={url}
         placeholder="비어 있음"
@@ -151,7 +123,7 @@ function DateField({
   if (!date && !editing)
     return (
       <input
-        className={styles.fieldInput}
+        className={styles.value}
         readOnly
         value=""
         placeholder="비어 있음"
@@ -160,7 +132,7 @@ function DateField({
     );
   return (
     <input
-      className={styles.fieldInput}
+      className={styles.value}
       type="date"
       autoFocus={!date}
       value={date}

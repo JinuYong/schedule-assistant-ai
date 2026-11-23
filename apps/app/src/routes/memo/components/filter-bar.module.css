@@ -1,0 +1,188 @@
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.row > :first-child {
+  flex: 1;
+  min-width: 0;
+  margin-right: 4px;
+}
+
+.toolBtn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.toolBtn:hover {
+  background: rgba(55, 53, 47, 0.06);
+  color: var(--color-text-primary);
+}
+
+/* 거르기·정렬이 걸려 있음 */
+.toolBtnOn,
+.toolBtnOn:hover {
+  color: var(--color-accent-hover);
+  background: var(--color-accent-ultra-soft);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.chip:hover {
+  background: rgba(55, 53, 47, 0.04);
+}
+
+.chipOn {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  background: var(--color-accent-ultra-soft);
+  color: var(--color-text-primary);
+}
+
+.chipOn:hover {
+  background: var(--color-accent-soft);
+}
+
+.chipText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip svg:last-child {
+  width: 9px;
+  flex-shrink: 0;
+}
+
+.clearBtn {
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.clearBtn:hover {
+  color: var(--color-text-primary);
+}
+
+.hint {
+  padding: 4px 8px 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin: 2px 4px 4px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: rgba(55, 53, 47, 0.06);
+}
+
+.segmented button {
+  height: 26px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.filterHead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 2px 6px 8px;
+}
+
+.filterName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.opBtn svg {
+  width: 9px;
+}
+
+.opBtn:hover {
+  background: rgba(55, 53, 47, 0.06);
+}
+
+.removeBtn {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+}
+
+.removeBtn:hover {
+  background: rgba(255, 59, 48, 0.08);
+  color: var(--color-danger);
+}
+
+.valuePad {
+  padding: 0 4px 4px;
+}

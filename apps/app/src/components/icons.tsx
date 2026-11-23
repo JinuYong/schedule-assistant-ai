@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import styles from "./icons.module.css";
 
 export function IconChevronLeft() {
@@ -230,5 +231,65 @@ export function IconSearch({ size = 14 }: { size?: number } = {}) {
       <circle cx="11" cy="11" r="7" />
       <line x1="16.5" y1="16.5" x2="21" y2="21" />
     </svg>
+  );
+}
+
+/** 24 격자 선 아이콘 공통 틀 */
+function LineIcon({
+  size,
+  strokeWidth = 2,
+  children,
+}: {
+  size: number;
+  strokeWidth?: number;
+  children: ReactNode;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </svg>
+  );
+}
+
+export function IconFilter({ size = 15 }: { size?: number } = {}) {
+  return (
+    <LineIcon size={size}>
+      <path d="M4 6h16M7 12h10M10 18h4" />
+    </LineIcon>
+  );
+}
+
+export function IconSort({ size = 15 }: { size?: number } = {}) {
+  return (
+    <LineIcon size={size}>
+      <path d="M7 4v16M3.5 7.5 7 4l3.5 3.5M17 20V4M13.5 16.5 17 20l3.5-3.5" />
+    </LineIcon>
+  );
+}
+
+export function IconMore({ size = 15 }: { size?: number } = {}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="5" cy="12" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="19" cy="12" r="1.8" />
+    </svg>
+  );
+}
+
+export function IconCheck({ size = 14 }: { size?: number } = {}) {
+  return (
+    <LineIcon size={size} strokeWidth={2.4}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </LineIcon>
   );
 }

@@ -10,7 +10,6 @@ import { useMemosStore } from "@/store/memos";
 import FilterBar from "./components/filter-bar";
 import MemoEditor from "./components/memo-editor";
 import MemoList from "./components/memo-list";
-import PropertyManager from "./components/property-manager";
 import styles from "./page.module.css";
 
 const SEARCH_DELAY_MS = 250;
@@ -49,7 +48,6 @@ export default function MemoPage() {
 
   const [query, setQuery] = useState(() => useMemosStore.getState().query);
   const [view, setView] = useState(loadView);
-  const [managing, setManaging] = useState(false);
 
   useEffect(() => {
     void fetchMemos();
@@ -92,13 +90,6 @@ export default function MemoPage() {
           {isLoading && <span className={styles.loadingDot} />}
           <button
             type="button"
-            className={styles.textBtn}
-            onClick={() => setManaging(true)}
-          >
-            속성
-          </button>
-          <button
-            type="button"
             className={styles.primaryBtn}
             onClick={() => void createMemo()}
           >
@@ -106,17 +97,18 @@ export default function MemoPage() {
           </button>
         </div>
 
-        <label className={styles.search}>
-          <IconSearch />
-          <input
-            type="search"
-            value={query}
-            placeholder="제목·본문 검색"
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </label>
-
         <FilterBar
+          search={
+            <label className={styles.search}>
+              <IconSearch />
+              <input
+                type="search"
+                value={query}
+                placeholder="제목·본문 검색"
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+          }
           properties={properties}
           filters={view.filters}
           sort={view.sort}
@@ -156,7 +148,6 @@ export default function MemoPage() {
             saveState={saveState}
             onEdit={editCurrent}
             onDelete={() => void deleteMemo(current.id)}
-            onManageProperties={() => setManaging(true)}
           />
         ) : (
           <div className={styles.placeholder}>
@@ -177,8 +168,6 @@ export default function MemoPage() {
           </div>
         )}
       </section>
-
-      {managing && <PropertyManager onClose={() => setManaging(false)} />}
     </div>
   );
 }

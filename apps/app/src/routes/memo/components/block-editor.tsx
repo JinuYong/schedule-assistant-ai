@@ -1,5 +1,10 @@
 // BlockNote 본문 편집기. 메모 화면과 함께 지연 로드된다(첫 화면 번들에 안 실음).
-import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
+import {
+  BlockNoteSchema,
+  createCodeBlockSpec,
+  defaultBlockSpecs,
+} from "@blocknote/core";
+import { codeBlockOptions, syntaxHighlighter } from "@blocknote/code-block";
 import { ko } from "@blocknote/core/locales";
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -15,7 +20,6 @@ const {
   numberedListItem,
   checkListItem,
   toggleListItem,
-  codeBlock,
   table,
   divider,
 } = defaultBlockSpecs;
@@ -28,7 +32,11 @@ const schema = BlockNoteSchema.create({
     numberedListItem,
     checkListItem,
     toggleListItem,
-    codeBlock,
+    // 언어 고르기 + 문법 강조(Shiki, 언어 문법은 처음 쓸 때 불러온다)
+    codeBlock: createCodeBlockSpec({
+      ...codeBlockOptions,
+      defaultLanguage: "text",
+    }),
     table,
     divider,
   },
@@ -45,6 +53,7 @@ export default function BlockEditor({
   const editor = useCreateBlockNote({
     schema,
     dictionary: ko,
+    extensions: [syntaxHighlighter],
     // 빈 배열은 BlockNote가 받지 않는다(빈 문단 하나로 시작)
     initialContent: initialContent.length
       ? (initialContent as (typeof schema.PartialBlock)[])

@@ -58,7 +58,7 @@ bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서�
 | AI            | Claude API (Rust `reqwest` 경유, CORS 우회)                                                                        |
 | 캘린더        | Google Calendar REST API (직접 fetch)                                                                              |
 | 할일          | Cali 서버 `/todos`·`/todo-lists` (`src/lib/api.ts`, 세션 Bearer)                                                   |
-| 메모          | Cali 서버 `/memos`·`/memo-properties`, 본문 편집기 **BlockNote**(`@blocknote/mantine`, 메모 화면과 함께 지연 로드) |
+| 메모          | Cali 서버 `/memos`·`/memo-properties`, 본문 편집기 **BlockNote**(`@blocknote/mantine`, 코드 블록 강조 `@blocknote/code-block`, 메모 화면과 함께 지연 로드) |
 | 로컬 저장소   | `tauri-plugin-store` (`LazyStore`) — DB 없음, Google Calendar가 source of truth                                    |
 | OAuth         | `@fabianlars/tauri-plugin-oauth` (`start()` + `onUrl()` 패턴)                                                      |
 | 알림          | `tauri-plugin-notification` + JS setTimeout                                                                        |
@@ -152,7 +152,7 @@ apps/app/
 │   │   │   └── components/      # calendar-grid, event-list, todo-groups, *-modal
 │   │   ├── chat/                # Claude AI 채팅 + 브리핑
 │   │   ├── todo/                # 할일 목록 (components/: 목록 머리·이름 입력·완료됨)
-│   │   ├── memo/                # 메모: 왼쪽 목록(검색·거르기·정렬) + 오른쪽 편집기(속성·BlockNote), 속성 관리 창. router.tsx에서 지연 로드
+│   │   ├── memo/                # 메모: 왼쪽 목록(검색 + 거르기·정렬 팝오버) + 오른쪽 편집기(노션식 속성 행·BlockNote). 팝오버는 components/popover.tsx. router.tsx에서 지연 로드
 │   │   └── settings/            # OAuth 연동, 테마, 단축키 설정
 │   ├── floating/                # 플로팅 입력창 (main.tsx 진입, layout·page)
 │   ├── components/

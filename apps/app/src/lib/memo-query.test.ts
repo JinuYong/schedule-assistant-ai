@@ -125,10 +125,14 @@ describe("queryMemos 정렬", () => {
       memo(1, {}, { title: "나" }),
       memo(2, {}, { title: "가" }),
       memo(3, {}, { title: "다" }),
+      memo(4, {}, { title: "" }),
     ];
     expect(
       ids(queryMemos(titled, props, [], { key: "title", dir: "asc" })),
-    ).toEqual([2, 1, 3]);
+    ).toEqual([2, 1, 3, 4]);
+    expect(
+      ids(queryMemos(titled, props, [], { key: "title", dir: "desc" })),
+    ).toEqual([3, 1, 2, 4]);
     expect(
       ids(queryMemos(memos, props, [], { key: "createdAt", dir: "asc" })),
     ).toEqual([1, 2, 3]);

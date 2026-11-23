@@ -325,7 +325,33 @@ export function createMockMemoApi() {
       "앱 아이디어",
       [
         paragraph("자연어로 메모를 찾아 주는 AI 도구"),
-        paragraph("메모 속성 자동 채우기"),
+        {
+          type: "paragraph",
+          props: {},
+          content: [
+            { type: "text", text: "편집기는 ", styles: {} },
+            {
+              type: "link",
+              href: "https://blocknotejs.org",
+              content: [{ type: "text", text: "BlockNote", styles: {} }],
+            },
+            { type: "text", text: ", 저장은 ", styles: {} },
+            { type: "text", text: "PATCH /memos/:id", styles: { code: true } },
+          ],
+          children: [],
+        },
+        {
+          type: "codeBlock",
+          props: { language: "typescript" },
+          content: [
+            {
+              type: "text",
+              text: 'const memo = await api.memo(token, id);\nconsole.log(memo.title ?? "제목 없음");',
+              styles: {},
+            },
+          ],
+          children: [],
+        },
       ],
       { 1: "idea", 2: ["later", "read"], 5: "https://blocknotejs.org" },
       -2,

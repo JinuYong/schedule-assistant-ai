@@ -1,0 +1,106 @@
+.popover {
+  position: fixed;
+  z-index: 300; /* BlockNote 메뉴(Mantine)보다 위 */
+  min-width: 200px;
+  max-width: calc(100vw - 16px);
+  max-height: min(440px, calc(100vh - 16px));
+  overflow-y: auto;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow:
+    0 0 0 1px rgba(15, 15, 15, 0.06),
+    0 3px 6px rgba(15, 15, 15, 0.08),
+    0 9px 24px rgba(15, 15, 15, 0.14);
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-size: 13px;
+  color: inherit;
+}
+
+.item:hover:not(:disabled),
+.itemActive {
+  background: rgba(55, 53, 47, 0.06);
+}
+
+.item:disabled {
+  cursor: default;
+}
+
+.itemDanger {
+  color: var(--color-danger);
+}
+
+.itemIcon {
+  flex-shrink: 0;
+  width: 16px;
+  display: inline-flex;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}
+
+.itemDanger .itemIcon {
+  color: inherit;
+}
+
+.itemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemTrailing {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.label {
+  padding: 6px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.divider {
+  height: 1px;
+  margin: 4px 0;
+  background: rgba(55, 53, 47, 0.09);
+}
+
+.input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(55, 53, 47, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(242, 241, 238, 0.6);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+
+.input::placeholder {
+  color: #a5a5aa;
+}

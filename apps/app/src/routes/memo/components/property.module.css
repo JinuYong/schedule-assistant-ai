@@ -1,0 +1,296 @@
+/* 편집기 위 속성 표: 노션처럼 왼쪽 이름 + 오른쪽 값, 칸은 마우스를 올려야 드러난다 */
+
+.properties {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 0 12px 54px; /* BlockNote 본문 글자와 같은 왼쪽 선 */
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px;
+  min-height: 32px;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  text-align: left;
+  min-width: 0;
+}
+
+.name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.name:hover,
+.nameOpen {
+  background: rgba(55, 53, 47, 0.06);
+}
+
+.addProperty {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  margin-top: 2px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: #a5a5aa;
+}
+
+.addProperty:hover {
+  background: rgba(55, 53, 47, 0.06);
+  color: var(--color-text-secondary);
+}
+
+/* 값 칸 ---------------------------------------------------------------------- */
+
+.value {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+input.value {
+  height: 32px;
+}
+
+.value:hover,
+.valueOpen {
+  background: rgba(55, 53, 47, 0.06);
+}
+
+input.value:focus {
+  background: var(--color-surface);
+  box-shadow:
+    0 0 0 1px rgba(55, 53, 47, 0.16),
+    0 2px 8px rgba(15, 15, 15, 0.08);
+}
+
+.value::placeholder,
+.placeholder {
+  color: #b9b9be;
+}
+
+.selectValue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding-block: 5px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.checkboxCell {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.urlField {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.iconBtn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+.iconBtn:hover {
+  background: rgba(55, 53, 47, 0.06);
+}
+
+/* 팝오버 안 ------------------------------------------------------------------- */
+
+.menuPad {
+  padding: 4px 4px 6px;
+}
+
+.menuHint {
+  padding: 6px 8px 4px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.swatch {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(55, 53, 47, 0.12);
+}
+
+.optionRow {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+}
+
+.optionRow:hover,
+.optionRowActive {
+  background: rgba(55, 53, 47, 0.06);
+}
+
+.optionMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  text-align: left;
+}
+
+.optionMain:disabled {
+  cursor: default;
+}
+
+.optionMain > span:first-child {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.optionCheck {
+  margin-left: auto;
+  display: inline-flex;
+  color: var(--color-text-secondary);
+}
+
+.optionMore {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  opacity: 0;
+}
+
+.optionRow:hover .optionMore,
+.optionRowActive .optionMore {
+  opacity: 1;
+}
+
+.optionMore:hover {
+  background: rgba(55, 53, 47, 0.08);
+}
+
+.createRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+
+.createRow:hover {
+  background: rgba(55, 53, 47, 0.06);
+}
+
+/* 고른 선택지 칩 + 검색 입력 */
+.tagBox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  margin: -4px -4px 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+  background: rgba(242, 241, 238, 0.6);
+}
+
+.tag {
+  gap: 4px;
+  padding-right: 3px;
+}
+
+.tag button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  color: inherit;
+  opacity: 0.55;
+}
+
+.tag button svg {
+  width: 8px;
+  height: 8px;
+}
+
+.tag button:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.tagInput {
+  flex: 1;
+  min-width: 80px;
+  height: 22px;
+  border: none;
+  outline: none;
+  background: none;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.tagInput::placeholder {
+  color: #a5a5aa;
+}
