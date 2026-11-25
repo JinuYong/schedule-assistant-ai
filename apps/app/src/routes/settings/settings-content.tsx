@@ -4,6 +4,7 @@ import { useAccountStore } from "@/store/account";
 import { useThemeStore, THEME_COLORS } from "@/store/theme";
 import { storeGet, storeSet, isTauri } from "@/lib/tauri-store";
 import { getCalendarList, type CalendarListItem } from "@/lib/google-calendar";
+import { writableCalendars } from "@/lib/calendar-access";
 import { useGoogleSignIn } from "@/hooks/use-google-sign-in";
 import { DEFAULT_CALENDAR_KEY } from "@/hooks/use-default-calendar";
 import { DEFAULT_SHORTCUT } from "@/lib/hotkey";
@@ -224,7 +225,7 @@ export default function SettingsContent() {
                   onChange={(e) => saveDefaultCal(e.target.value)}
                 >
                   <option value="">Google 기본 캘린더</option>
-                  {calendars.map((c) => (
+                  {writableCalendars(calendars).map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.summary}
                     </option>

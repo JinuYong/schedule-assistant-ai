@@ -25,6 +25,7 @@ import {
   matchCalendar,
   parseDateHint,
 } from "@/lib/event-match";
+import { canEditEvent, writableCalendars } from "@/lib/calendar-access";
 
 export type CommandStatus = "idle" | "loading" | "done" | "error";
 export type CommandAction = "create" | "update" | "delete";
@@ -32,7 +33,7 @@ export type CommandAction = "create" | "update" | "delete";
 export interface ScheduleCommandDeps {
   /** 자동완성 매칭 대상이 되는 현재 로드된 이벤트들 */
   events: CalendarEvent[];
-  /** 신규 생성 시 캘린더 매칭에 사용 */
+  /** 신규 생성 시 캘린더 매칭(쓸 수 있는 것만), 수정·삭제 후보 거르기(읽기 전용 캘린더 일정 제외)에 사용 */
   calendars: CalendarListItem[];
   /** 캘린더 미지정 시 사용할 기본 캘린더 ID (설정의 기본 캘린더 또는 primary) */
   defaultCalendarId: string;
@@ -96,14 +97,19 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
     };
   }, [dateHint, getToken]);
 
+  // 후보는 수정·삭제 대상이 되므로 읽기 전용 캘린더(공휴일 등) 일정은 뺀다
   const matches = useMemo(() => {
     if (lockedTarget || dismissed) return [];
-    if (!dateHint) return matchEventsByText(input, events);
+    const pool = !dateHint
+      ? events
+      : dateResult?.hint === dateHint
+        ? dateResult.events
+        : [];
     return matchEventsByText(
       input,
-      dateResult?.hint === dateHint ? dateResult.events : [],
+      pool.filter((ev) => canEditEvent(ev, calendars)),
     );
-  }, [input, events, dateResult, dateHint, dismissed, lockedTarget]);
+  }, [input, events, calendars, dateResult, dateHint, dismissed, lockedTarget]);
   // 후보가 있거나, 날짜 조회 중이면 드롭다운(로딩 행 포함) 노출
   const loading = dateLoading && !lockedTarget && !dismissed;
   const showDropdown = (matches.length > 0 || loading) && status !== "loading";
@@ -192,14 +198,15 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
       const now = new Date().toLocaleString("ko-KR", {
         timeZone: "Asia/Seoul",
       });
+      const writable = writableCalendars(calendars);
       const parsed = await parseScheduleText(
         text,
         now,
-        calendars.map((c) => c.summary),
+        writable.map((c) => c.summary),
       );
       if (!parsed) throw new Error("파싱 실패");
       const matched = parsed.calendarName
-        ? matchCalendar(parsed.calendarName, calendars)
+        ? matchCalendar(parsed.calendarName, writable)
         : undefined;
       await createEvent(
         token,

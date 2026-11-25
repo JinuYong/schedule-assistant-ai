@@ -72,6 +72,13 @@ export const MOCK_CALENDARS: CalendarListItem[] = [
     backgroundColor: "#ec91d3",
   },
   { id: "work", summary: "회사", backgroundColor: "#5b9bd5" },
+  // 읽기 전용(구독한 공휴일) — 일정 폼·기본 캘린더에서 빠지고, 일정은 수정·이동이 막힌다
+  {
+    id: "holiday",
+    summary: "대한민국의 휴일",
+    accessRole: "reader",
+    backgroundColor: "#16a765",
+  },
 ];
 
 export const MOCK_EVENTS: CalendarEvent[] = MOCK_ENABLED
@@ -124,6 +131,15 @@ export const MOCK_EVENTS: CalendarEvent[] = MOCK_ENABLED
         calendarColor: "#ec91d3",
         calendarId: "primary",
         location: "스타벅스 역삼역점, 서울특별시 강남구 테헤란로 123",
+      },
+      {
+        id: "m11",
+        title: "개천절",
+        startTime: dayKey(2),
+        endTime: dayKey(2),
+        isAllDay: true,
+        calendarColor: "#16a765",
+        calendarId: "holiday",
       },
       {
         id: "m5",

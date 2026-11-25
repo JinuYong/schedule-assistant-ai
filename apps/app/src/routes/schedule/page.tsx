@@ -36,6 +36,7 @@ import {
   type EventForm,
 } from "./calendar-utils";
 import { getEventDateKeys, eventShortLabel } from "@/lib/event-match";
+import { canEditEvent } from "@/lib/calendar-access";
 import {
   buildTodoBody,
   todoEditFormState,
@@ -527,6 +528,7 @@ export default function SchedulePage() {
   const { draggingEvent, dragOverDate, ghostPos, startDrag } = useEventDrag({
     onDrop: handleDropEvent,
     onClick: setDetailEvent,
+    canDrag: (ev) => canEditEvent(ev, calendars),
   });
 
   const todoActions = useTodoActions();

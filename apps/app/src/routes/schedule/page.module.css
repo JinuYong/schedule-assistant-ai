@@ -1650,6 +1650,14 @@ select.formInput {
   border-top: 1px solid var(--color-border);
 }
 
+/* 읽기 전용 캘린더(공휴일 등) 일정: 수정·삭제 버튼 대신 */
+.readOnlyNote {
+  flex-shrink: 0;
+  padding: 14px 24px 20px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
 .dangerOutlineBtn {
   height: var(--control-h);
   justify-content: center;

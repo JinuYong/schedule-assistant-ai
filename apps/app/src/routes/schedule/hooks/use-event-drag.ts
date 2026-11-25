@@ -7,6 +7,8 @@ interface EventDragOptions {
   onDrop: (ev: CalendarEvent, targetDate: string) => void;
   /** 드래그 없이 클릭 시 (상세 보기) */
   onClick: (ev: CalendarEvent) => void;
+  /** 옮길 수 있는 일정인가(읽기 전용 캘린더면 false → 끌어도 클릭으로 본다) */
+  canDrag?: (ev: CalendarEvent) => boolean;
 }
 
 /**
@@ -51,6 +53,8 @@ export function useEventDrag(opts: EventDragOptions) {
       const dy = e.clientY - dragStartPosRef.current.y;
       if (!hasDragMovedRef.current) {
         if (Math.sqrt(dx * dx + dy * dy) <= 6) return; // 임계값 미만 → 아직 클릭
+        const ev = candidateRef.current;
+        if (ev && optsRef.current.canDrag?.(ev) === false) return;
         hasDragMovedRef.current = true;
         setDraggingEvent(candidateRef.current); // 여기서 비로소 드래그 UI 진입
         document.body.style.cursor = "grabbing";

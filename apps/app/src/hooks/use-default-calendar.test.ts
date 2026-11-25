@@ -21,4 +21,14 @@ describe("resolveDefaultCalendarId", () => {
       "primary",
     );
   });
+
+  it("저장값이 읽기 전용 캘린더면 fallback", () => {
+    expect(
+      resolveDefaultCalendarId(
+        [...cals, { id: "holiday", accessRole: "reader" }],
+        "holiday",
+        "primary",
+      ),
+    ).toBe("primary");
+  });
 });

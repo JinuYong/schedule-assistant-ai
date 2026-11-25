@@ -1,5 +1,6 @@
 import { CalendarEvent } from "@/store/events";
 import { CalendarListItem } from "@/lib/google-calendar";
+import { canEditEvent } from "@/lib/calendar-access";
 import { openNaverMap, isMappableLocation } from "@/lib/location";
 import { IconClose, IconNavigate } from "@/components/icons";
 import { formatEventWhen } from "../calendar-utils";
@@ -23,6 +24,7 @@ export default function EventDetailModal({
   onDelete,
   onEdit,
 }: EventDetailModalProps) {
+  const editable = canEditEvent(event, calendars);
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -67,18 +69,24 @@ export default function EventDetailModal({
             <p className={styles.detailDesc}>{event.description}</p>
           )}
         </div>
-        <div className={styles.modalFooter}>
-          <button
-            className={styles.dangerOutlineBtn}
-            onClick={() => onDelete(event)}
-            disabled={deletingId === event.id}
-          >
-            {deletingId === event.id ? "삭제 중..." : "삭제"}
-          </button>
-          <button className={styles.submitBtn} onClick={() => onEdit(event)}>
-            수정
-          </button>
-        </div>
+        {editable ? (
+          <div className={styles.modalFooter}>
+            <button
+              className={styles.dangerOutlineBtn}
+              onClick={() => onDelete(event)}
+              disabled={deletingId === event.id}
+            >
+              {deletingId === event.id ? "삭제 중..." : "삭제"}
+            </button>
+            <button className={styles.submitBtn} onClick={() => onEdit(event)}>
+              수정
+            </button>
+          </div>
+        ) : (
+          <p className={styles.readOnlyNote}>
+            읽기 전용 캘린더라 수정하거나 삭제할 수 없어요.
+          </p>
+        )}
       </div>
     </div>
   );

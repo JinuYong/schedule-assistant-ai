@@ -1,5 +1,6 @@
 import { Dispatch, SetStateAction } from "react";
 import { CalendarListItem } from "@/lib/google-calendar";
+import { writableCalendars } from "@/lib/calendar-access";
 import { IconClose } from "@/components/icons";
 import { EventForm } from "../calendar-utils";
 import LocationField from "./location-field";
@@ -55,8 +56,8 @@ export default function EventFormModal({
                   setForm((f) => ({ ...f, calendarId: e.target.value }))
                 }
               >
-                {calendars.length > 0 ? (
-                  calendars.map((cal) => (
+                {writableCalendars(calendars).length > 0 ? (
+                  writableCalendars(calendars).map((cal) => (
                     <option key={cal.id} value={cal.id}>
                       {cal.summary}
                     </option>
