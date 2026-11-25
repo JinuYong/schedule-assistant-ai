@@ -186,3 +186,34 @@
 .valuePad {
   padding: 0 4px 4px;
 }
+
+/* 켬/끔 스위치(목록에 보일 속성) */
+.switch {
+  position: relative;
+  width: 26px;
+  height: 15px;
+  border-radius: 8px;
+  background: rgba(55, 53, 47, 0.18);
+  transition: background 0.15s;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s;
+}
+
+.switch[aria-checked="true"] {
+  background: var(--color-accent);
+}
+
+.switch[aria-checked="true"]::after {
+  transform: translateX(11px);
+}

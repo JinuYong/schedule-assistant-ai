@@ -1,0 +1,39 @@
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-width: 0;
+}
+
+/* 속성 하나: 이름 + 값들 */
+.group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.name {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #8e8e93;
+}
+
+.text {
+  font-size: 12px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.long {
+  max-width: 160px;
+}
+
+.check {
+  display: inline-flex;
+  color: var(--color-accent-hover);
+}

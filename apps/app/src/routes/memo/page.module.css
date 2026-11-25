@@ -188,10 +188,8 @@
   white-space: nowrap;
 }
 
-.itemChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+.itemProps {
+  margin-top: 2px;
 }
 
 /* 선택지 칩 ------------------------------------------------------------------ */

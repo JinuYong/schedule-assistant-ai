@@ -10,17 +10,31 @@ import { useMemosStore } from "@/store/memos";
 import FilterBar from "./components/filter-bar";
 import MemoEditor from "./components/memo-editor";
 import MemoList from "./components/memo-list";
+import { hasOptions } from "./memo-labels";
 import styles from "./page.module.css";
 
 const SEARCH_DELAY_MS = 250;
 const VIEW_KEY = "memo.view";
 
-/** 거르기·정렬은 이 기기에만 기억한다(사람마다 보는 방식이라 서버에 안 둔다) */
-function loadView(): { filters: MemoFilter[]; sort: MemoSort } {
+interface MemoView {
+  filters: MemoFilter[];
+  sort: MemoSort;
+  /** 목록에 보일 속성 id. 한 번도 안 골랐으면 없음 → 선택·다중 선택 속성 */
+  shown?: number[];
+}
+
+/** 거르기·정렬·목록 보기는 이 기기에만 기억한다(사람마다 보는 방식이라 서버에 안 둔다) */
+function loadView(): MemoView {
   try {
     const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? "null");
     if (saved && Array.isArray(saved.filters) && saved.sort)
-      return { filters: saved.filters, sort: saved.sort };
+      return {
+        filters: saved.filters,
+        sort: saved.sort,
+        shown: Array.isArray(saved.shown)
+          ? saved.shown.filter((id: unknown) => typeof id === "number")
+          : undefined,
+      };
   } catch {
     // 저장된 값이 없거나 깨졌으면 기본값
   }
@@ -90,6 +104,10 @@ export default function MemoPage() {
     if (after !== null && after !== before) setStickyId(after);
   };
 
+  const shownIds =
+    view.shown ?? properties.filter((p) => hasOptions(p.type)).map((p) => p.id);
+  const shownProperties = properties.filter((p) => shownIds.includes(p.id));
+
   const narrowed = matchIds !== null || view.filters.length > 0;
 
   return (
@@ -127,6 +145,8 @@ export default function MemoPage() {
             setView((v) => ({ ...v, filters }));
           }}
           onSortChange={(sort) => setView((v) => ({ ...v, sort }))}
+          shownIds={shownIds}
+          onShownChange={(shown) => setView((v) => ({ ...v, shown }))}
         />
 
         {error && <p className={styles.error}>{error}</p>}
@@ -138,7 +158,7 @@ export default function MemoPage() {
         {visible.length > 0 ? (
           <MemoList
             memos={visible}
-            properties={properties}
+            properties={shownProperties}
             selectedId={selectedId}
             onSelect={(id) => {
               if (id !== stickyId) setStickyId(null);

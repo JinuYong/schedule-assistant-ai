@@ -1,6 +1,6 @@
 import type { MemoProperty, MemoSummary } from "@cali/shared";
-import { optionClass, selectedOptions } from "../memo-labels";
 import styles from "../page.module.css";
+import PropertySummary from "./property-summary";
 
 function shortDate(iso: string) {
   const d = new Date(iso);
@@ -21,6 +21,7 @@ export default function MemoList({
   onSelect,
 }: {
   memos: MemoSummary[];
+  /** 목록에 보일 속성(보기 설정에서 고른 것) */
   properties: MemoProperty[];
   selectedId: number | null;
   onSelect: (id: number) => void;
@@ -28,7 +29,6 @@ export default function MemoList({
   return (
     <ul className={styles.list}>
       {memos.map((m) => {
-        const tags = selectedOptions(m.values, properties);
         return (
           <li key={m.id}>
             <button
@@ -49,15 +49,11 @@ export default function MemoList({
               {m.preview && (
                 <span className={styles.itemPreview}>{m.preview}</span>
               )}
-              {tags.length > 0 && (
-                <span className={styles.itemChips}>
-                  {tags.map((o) => (
-                    <span key={o.id} className={optionClass(o.color)}>
-                      {o.name}
-                    </span>
-                  ))}
-                </span>
-              )}
+              <PropertySummary
+                properties={properties}
+                values={m.values}
+                className={styles.itemProps}
+              />
             </button>
           </li>
         );

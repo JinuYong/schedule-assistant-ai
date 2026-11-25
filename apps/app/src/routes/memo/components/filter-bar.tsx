@@ -5,6 +5,7 @@ import type { MemoProperty } from "@cali/shared";
 import {
   IconCheck,
   IconChevron,
+  IconEye,
   IconFilter,
   IconSort,
   IconTrash,
@@ -88,6 +89,8 @@ export default function FilterBar({
   sort,
   onFiltersChange,
   onSortChange,
+  shownIds,
+  onShownChange,
 }: {
   /** 검색창(도구줄 왼쪽) */
   search: ReactNode;
@@ -96,6 +99,9 @@ export default function FilterBar({
   sort: MemoSort;
   onFiltersChange: (filters: MemoFilter[]) => void;
   onSortChange: (sort: MemoSort) => void;
+  /** 목록에 보일 속성 */
+  shownIds: number[];
+  onShownChange: (ids: number[]) => void;
 }) {
   const byId = new Map(properties.map((p) => [p.id, p]));
   // 지운 속성의 조건은 보이지 않게
@@ -104,6 +110,7 @@ export default function FilterBar({
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [addMenuRef, addMenu] = usePopover();
   const [sortMenuRef, sortMenu] = usePopover();
+  const [viewMenuRef, viewMenu] = usePopover();
   const sorted = sort.key !== DEFAULT_SORT.key || sort.dir !== DEFAULT_SORT.dir;
 
   return (
@@ -128,7 +135,56 @@ export default function FilterBar({
         >
           <IconSort />
         </button>
+        <button
+          ref={viewMenuRef}
+          type="button"
+          className={`${styles.toolBtn}${viewMenu.open ? ` ${styles.toolBtnOn}` : ""}`}
+          title="목록에 보일 속성"
+          onClick={viewMenu.toggle}
+        >
+          <IconEye />
+        </button>
       </div>
+
+      {viewMenu.open && (
+        <Popover
+          anchor={viewMenuRef}
+          onClose={viewMenu.close}
+          align="end"
+          width={220}
+        >
+          <MenuLabel>목록에 보일 속성</MenuLabel>
+          {properties.length ? (
+            properties.map((p) => {
+              const on = shownIds.includes(p.id);
+              return (
+                <MenuItem
+                  key={p.id}
+                  icon={<PropertyTypeIcon type={p.type} />}
+                  trailing={
+                    <span
+                      className={styles.switch}
+                      aria-checked={on}
+                      role="switch"
+                    />
+                  }
+                  onClick={() =>
+                    onShownChange(
+                      on
+                        ? shownIds.filter((id) => id !== p.id)
+                        : [...shownIds, p.id],
+                    )
+                  }
+                >
+                  {p.name}
+                </MenuItem>
+              );
+            })
+          ) : (
+            <p className={styles.hint}>속성이 없어요.</p>
+          )}
+        </Popover>
+      )}
 
       {addMenu.open && (
         <Popover anchor={addMenuRef} onClose={addMenu.close} align="end">

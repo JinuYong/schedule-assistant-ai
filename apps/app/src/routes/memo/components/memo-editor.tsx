@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import type { Memo, MemoProperty, MemoValue } from "@cali/shared";
 import { IconChevron, IconPlus, IconTrash } from "@/components/icons";
 import { useMemosStore, type MemoSaveState } from "@/store/memos";
-import { optionClass, selectedOptions } from "../memo-labels";
 import { useConfirm } from "../use-confirm";
 import BlockEditor from "./block-editor";
 import { usePopover } from "./popover";
 import PropertyField from "./property-field";
+import PropertySummary from "./property-summary";
 import { AddPropertyMenu, PropertyMenu } from "./property-menu";
 import PropertyTypeIcon from "./property-type-icon";
 import styles from "../page.module.css";
@@ -55,9 +55,6 @@ export default function MemoEditor({
   }, [propertiesOpen]);
   // 속성이 없으면 접을 것도 없다("속성 추가"만)
   const showRows = propertiesOpen || properties.length === 0;
-  const collapsedChips = showRows
-    ? []
-    : selectedOptions(memo.values, properties);
 
   // 값을 고르는 창은 비동기(선택지 만들기)라 그사이 바뀐 값 위에 얹는다
   const setValue = (propertyId: number, value: MemoValue | undefined) => {
@@ -118,11 +115,9 @@ export default function MemoEditor({
               <IconChevron open={false} />
             </span>
             <span className={ps.toggleLabel}>속성 {properties.length}개</span>
-            {collapsedChips.map((o) => (
-              <span key={o.id} className={optionClass(o.color)}>
-                {o.name}
-              </span>
-            ))}
+            {!showRows && (
+              <PropertySummary properties={properties} values={memo.values} />
+            )}
           </button>
         )}
         {showRows && (
