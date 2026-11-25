@@ -13,8 +13,7 @@
 .toggle {
   align-self: flex-start;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px 6px;
   max-width: 100%;
   min-height: 28px;
@@ -26,12 +25,20 @@
   text-align: left;
 }
 
+/* 접힌 요약은 남은 폭을 다 쓴다(긴 값은 … 처리) */
+.toggle > :last-child:not(.toggleLabel) {
+  flex: 1;
+  min-width: 0;
+}
+
 .toggle:hover {
   background: rgba(55, 53, 47, 0.06);
 }
 
 .toggleIcon {
   display: inline-flex;
+  align-items: center;
+  height: 20px;
   width: 16px;
   justify-content: center;
   transition: transform 0.15s;
@@ -47,7 +54,9 @@
 }
 
 .toggleLabel {
-  margin-right: 2px;
+  flex-shrink: 0;
+  line-height: 20px;
+  margin-right: 6px;
   font-weight: 600;
 }
 

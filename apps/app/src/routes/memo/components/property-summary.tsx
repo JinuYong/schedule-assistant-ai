@@ -14,14 +14,12 @@ function formatDate(iso: string) {
     : `${y}년 ${m}월 ${d}일`;
 }
 
-function host(url: string) {
-  try {
-    const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-    return new URL(href).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
+/** 한 줄을 다 쓰는 주소라 앞의 https://·www.만 떼고 보여 준다 */
+const shortUrl = (url: string) =>
+  url
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(/\/$/, "");
 
 /** 값 하나를 짧게. 보여 줄 게 없으면(빈 값·체크 해제) null */
 function SummaryValue({
@@ -60,16 +58,18 @@ function SummaryValue({
       ) : null;
     case "url":
       return typeof value === "string" ? (
-        <span className={styles.text}>{host(value)}</span>
+        <span className={styles.text}>{shortUrl(value)}</span>
       ) : null;
     case "text":
       return typeof value === "string" ? (
-        <span className={`${styles.text} ${styles.long}`}>
-          {value.split("\n")[0]}
-        </span>
+        <span className={styles.text}>{value.split("\n")[0]}</span>
       ) : null;
   }
 }
+
+/** 길어질 수 있는 값은 한 줄을 다 쓴다(글·다중 선택·URL) */
+const isLong = (p: MemoProperty) =>
+  p.type === "text" || p.type === "multiSelect" || p.type === "url";
 
 const hasShownValue = (p: MemoProperty, v: MemoValue | undefined) =>
   v !== undefined && !(p.type === "checkbox" && v !== true);
@@ -88,14 +88,24 @@ export default function PropertySummary({
     hasShownValue(p, values[String(p.id)]),
   );
   if (!shown.length) return null;
+  const group = (p: MemoProperty) => (
+    <span
+      key={p.id}
+      className={`${styles.group}${isLong(p) ? ` ${styles.groupLong}` : ""}`}
+    >
+      <span className={styles.name}>{p.name}</span>
+      <SummaryValue property={p} value={values[String(p.id)]} />
+    </span>
+  );
+  // 짧은 값(선택·날짜·숫자·체크)은 한 줄에 모으고, 긴 값은 아래에 한 줄씩
+  const short = shown.filter((p) => !isLong(p));
+  const long = shown.filter(isLong);
   return (
     <span className={`${styles.summary}${className ? ` ${className}` : ""}`}>
-      {shown.map((p) => (
-        <span key={p.id} className={styles.group}>
-          <span className={styles.name}>{p.name}</span>
-          <SummaryValue property={p} value={values[String(p.id)]} />
-        </span>
-      ))}
+      {short.length > 0 && (
+        <span className={styles.shortRow}>{short.map(group)}</span>
+      )}
+      {long.map(group)}
     </span>
   );
 }

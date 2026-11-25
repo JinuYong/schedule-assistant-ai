@@ -1,8 +1,15 @@
 .summary {
   display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.shortRow {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 10px;
+  gap: 3px 10px;
   min-width: 0;
 }
 
@@ -13,6 +20,19 @@
   gap: 4px;
   min-width: 0;
   max-width: 100%;
+  min-height: 20px;
+}
+
+/* 한 줄을 다 쓰는 값: 글·URL은 넘치면 …, 다중 선택 칩은 줄을 넘겨 이어진다 */
+.groupLong {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.groupLong > .text {
+  flex: 1;
+  min-width: 0;
 }
 
 .name {
@@ -27,10 +47,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.long {
-  max-width: 160px;
 }
 
 .check {

@@ -46,9 +46,6 @@ export default function MemoList({
                   {shortDate(m.updatedAt)}
                 </span>
               </span>
-              {m.preview && (
-                <span className={styles.itemPreview}>{m.preview}</span>
-              )}
               <PropertySummary
                 properties={properties}
                 values={m.values}
