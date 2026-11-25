@@ -35,7 +35,7 @@ bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서�
 - 인증 저장은 `AuthStore` 인터페이스(`auth/store.ts` DB, `auth/memory-store.ts` 테스트) — 라우트 테스트는 DB 없이 돈다. 테스트는 `bun test`.
 - 시각은 `datetime(3)` UTC, 값은 앱에서 넣는다(`$defaultFn`, mysql2 `timezone: "Z"`). ID는 `bigint unsigned` 자동 증가(`serial`은 UNIQUE 인덱스를 하나 더 만들어 안 씀).
 - 마이그레이션은 **서버가 뜰 때 자동 적용**(push = 배포 = 스키마 반영). MySQL DDL은 되돌릴 수 없으니 칸 삭제·이름 변경은 그 칸을 안 쓰는 코드를 먼저 배포한 뒤 다음 배포에서.
-- 앱 쪽: 서버 호출은 `src/lib/api.ts` 한 곳(`VITE_API_URL`, 없으면 개발 `http://localhost:8787`·배포 `https://cali-api.jinu.io`), 세션은 `src/store/account.ts`(tauri-store `server.session`). Google 연결 = Cali 계정이라 연결 해제하면 서버에서도 로그아웃.
+- 앱 쪽: 서버 호출은 `src/lib/api.ts` 한 곳(`VITE_API_URL`, 없으면 개발 `http://localhost:8787`·배포 `https://cali-api.jinu.io`), 세션은 `src/store/account.ts`(tauri-store `server.session`, 운영 외 서버는 `server.session@<주소>` — 개발 앱과 배포 앱이 저장소 파일을 같이 써서 키가 같으면 서로 로그아웃시킨다). Google 연결 = Cali 계정이라 연결 해제하면 서버에서도 로그아웃.
 
 ### 서버 배포
 
@@ -49,21 +49,21 @@ bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서�
 
 ## 기술 스택
 
-| 영역          | 기술                                                                                                               |
-| ------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 데스크톱 쉘   | **Tauri v2** (Rust 백엔드, 시스템 WebView)                                                                         |
-| 프론트엔드    | **Vite** + React 19 + TypeScript, 라우팅은 **TanStack Router**(코드 기반, `src/router.tsx`)                        |
-| 스타일링      | **CSS Modules** (`.module.css`) — Tailwind 사용 **절대 금지**                                                      |
-| 상태 관리     | Zustand                                                                                                            |
-| AI            | Claude API (Rust `reqwest` 경유, CORS 우회)                                                                        |
-| 캘린더        | Google Calendar REST API (직접 fetch)                                                                              |
-| 할일          | Cali 서버 `/todos`·`/todo-lists` (`src/lib/api.ts`, 세션 Bearer)                                                   |
+| 영역          | 기술                                                                                                                                                       |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 데스크톱 쉘   | **Tauri v2** (Rust 백엔드, 시스템 WebView)                                                                                                                 |
+| 프론트엔드    | **Vite** + React 19 + TypeScript, 라우팅은 **TanStack Router**(코드 기반, `src/router.tsx`)                                                                |
+| 스타일링      | **CSS Modules** (`.module.css`) — Tailwind 사용 **절대 금지**                                                                                              |
+| 상태 관리     | Zustand                                                                                                                                                    |
+| AI            | Claude API (Rust `reqwest` 경유, CORS 우회)                                                                                                                |
+| 캘린더        | Google Calendar REST API (직접 fetch)                                                                                                                      |
+| 할일          | Cali 서버 `/todos`·`/todo-lists` (`src/lib/api.ts`, 세션 Bearer)                                                                                           |
 | 메모          | Cali 서버 `/memos`·`/memo-properties`, 본문 편집기 **BlockNote**(`@blocknote/mantine`, 코드 블록 강조 `@blocknote/code-block`, 메모 화면과 함께 지연 로드) |
-| 로컬 저장소   | `tauri-plugin-store` (`LazyStore`) — DB 없음, Google Calendar가 source of truth                                    |
-| OAuth         | `@fabianlars/tauri-plugin-oauth` (`start()` + `onUrl()` 패턴)                                                      |
-| 알림          | `tauri-plugin-notification` + JS setTimeout                                                                        |
-| 단축키        | `tauri-plugin-global-shortcut`                                                                                     |
-| 패키지 매니저 | **Bun** (npm/yarn/pnpm 사용 **절대 금지**)                                                                         |
+| 로컬 저장소   | `tauri-plugin-store` (`LazyStore`) — DB 없음, Google Calendar가 source of truth                                                                            |
+| OAuth         | `@fabianlars/tauri-plugin-oauth` (`start()` + `onUrl()` 패턴)                                                                                              |
+| 알림          | `tauri-plugin-notification` + JS setTimeout                                                                                                                |
+| 단축키        | `tauri-plugin-global-shortcut`                                                                                                                             |
+| 패키지 매니저 | **Bun** (npm/yarn/pnpm 사용 **절대 금지**)                                                                                                                 |
 
 ### 도구 버전 (가능한 최신으로 유지)
 
@@ -172,6 +172,7 @@ apps/app/
 │   │   ├── todo-form.ts         # 할일 폼 상태/빌더 (TodoFormState·buildTodoBody 등, 공유)
 │   │   ├── event-match.ts       # 이벤트 자동완성·매칭 (matchEventsByText·parseDateHint·matchCalendar, 공유)
 │   │   ├── location.ts          # 장소 라벨·지도 가능 판별·네이버지도 열기
+│   │   ├── calendar-access.ts   # 캘린더 쓰기 권한(owner·writer) — 고르는 곳·수정/삭제/이동은 쓸 수 있는 것만
 │   │   ├── open-url.ts          # 주소를 시스템 브라우저로(plugin-shell)
 │   │   ├── memo-query.ts        # 메모 거르기·정렬(순수 함수)
 │   │   ├── naver-place.ts       # NAVER API HUB 지역검색 래퍼 (invoke "search_places")
