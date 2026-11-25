@@ -60,13 +60,26 @@
   text-overflow: ellipsis;
 }
 
-.check {
+/* 체크박스: 작은 네모(체크면 테마색으로 채움) */
+.box {
+  flex-shrink: 0;
   display: inline-flex;
-  color: var(--color-accent-hover);
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid #c7c7cc;
+  border-radius: 3px;
+  color: #fff;
+}
+
+.boxOn {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
 }
 
 /* 칩은 안쪽 여백이 있어 라벨과 떨어져 보이지만 글자 값은 붙어 보여서 조금 더 띄운다 */
 .name + .text,
-.name + .check {
+.name + .box {
   margin-left: 3px;
 }

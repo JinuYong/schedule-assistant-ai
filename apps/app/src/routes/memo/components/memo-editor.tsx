@@ -6,7 +6,6 @@ import { useConfirm } from "../use-confirm";
 import BlockEditor from "./block-editor";
 import { usePopover } from "./popover";
 import PropertyField from "./property-field";
-import PropertySummary from "./property-summary";
 import { AddPropertyMenu, PropertyMenu } from "./property-menu";
 import PropertyTypeIcon from "./property-type-icon";
 import styles from "../page.module.css";
@@ -115,9 +114,6 @@ export default function MemoEditor({
               <IconChevron open={false} />
             </span>
             <span className={ps.toggleLabel}>속성 {properties.length}개</span>
-            {!showRows && (
-              <PropertySummary properties={properties} values={memo.values} />
-            )}
           </button>
         )}
         {showRows && (

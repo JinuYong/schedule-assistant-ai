@@ -9,7 +9,7 @@
   border-bottom: 1px solid rgba(55, 53, 47, 0.09);
 }
 
-/* 접기/펼치기 줄. 접으면 고른 선택지 칩만 한 줄로 */
+/* 접기/펼치기 줄 */
 .toggle {
   align-self: flex-start;
   display: flex;
@@ -23,12 +23,6 @@
   font-size: 12px;
   color: var(--color-text-secondary);
   text-align: left;
-}
-
-/* 접힌 요약은 남은 폭을 다 쓴다(긴 값은 … 처리) */
-.toggle > :last-child:not(.toggleLabel) {
-  flex: 1;
-  min-width: 0;
 }
 
 .toggle:hover {
@@ -56,7 +50,6 @@
 .toggleLabel {
   flex-shrink: 0;
   line-height: 20px;
-  margin-right: 6px;
   font-weight: 600;
 }
 

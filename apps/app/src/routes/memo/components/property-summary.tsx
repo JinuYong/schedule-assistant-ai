@@ -1,5 +1,5 @@
 // 속성 값 요약: "분류 업무 · 태그 급함 나중에 · 날짜 11월 25일"처럼 속성 이름을 앞에 붙여
-// 어느 속성의 값인지 구분한다. 목록 항목과 접은 속성 칸이 같이 쓴다.
+// 어느 속성의 값인지 구분한다. 메모 목록 항목에 쓴다.
 
 import type { MemoProperty, MemoValue, MemoValues } from "@cali/shared";
 import { IconCheck } from "@/components/icons";
@@ -29,7 +29,7 @@ function SummaryValue({
   property: MemoProperty;
   value: MemoValue | undefined;
 }) {
-  if (value === undefined) return null;
+  if (value === undefined && property.type !== "checkbox") return null;
   switch (property.type) {
     case "select":
     case "multiSelect": {
@@ -43,11 +43,16 @@ function SummaryValue({
       ));
     }
     case "checkbox":
-      return value === true ? (
-        <span className={styles.check}>
-          <IconCheck size={12} />
+      // 체크 해제도 빈 네모로 보인다(안 보이면 "해제"인지 "안 보이게 설정"인지 모른다)
+      return (
+        <span
+          className={`${styles.box}${value === true ? ` ${styles.boxOn}` : ""}`}
+          role="img"
+          aria-label={value === true ? "체크" : "체크 해제"}
+        >
+          {value === true && <IconCheck size={10} />}
         </span>
-      ) : null;
+      );
     case "number":
       return typeof value === "number" ? (
         <span className={styles.text}>{value.toLocaleString("ko-KR")}</span>
@@ -71,8 +76,9 @@ function SummaryValue({
 const isLong = (p: MemoProperty) =>
   p.type === "text" || p.type === "multiSelect" || p.type === "url";
 
+/** 값이 없으면 건너뛴다. 체크박스는 해제(값 없음)도 상태라 늘 보인다 */
 const hasShownValue = (p: MemoProperty, v: MemoValue | undefined) =>
-  v !== undefined && !(p.type === "checkbox" && v !== true);
+  v !== undefined || p.type === "checkbox";
 
 export default function PropertySummary({
   properties,
