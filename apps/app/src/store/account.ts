@@ -1,11 +1,21 @@
 import { create } from "zustand";
 import type { PublicUser } from "@cali/shared";
-import { api, ApiRequestError } from "@/lib/api";
+import { api, API_URL, ApiRequestError } from "@/lib/api";
 import { MOCK_ENABLED, MOCK_SESSION } from "@/lib/dev-mock";
 import { storeDelete, storeGet, storeSet } from "@/lib/tauri-store";
 import { useAuthStore } from "@/store/auth";
 
-const STORE_KEY = "server.session";
+const PRODUCTION_API = "https://cali-api.jinu.io";
+
+/**
+ * 세션은 서버마다 따로 둔다. 개발 앱(dev:tauri, 로컬 서버)과 배포 앱(운영 서버)이 같은 저장소 파일을 쓰는데,
+ * 한 키를 같이 쓰면 한쪽에서 로그인한 세션을 다른 쪽 서버가 401로 거절해 지우고 → 서로 번갈아 로그아웃된다.
+ * 운영은 예전 키 그대로(이미 로그인한 사람이 다시 로그인하지 않게).
+ */
+export const sessionStoreKey = (apiUrl: string) =>
+  apiUrl === PRODUCTION_API ? "server.session" : `server.session@${apiUrl}`;
+
+const STORE_KEY = sessionStoreKey(API_URL);
 
 export interface ServerSession {
   /** 서버가 준 세션 토큰. 요청마다 Authorization: Bearer */

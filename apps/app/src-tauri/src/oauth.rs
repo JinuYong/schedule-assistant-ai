@@ -59,9 +59,18 @@ pub async fn refresh_google_token(
         .await
         .map_err(|e| e.to_string())?;
 
-    if !response.status().is_success() {
+    let status = response.status();
+    if !status.is_success() {
         let body: serde_json::Value = response.json().await.unwrap_or_default();
-        return Err(auth_error(&body));
+        // 400·401(invalid_grant 등)만 "다시 로그인해야 함"이다 — 프론트가 이걸 보고 토큰을 지운다.
+        // Google 쪽 일시 장애(5xx)·429까지 auth_error로 보내면 멀쩡한 연결이 끊긴다.
+        if status.as_u16() == 400 || status.as_u16() == 401 {
+            return Err(auth_error(&body));
+        }
+        return Err(format!(
+            "Google 토큰 갱신 실패 ({status}): {}",
+            oauth_error(&body, "잠시 후 다시 시도해 주세요")
+        ));
     }
 
     response
