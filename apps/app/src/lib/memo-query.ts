@@ -8,8 +8,9 @@ import type {
 } from "@cali/shared";
 
 export type FilterOp =
-  | "contains" // 텍스트·URL: 글자 포함 / 다중 선택: 선택지 포함
-  | "is" // 선택: 선택지 / 체크박스: 체크·체크 해제 / 날짜·숫자: 같음
+  | "contains" // 텍스트·URL: 글자 포함 / 다중 선택: 고른 선택지 중 하나라도
+  | "containsAll" // 다중 선택: 고른 선택지 모두
+  | "is" // 선택: 고른 선택지 중 하나 / 체크박스: 체크·체크 해제 / 날짜·숫자: 같음
   | "gt" // 숫자: 큼 / 날짜: 뒤
   | "lt" // 숫자: 작음 / 날짜: 앞
   | "empty"
@@ -20,7 +21,16 @@ export interface MemoFilter {
   op: FilterOp;
   /** empty·notEmpty는 없음. 체크박스는 "true"/"false", 숫자는 문자열로 들고 있다(입력 중 값) */
   value?: string;
+  /** 선택·다중 선택의 고른 선택지 id들(예전에 저장된 조건은 value 하나) */
+  values?: string[];
 }
+
+const hasOptionValues = (type: MemoPropertyType) =>
+  type === "select" || type === "multiSelect";
+
+/** 선택 조건의 고른 선택지 id들 */
+export const filterOptionIds = (f: MemoFilter): string[] =>
+  f.values ?? (f.value ? [f.value] : []);
 
 export type SortKey = "updatedAt" | "createdAt" | "title" | number;
 
@@ -37,7 +47,7 @@ export const FILTER_OPS: Record<MemoPropertyType, FilterOp[]> = {
   url: ["contains", "empty", "notEmpty"],
   number: ["is", "gt", "lt", "empty", "notEmpty"],
   select: ["is", "empty", "notEmpty"],
-  multiSelect: ["contains", "empty", "notEmpty"],
+  multiSelect: ["contains", "containsAll", "empty", "notEmpty"],
   date: ["is", "gt", "lt", "empty", "notEmpty"],
   checkbox: ["is"],
 };
@@ -45,9 +55,11 @@ export const FILTER_OPS: Record<MemoPropertyType, FilterOp[]> = {
 export function filterOpLabel(type: MemoPropertyType, op: FilterOp): string {
   switch (op) {
     case "contains":
-      return "포함";
+      return type === "multiSelect" ? "하나라도 포함" : "포함";
+    case "containsAll":
+      return "모두 포함";
     case "is":
-      return "같음";
+      return type === "select" ? "다음 중 하나" : "같음";
     case "gt":
       return type === "date" ? "이후" : "보다 큼";
     case "lt":
@@ -64,8 +76,11 @@ export const filterNeedsValue = (op: FilterOp) =>
   op !== "empty" && op !== "notEmpty";
 
 /** 아직 값을 고르지 않은 조건은 거르지 않는다(입력 중) */
-const isActive = (f: MemoFilter) =>
-  !filterNeedsValue(f.op) || (f.value !== undefined && f.value !== "");
+const isActive = (property: MemoProperty, f: MemoFilter) =>
+  !filterNeedsValue(f.op) ||
+  (hasOptionValues(property.type)
+    ? filterOptionIds(f).length > 0
+    : f.value !== undefined && f.value !== "");
 
 function matches(
   property: MemoProperty,
@@ -85,9 +100,14 @@ function matches(
         value.toLowerCase().includes(want.toLowerCase())
       );
     case "select":
-      return value === want;
-    case "multiSelect":
-      return Array.isArray(value) && value.includes(want);
+      return typeof value === "string" && filterOptionIds(f).includes(value);
+    case "multiSelect": {
+      if (!Array.isArray(value)) return false;
+      const ids = filterOptionIds(f);
+      return f.op === "containsAll"
+        ? ids.every((id) => value.includes(id))
+        : ids.some((id) => value.includes(id));
+    }
     case "number": {
       const n = Number(want);
       if (typeof value !== "number" || !Number.isFinite(n)) return false;
@@ -148,7 +168,10 @@ export function queryMemos(
   keepId?: number | null,
 ): MemoSummary[] {
   const byId = new Map(properties.map((p) => [p.id, p]));
-  const active = filters.filter((f) => byId.has(f.propertyId) && isActive(f));
+  const active = filters.filter((f) => {
+    const p = byId.get(f.propertyId);
+    return p !== undefined && isActive(p, f);
+  });
   const filtered = memos.filter(
     (m) =>
       m.id === keepId ||

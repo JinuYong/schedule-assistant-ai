@@ -56,19 +56,51 @@ describe("queryMemos 거르기", () => {
   it("종류별 조건, 여러 개면 모두 만족", () => {
     const q = (f: Parameters<typeof queryMemos>[2]) =>
       ids(queryMemos(memos, props, f, DEFAULT_SORT));
-    expect(q([{ propertyId: 1, op: "is", value: "a" }])).toEqual([1]);
+    expect(q([{ propertyId: 1, op: "is", values: ["a"] }])).toEqual([1]);
     expect(q([{ propertyId: 2, op: "gt", value: "5" }])).toEqual([1]);
     expect(q([{ propertyId: 3, op: "is", value: "true" }])).toEqual([2]);
     expect(q([{ propertyId: 3, op: "is", value: "false" }])).toEqual([3, 1]);
     expect(q([{ propertyId: 4, op: "lt", value: "2026-11-10" }])).toEqual([1]);
-    expect(q([{ propertyId: 5, op: "contains", value: "y" }])).toEqual([2]);
+    expect(q([{ propertyId: 5, op: "contains", values: ["y"] }])).toEqual([2]);
     expect(q([{ propertyId: 6, op: "contains", value: "boo" }])).toEqual([1]);
     expect(q([{ propertyId: 1, op: "empty" }])).toEqual([3]);
     expect(
       q([
-        { propertyId: 5, op: "contains", value: "x" },
+        { propertyId: 5, op: "contains", values: ["x"] },
         { propertyId: 2, op: "lt", value: "5" },
       ]),
+    ).toEqual([2]);
+  });
+
+  it("선택지를 여러 개 고르면: 선택은 그중 하나, 다중 선택은 하나라도·모두", () => {
+    const q = (f: Parameters<typeof queryMemos>[2]) =>
+      ids(queryMemos(memos, props, f, DEFAULT_SORT));
+    expect(q([{ propertyId: 1, op: "is", values: ["a", "b"] }])).toEqual([
+      2, 1,
+    ]);
+    // 메모1 태그 [x], 메모2 태그 [x, y]
+    expect(q([{ propertyId: 5, op: "contains", values: ["x", "y"] }])).toEqual([
+      2, 1,
+    ]);
+    expect(
+      q([{ propertyId: 5, op: "containsAll", values: ["x", "y"] }]),
+    ).toEqual([2]);
+    // 아무것도 안 고르면 거르지 않는다
+    expect(q([{ propertyId: 5, op: "containsAll", values: [] }])).toEqual([
+      3, 2, 1,
+    ]);
+  });
+
+  it("예전에 저장된 조건(선택지 하나를 value로)도 읽는다", () => {
+    expect(
+      ids(
+        queryMemos(
+          memos,
+          props,
+          [{ propertyId: 5, op: "contains", value: "y" }],
+          DEFAULT_SORT,
+        ),
+      ),
     ).toEqual([2]);
   });
 
@@ -78,7 +110,7 @@ describe("queryMemos 거르기", () => {
         queryMemos(
           memos,
           props,
-          [{ propertyId: 1, op: "is", value: "a" }],
+          [{ propertyId: 1, op: "is", values: ["a"] }],
           DEFAULT_SORT,
           3,
         ),
@@ -93,7 +125,7 @@ describe("queryMemos 거르기", () => {
           memos,
           props,
           [
-            { propertyId: 1, op: "is", value: "" },
+            { propertyId: 1, op: "is", values: [] },
             { propertyId: 99, op: "empty" },
           ],
           DEFAULT_SORT,

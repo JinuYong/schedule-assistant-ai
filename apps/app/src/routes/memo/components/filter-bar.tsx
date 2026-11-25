@@ -14,7 +14,7 @@ import {
   FILTER_OPS,
   filterNeedsValue,
   filterOpLabel,
-  type FilterOp,
+  filterOptionIds,
   type MemoFilter,
   type MemoSort,
   type SortKey,
@@ -46,11 +46,16 @@ const defaultFilter = (p: MemoProperty): MemoFilter => ({
 /** 칩에 보일 조건 요약. 값을 아직 안 골랐으면 속성 이름만 */
 function summary(p: MemoProperty, f: MemoFilter): string | null {
   if (!filterNeedsValue(f.op)) return filterOpLabel(p.type, f.op);
+  if (p.type === "select" || p.type === "multiSelect") {
+    const names = filterOptionIds(f).flatMap(
+      (id) => p.options.find((o) => o.id === id)?.name ?? [],
+    );
+    if (names.length < 2) return names[0] ?? null;
+    const all = p.type === "multiSelect" && f.op === "containsAll";
+    return `${names.join(", ")} ${all ? "모두" : "중 하나"}`;
+  }
   if (!f.value) return null;
   switch (p.type) {
-    case "select":
-    case "multiSelect":
-      return p.options.find((o) => o.id === f.value)?.name ?? null;
     case "checkbox":
       return f.value === "true" ? "체크" : "체크 해제";
     case "number":
@@ -313,9 +318,8 @@ function FilterChip({
           {filterNeedsValue(filter.op) && (
             <FilterValue
               property={property}
-              op={filter.op}
-              value={filter.value ?? ""}
-              onChange={(value) => onChange({ ...filter, value })}
+              filter={filter}
+              onChange={onChange}
             />
           )}
         </Popover>
@@ -324,18 +328,20 @@ function FilterChip({
   );
 }
 
-/** 조건 값: 선택은 목록에서, 체크박스는 체크/체크 해제, 나머지는 입력 */
+/** 조건 값: 선택은 목록에서 여러 개, 체크박스는 체크/체크 해제, 나머지는 입력 */
 function FilterValue({
   property,
-  op,
-  value,
-  onChange,
+  filter,
+  onChange: onFilterChange,
 }: {
   property: MemoProperty;
-  op: FilterOp;
-  value: string;
-  onChange: (value: string) => void;
+  filter: MemoFilter;
+  onChange: (filter: MemoFilter) => void;
 }) {
+  const { op } = filter;
+  const value = filter.value ?? "";
+  const onChange = (value: string) => onFilterChange({ ...filter, value });
+  const ids = filterOptionIds(filter);
   switch (property.type) {
     case "select":
     case "multiSelect":
@@ -344,8 +350,16 @@ function FilterValue({
           {property.options.map((o) => (
             <MenuItem
               key={o.id}
-              trailing={value === o.id ? <IconCheck /> : undefined}
-              onClick={() => onChange(value === o.id ? "" : o.id)}
+              trailing={ids.includes(o.id) ? <IconCheck /> : undefined}
+              onClick={() =>
+                onFilterChange({
+                  ...filter,
+                  value: undefined,
+                  values: ids.includes(o.id)
+                    ? ids.filter((id) => id !== o.id)
+                    : [...ids, o.id],
+                })
+              }
             >
               <span className={optionClass(o.color)}>{o.name}</span>
             </MenuItem>
