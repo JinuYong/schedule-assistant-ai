@@ -1,5 +1,4 @@
 import {
-  MEMO_PREVIEW_LENGTH,
   type Memo,
   type MemoProperty,
   type MemoPropertyType,
@@ -7,7 +6,7 @@ import {
   type MemoSummary,
   type MemoValues,
 } from "@cali/shared";
-import { and, asc, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, like, or } from "drizzle-orm";
 import type { Db } from "../db";
 import { memoProperties, memos, type MemoRow } from "../db/schema";
 
@@ -49,15 +48,11 @@ export interface MemoStore {
   deleteMemo(userId: number, memoId: number): Promise<boolean>;
 }
 
-export const toPreview = (text: string) =>
-  text.slice(0, MEMO_PREVIEW_LENGTH).replace(/\s+/g, " ").trim();
-
 export function toMemo(row: MemoRow): Memo {
   return {
     id: row.id,
     title: row.title,
     values: row.propertyValues ?? {},
-    preview: toPreview(row.contentText),
     content: row.content ?? [],
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -162,7 +157,6 @@ export function createDbMemoStore(db: Db): MemoStore {
           id: memos.id,
           title: memos.title,
           propertyValues: memos.propertyValues,
-          head: sql<string>`left(${memos.contentText}, ${MEMO_PREVIEW_LENGTH})`,
           createdAt: memos.createdAt,
           updatedAt: memos.updatedAt,
         })
@@ -180,7 +174,6 @@ export function createDbMemoStore(db: Db): MemoStore {
         id: r.id,
         title: r.title,
         values: r.propertyValues ?? {},
-        preview: toPreview(r.head ?? ""),
         createdAt: r.createdAt.toISOString(),
         updatedAt: r.updatedAt.toISOString(),
       }));

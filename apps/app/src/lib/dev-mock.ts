@@ -305,13 +305,11 @@ export function createMockMemoApi() {
     values: Memo["values"],
     dayOffset: number,
   ): Memo => {
-    const text = extractMemoText(content);
     return {
       id,
       title,
       content,
       values,
-      preview: text.slice(0, 120).replace(/\s+/g, " "),
       createdAt: time(dayOffset - 3),
       updatedAt: time(dayOffset),
     };
@@ -382,13 +380,11 @@ export function createMockMemoApi() {
   };
   const write = (memo: Memo, body: UpdateMemoBody): Memo => {
     const content = body.content ?? memo.content;
-    const text = extractMemoText(content);
     return {
       ...memo,
       title: (body.title ?? memo.title).trim(),
       content,
       values: normalizeMemoValues(properties, body.values ?? memo.values),
-      preview: text.slice(0, 120).replace(/\s+/g, " "),
       updatedAt: new Date().toISOString(),
     };
   };
@@ -396,7 +392,6 @@ export function createMockMemoApi() {
     id: m.id,
     title: m.title,
     values: normalizeMemoValues(properties, m.values),
-    preview: m.preview,
     createdAt: m.createdAt,
     updatedAt: m.updatedAt,
   });
@@ -426,7 +421,6 @@ export function createMockMemoApi() {
           title: "",
           content: [],
           values: {},
-          preview: "",
           createdAt: now,
           updatedAt: now,
         },

@@ -63,7 +63,6 @@ export function createMemoryMemoStore(): MemoStore {
             id: memo.id,
             title: memo.title,
             values: memo.values,
-            preview: memo.preview,
             createdAt: memo.createdAt,
             updatedAt: memo.updatedAt,
           };

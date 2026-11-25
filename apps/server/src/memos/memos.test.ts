@@ -109,7 +109,6 @@ describe("메모", () => {
       content: [paragraph("첫 줄"), paragraph("둘째 줄")],
     });
     expect(memo.title).toBe("회의");
-    expect(memo.preview).toBe("첫 줄 둘째 줄");
   });
 
   test("목록은 최근에 고친 순, 본문 JSON은 없다", async () => {

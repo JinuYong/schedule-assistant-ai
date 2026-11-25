@@ -91,7 +91,6 @@ const summaryOf = (m: Memo): MemoSummary => ({
   id: m.id,
   title: m.title,
   values: m.values,
-  preview: m.preview,
   createdAt: m.createdAt,
   updatedAt: m.updatedAt,
 });

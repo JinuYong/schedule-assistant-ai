@@ -142,8 +142,6 @@ export interface MemoSummary {
   id: number;
   title: string;
   values: MemoValues;
-  /** 본문 앞부분 평문 */
-  preview: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -166,10 +164,8 @@ export interface MemoPropertyResponse {
   property: MemoProperty;
 }
 
-export const MEMO_PREVIEW_LENGTH = 120;
-
 /**
- * BlockNote 블록에서 평문을 뽑는다(검색·미리보기용). 블록 하나가 한 줄.
+ * BlockNote 블록에서 평문을 뽑는다(검색용). 블록 하나가 한 줄.
  * 글자는 인라인 내용의 `text`에만 있고, 하위 블록은 `children`, 표는 `content.rows[].cells[]`에 있다.
  */
 export function extractMemoText(blocks: unknown): string {

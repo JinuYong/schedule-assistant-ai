@@ -40,7 +40,6 @@ const memo = (id: number, over: Partial<Memo> = {}): Memo => ({
   title: "",
   content: [],
   values: {},
-  preview: "",
   createdAt: "2026-11-23T00:00:00.000Z",
   updatedAt: "2026-11-23T00:00:00.000Z",
   ...over,

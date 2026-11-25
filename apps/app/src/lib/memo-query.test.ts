@@ -35,7 +35,6 @@ const memo = (
   id,
   title: `메모${id}`,
   values,
-  preview: "",
   createdAt: `2026-11-0${id}T00:00:00.000Z`,
   updatedAt: `2026-11-1${id}T00:00:00.000Z`,
   ...over,
