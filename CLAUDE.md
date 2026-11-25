@@ -26,11 +26,12 @@ bun run --cwd apps/server db:generate       # schema.ts 바꾼 뒤 → drizzle/�
 bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서버는 뜰 때 자동 적용)
 ```
 
-- 구조: `src/app.ts`(라우트 조립, 의존성 주입) · `src/index.ts`(진입: DB 연결 → 마이그레이션 → 서빙) · `src/env.ts`(zod) · `src/db/`(schema·연결·migrate) · `src/auth/` · `src/todos/` · `src/memos/`
-- 환경 변수: `DATABASE_URL`(mysql://…), `GOOGLE_CLIENT_IDS`(id_token `aud`로 받을 OAuth 클라이언트 ID, 쉼표로 여럿 — 앱 `VITE_GOOGLE_CLIENT_ID`와 같은 값, 안드로이드 추가 시 덧붙임), `PORT`(8787), `CORS_ORIGINS`(기본: Tauri 창 출처 + 개발 `http://localhost:3100`)
+- 구조: `src/app.ts`(라우트 조립, 의존성 주입) · `src/index.ts`(진입: DB 연결 → 마이그레이션 → 서빙) · `src/env.ts`(zod) · `src/db/`(schema·연결·migrate) · `src/auth/` · `src/todos/` · `src/memos/` · `src/places/`
+- 환경 변수: `DATABASE_URL`(mysql://…), `GOOGLE_CLIENT_IDS`(id_token `aud`로 받을 OAuth 클라이언트 ID, 쉼표로 여럿 — 앱 `VITE_GOOGLE_CLIENT_ID`와 같은 값, 안드로이드 추가 시 덧붙임), `NAVER_SEARCH_CLIENT_ID`·`NAVER_SEARCH_CLIENT_SECRET`(장소 검색, 비면 `/places`만 503), `PORT`(8787), `CORS_ORIGINS`(기본: Tauri 창 출처 + 개발 `http://localhost:3100`)
 - **로그인**: 앱이 Google OAuth(scope `openid email profile` + 캘린더)로 받은 `id_token`을 `POST /auth/google`로 보내면 서버가 Google 공개키로 검증(`auth/google.ts`: 발급자·aud·만료·`email_verified`)하고 사용자를 만들거나 갱신(Google `sub` 기준)한 뒤 세션 토큰을 준다. 이후 요청은 `Authorization: Bearer`. DB엔 토큰의 SHA-256만, 90일 안 쓰면 만료(쓰면 하루 단위로 연장). 가입은 Google 계정이면 누구나.
 - **할일**: `todo_lists`·`todos`·`todo_checklist_items`. 저장소(`todos/store.ts`의 `TodoStore`, 테스트는 `memory-store.ts`)는 통째로 쓰기만 하고, 합치기·기본값·반복은 `todos/routes.ts`. 반복 할일은 완료할 때 서버가 다음 회차를 같은 트랜잭션에서 만들고(`packages/shared/src/recurrence.ts`를 앱과 같이 씀, 없는 날은 말일로), 완료한 쪽은 반복을 비운다. 완료한 할일은 지우지 않고 `completedAt`으로 보관(`GET /todos/completed`). 목록이 없으면 `GET /todos`가 "할일" 목록을 만든다. 체크리스트는 저장할 때마다 다시 넣어 항목 id가 바뀐다
 - **메모**: `memo_properties`(사용자마다 하나의 속성 정의 — 모든 메모가 같은 속성) · `memos`(제목, BlockNote 블록 JSON `content`, 본문 평문 `content_text`, 속성 값 `property_values` = `{ [속성 id]: 값 }`). 평문은 저장할 때 서버가 블록에서 뽑고(`extractMemoText`), 속성 값은 저장·응답 때 지금 정의로 거른다(`normalizeMemoValues`, 둘 다 shared) — 지운 속성·선택지의 값은 DB에 남아도 안 보인다. 검색은 서버(`GET /memos?q=`, 제목·평문 LIKE), 거르기·정렬은 앱(`lib/memo-query.ts`). 속성 종류는 만든 뒤 못 바꾼다. 이미지·파일 블록은 서버 파일 저장소가 없어 뺐다
+- **장소 검색**: `GET /places?q=` — 서버가 NAVER API HUB 지역검색을 대신 부른다(`places/naver.ts`). 키는 서버 `.env`에만 있다(예전엔 앱 바이너리에 구워 `strings`로 뽑혔다). 같은 검색어는 1시간 메모리 캐시, 사용자마다 하루 300회(한국 날짜, 메모리 — 재시작하면 초기화). 서버가 오사카(OCI `ap-osaka-1`)라 네이버까지 한 번 더 돌지만, 연결을 재사용하면 앱이 직접 부를 때와 거의 같다
 - 로컬에서 `db:generate`로 마이그레이션을 새로 만들면 `bun --watch`가 `drizzle/`을 안 봐서 `db:migrate`를 직접 돌려야 한다
 - 인증 저장은 `AuthStore` 인터페이스(`auth/store.ts` DB, `auth/memory-store.ts` 테스트) — 라우트 테스트는 DB 없이 돈다. 테스트는 `bun test`.
 - 시각은 `datetime(3)` UTC, 값은 앱에서 넣는다(`$defaultFn`, mysql2 `timezone: "Z"`). ID는 `bigint unsigned` 자동 증가(`serial`은 UNIQUE 인덱스를 하나 더 만들어 안 씀).
@@ -131,13 +132,12 @@ apps/app/
 │   │   ├── lib.rs               # run() 빌더 (setup·invoke_handler·run-event)
 │   │   ├── claude.rs            # call_claude / stream_chat
 │   │   ├── oauth.rs             # Google 토큰 교환·갱신
-│   │   ├── places.rs           # NAVER API HUB 지역검색 (장소명 → 주소, 인증키 컴파일 타임 주입)
 │   │   ├── floating_macos.rs    # 플로팅 창 (NSPanel) + 전역 단축키
 │   │   └── error.rs             # auth_error/oauth_error 문자열 헬퍼
 │   ├── capabilities/
 │   │   └── default.json         # 플러그인 권한 설정
 │   ├── icons/                   # 앱 아이콘 (ICO, PNG, ICNS)
-│   ├── build.rs                 # tauri_build + NAVER 인증키 컴파일 타임 주입
+│   ├── build.rs                 # tauri_build
 │   ├── Cargo.toml
 │   └── tauri.conf.json          # Tauri 설정 (창 구성, frontendDist 등)
 ├── src/
@@ -175,7 +175,7 @@ apps/app/
 │   │   ├── calendar-access.ts   # 캘린더 쓰기 권한(owner·writer) — 고르는 곳·수정/삭제/이동은 쓸 수 있는 것만
 │   │   ├── open-url.ts          # 주소를 시스템 브라우저로(plugin-shell)
 │   │   ├── memo-query.ts        # 메모 거르기·정렬(순수 함수)
-│   │   ├── naver-place.ts       # NAVER API HUB 지역검색 래퍼 (invoke "search_places")
+│   │   ├── naver-place.ts       # 장소 검색(서버 `GET /places`) + 결과 → 일정 장소 문자열
 │   │   ├── dev-mock.ts          # 개발용 더미데이터 (VITE_MOCK=1)
 │   │   ├── oauth.ts             # Google OAuth 흐름 (provider 팩토리)
 │   │   ├── authenticated-fetch.ts # 공통 인증 fetch 골격 (401 재시도·429 처리)
@@ -285,7 +285,6 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 | `show_floating`         | floating_macos.rs | 플로팅 창 표시 (macOS NSPanel: orderFrontRegardless + makeKeyAndOrderFront) |
 | `hide_floating`         | floating_macos.rs | 플로팅 창 숨김 (`restore` 인자로 이전 앱 복원 여부 결정)                    |
 | `set_global_shortcut`   | floating_macos.rs | 전역 단축키 동적 재등록                                                     |
-| `search_places`         | places.rs         | NAVER API HUB 지역검색 (상호명 → 주소, CORS 우회 + 인증키 내장)             |
 
 ---
 
@@ -520,16 +519,14 @@ Settings → Secrets and variables → Actions
 | ----------------------------------------------- | ---- | -------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID`                  | ✅   | 워크플로가 `VITE_GOOGLE_CLIENT_ID`로 넘겨 번들에 주입 (시크릿 이름은 Next 시절 그대로) |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_SECRET`              | ✅   | 〃                                                                                     |
-| `NAVER_SEARCH_CLIENT_ID`                        | ✅   | 장소 검색 인증키 (Rust 바이너리에 주입)                                                |
-| `NAVER_SEARCH_CLIENT_SECRET`                    | ✅   | 〃                                                                                     |
 | `APPLE_CERTIFICATE`                             | ⬜   | Developer ID 인증서(.p12) base64                                                       |
 | `APPLE_CERTIFICATE_PASSWORD`                    | ⬜   | 〃 비밀번호                                                                            |
 | `APPLE_SIGNING_IDENTITY`                        | ⬜   | 예: `Developer ID Application: Name (TEAMID)`                                          |
 | `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` | ⬜   | 공증(notarization)용                                                                   |
 
 필수 시크릿이 하나라도 비면 워크플로가 빌드 전에 중단된다
-(`src/lib/oauth.ts`가 빌드 타임 env를 정적 번들에 굽기 때문에, 비면 로그인 불가 앱이 배포됨.
-`NAVER_SEARCH_*`도 마찬가지로 비면 장소 검색이 죽은 앱이 나가므로 `build.rs`가 빌드를 끊는다).
+(`src/lib/oauth.ts`가 빌드 타임 env를 정적 번들에 굽기 때문에, 비면 로그인 불가 앱이 배포됨).
+장소 검색 키(`NAVER_SEARCH_*`)는 앱이 아니라 서버 `~/cali/.env`에 있다 — 저장소 secrets의 `NAVER_SEARCH_*`는 이제 안 쓴다.
 `APPLE_*`가 없으면 서명 단계를 건너뛰고 **서명 없는 dmg**가 나오며,
 (Tauri 기본 ad-hoc 서명뿐, 공증 없음). Gatekeeper가 "악성 코드가 없음을 확인할 수 없습니다"로 막고
 macOS 15부터는 우클릭 → 열기 우회도 없어졌다. 받은 사람은 한 번 열어 본 뒤 **시스템 설정 → 개인정보 보호 및 보안 →
@@ -547,28 +544,15 @@ OAuth credentials는 `.env.local`에 설정하며 `bun run build` 시 정적 번
 # Google OAuth (GCP Console → 데스크톱 앱 타입)
 VITE_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
 VITE_GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
-
-# NAVER API HUB 지역검색 (ncloud.com → NAVER API HUB → 인증키)
-# VITE_ 접두사가 없다 — JS 번들이 아니라 Rust 바이너리에 구워진다
-NAVER_SEARCH_CLIENT_ID=xxxxxxxxxxxxxxxxxxxx
-NAVER_SEARCH_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-### NAVER 인증키를 Rust에 굽는 이유
+### NAVER 장소 검색 키는 서버에
 
-장소 검색 키는 **사용자에게 입력받지 않는다.** 사용자에게 ncloud 가입과 API 신청을 시키는 건
-"장소 자동완성" 하나에 비해 대가가 너무 커서, OAuth credentials와 같이 개발자 키 하나로 전체
-사용자를 커버한다.
-
-`src-tauri/build.rs`가 빌드 시점에 환경변수 또는 `.env.local`을 읽어
-`cargo:rustc-env`으로 주입하고, `places.rs`가 `env!()`로 받는다.
-`VITE_*`(JS 번들 평문)보다 노출이 덜하지만 **`strings`로 추출 가능한 건 마찬가지다.**
-숨겨진 비밀이 아니라 "유출되면 호출량이 소진되는 값"으로 취급하고,
-**ncloud 콘솔에서 호출량 임계치를 걸어 손실 상한을 고정해 둔다.**
-
-**키가 비어 있으면 `build.rs`가 빌드를 실패시킨다.** 사용자가 키를 입력할 통로가 없으므로,
-키 없이 빌드하면 장소 검색이 조용히 죽은 앱이 배포된다. 릴리스 워크플로도 빌드 전에
-시크릿 존재를 먼저 확인한다.
+장소 검색 키는 **사용자에게 입력받지 않는다**(ncloud 가입·API 신청을 시키기엔 대가가 크다). 개발자 키 하나로
+전체 사용자를 커버하되, 앱이 아니라 **Cali 서버 환경 변수**(`apps/server/.env.local`, 운영 `~/cali/.env`)에 둔다.
+예전(0.7.x까지)엔 `build.rs`가 Rust 바이너리에 구워 `strings`로 뽑을 수 있었다. 예전 앱은 여전히 그 키로
+네이버를 직접 부르므로, 키를 바꾸면 예전 앱의 장소 검색은 죽는다. 그래도 ncloud 콘솔의 이용 한도(일·월)는
+보험으로 걸어 둔다(사용자마다 하루 300회는 서버가 막는다).
 
 ---
 
