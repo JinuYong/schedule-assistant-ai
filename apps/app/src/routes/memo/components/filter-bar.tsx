@@ -52,7 +52,7 @@ function summary(p: MemoProperty, f: MemoFilter): string | null {
     case "multiSelect":
       return p.options.find((o) => o.id === f.value)?.name ?? null;
     case "checkbox":
-      return f.value === "true" ? "켜짐" : "꺼짐";
+      return f.value === "true" ? "체크" : "체크 해제";
     case "number":
       return f.op === "gt"
         ? `> ${f.value}`
@@ -324,7 +324,7 @@ function FilterChip({
   );
 }
 
-/** 조건 값: 선택은 목록에서, 체크박스는 켜짐/꺼짐, 나머지는 입력 */
+/** 조건 값: 선택은 목록에서, 체크박스는 체크/체크 해제, 나머지는 입력 */
 function FilterValue({
   property,
   op,
@@ -363,7 +363,7 @@ function FilterValue({
               trailing={value === v ? <IconCheck /> : undefined}
               onClick={() => onChange(v)}
             >
-              {v === "true" ? "켜짐" : "꺼짐"}
+              {v === "true" ? "체크" : "체크 해제"}
             </MenuItem>
           ))}
         </>
