@@ -1,5 +1,7 @@
 import type {
   MemoOptionColor,
+  MemoProperty,
+  MemoValues,
   MemoPropertyType,
   MemoSelectOption,
 } from "@cali/shared";
@@ -46,3 +48,15 @@ export const newOption = (
     color: colors[existing.length % colors.length]!,
   };
 };
+
+/** 칩으로 보여 줄 고른 선택지(선택·다중 선택 값, 속성 순서대로) */
+export const selectedOptions = (
+  values: MemoValues,
+  properties: MemoProperty[],
+): MemoSelectOption[] =>
+  properties.flatMap((p) => {
+    if (!hasOptions(p.type)) return [];
+    const v = values[String(p.id)];
+    const ids = Array.isArray(v) ? v : typeof v === "string" ? [v] : [];
+    return p.options.filter((o) => ids.includes(o.id));
+  });

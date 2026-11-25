@@ -1,16 +1,6 @@
 import type { MemoProperty, MemoSummary } from "@cali/shared";
-import { optionClass } from "../memo-labels";
+import { optionClass, selectedOptions } from "../memo-labels";
 import styles from "../page.module.css";
-
-/** 목록에 칩으로 보여 줄 선택지(선택·다중 선택 값) */
-function chips(memo: MemoSummary, properties: MemoProperty[]) {
-  return properties.flatMap((p) => {
-    const v = memo.values[String(p.id)];
-    const ids = Array.isArray(v) ? v : typeof v === "string" ? [v] : [];
-    if (p.type !== "select" && p.type !== "multiSelect") return [];
-    return p.options.filter((o) => ids.includes(o.id));
-  });
-}
 
 function shortDate(iso: string) {
   const d = new Date(iso);
@@ -38,7 +28,7 @@ export default function MemoList({
   return (
     <ul className={styles.list}>
       {memos.map((m) => {
-        const tags = chips(m, properties);
+        const tags = selectedOptions(m.values, properties);
         return (
           <li key={m.id}>
             <button

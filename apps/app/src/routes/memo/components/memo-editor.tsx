@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import type { Memo, MemoProperty, MemoValue } from "@cali/shared";
-import { IconPlus, IconTrash } from "@/components/icons";
+import { IconChevron, IconPlus, IconTrash } from "@/components/icons";
 import { useMemosStore, type MemoSaveState } from "@/store/memos";
+import { optionClass, selectedOptions } from "../memo-labels";
 import { useConfirm } from "../use-confirm";
 import BlockEditor from "./block-editor";
 import { usePopover } from "./popover";
@@ -15,6 +17,16 @@ const SAVE_LABELS: Record<MemoSaveState, string> = {
   saving: "저장 중…",
   saved: "저장됨",
   error: "저장하지 못했습니다",
+};
+
+/** 속성 칸을 접었는지는 이 기기에 기억한다(메모마다가 아니라 한 번 접으면 다른 메모도 접힘) */
+const PROPERTIES_OPEN_KEY = "memo.propertiesOpen";
+const loadPropertiesOpen = () => {
+  try {
+    return localStorage.getItem(PROPERTIES_OPEN_KEY) !== "0";
+  } catch {
+    return true;
+  }
 };
 
 /** 편집 중인 메모. 메모가 바뀌면 부모가 key로 새로 만든다 */
@@ -33,6 +45,19 @@ export default function MemoEditor({
 }) {
   const remove = useConfirm();
   const [addMenuRef, addMenu] = usePopover();
+  const [propertiesOpen, setPropertiesOpen] = useState(loadPropertiesOpen);
+  useEffect(() => {
+    try {
+      localStorage.setItem(PROPERTIES_OPEN_KEY, propertiesOpen ? "1" : "0");
+    } catch {
+      // 기억 못 해도 이번 화면에선 그대로
+    }
+  }, [propertiesOpen]);
+  // 속성이 없으면 접을 것도 없다("속성 추가"만)
+  const showRows = propertiesOpen || properties.length === 0;
+  const collapsedChips = showRows
+    ? []
+    : selectedOptions(memo.values, properties);
 
   // 값을 고르는 창은 비동기(선택지 만들기)라 그사이 바뀐 값 위에 얹는다
   const setValue = (propertyId: number, value: MemoValue | undefined) => {
@@ -79,24 +104,49 @@ export default function MemoEditor({
       />
 
       <div className={ps.properties}>
-        {properties.map((p) => (
-          <PropertyRow
-            key={p.id}
-            property={p}
-            value={memo.values[String(p.id)]}
-            onChange={(value) => setValue(p.id, value)}
-          />
-        ))}
-        <button
-          ref={addMenuRef}
-          type="button"
-          className={ps.addProperty}
-          onClick={addMenu.toggle}
-        >
-          <IconPlus size={11} /> 속성 추가
-        </button>
-        {addMenu.open && (
-          <AddPropertyMenu anchor={addMenuRef} onClose={addMenu.close} />
+        {properties.length > 0 && (
+          <button
+            type="button"
+            className={ps.toggle}
+            aria-expanded={propertiesOpen}
+            title={propertiesOpen ? "속성 접기" : "속성 펼치기"}
+            onClick={() => setPropertiesOpen((o) => !o)}
+          >
+            <span
+              className={`${ps.toggleIcon}${propertiesOpen ? "" : ` ${ps.toggleIconClosed}`}`}
+            >
+              <IconChevron open={false} />
+            </span>
+            <span className={ps.toggleLabel}>속성 {properties.length}개</span>
+            {collapsedChips.map((o) => (
+              <span key={o.id} className={optionClass(o.color)}>
+                {o.name}
+              </span>
+            ))}
+          </button>
+        )}
+        {showRows && (
+          <>
+            {properties.map((p) => (
+              <PropertyRow
+                key={p.id}
+                property={p}
+                value={memo.values[String(p.id)]}
+                onChange={(value) => setValue(p.id, value)}
+              />
+            ))}
+            <button
+              ref={addMenuRef}
+              type="button"
+              className={ps.addProperty}
+              onClick={addMenu.toggle}
+            >
+              <IconPlus size={11} /> 속성 추가
+            </button>
+            {addMenu.open && (
+              <AddPropertyMenu anchor={addMenuRef} onClose={addMenu.close} />
+            )}
+          </>
         )}
       </div>
 
