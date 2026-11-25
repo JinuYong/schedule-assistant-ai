@@ -64,3 +64,9 @@
   display: inline-flex;
   color: var(--color-accent-hover);
 }
+
+/* 칩은 안쪽 여백이 있어 라벨과 떨어져 보이지만 글자 값은 붙어 보여서 조금 더 띄운다 */
+.name + .text,
+.name + .check {
+  margin-left: 3px;
+}
