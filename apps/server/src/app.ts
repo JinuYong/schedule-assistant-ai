@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { authRoutes, type AuthDeps } from "./auth/routes";
 import { memoRoutes, type MemoDeps } from "./memos/routes";
+import { placeRoutes, type PlaceDeps } from "./places/routes";
 import { todoRoutes, type TodoDeps } from "./todos/routes";
 
 export interface AppDeps {
@@ -11,6 +12,8 @@ export interface AppDeps {
   auth: AuthDeps;
   todos: TodoDeps;
   memos: MemoDeps;
+  /** 장소 검색. 없으면 /places가 503 */
+  places?: PlaceDeps;
 }
 
 export function createApp(deps: AppDeps) {
@@ -35,5 +38,6 @@ export function createApp(deps: AppDeps) {
     })
     .route("/", authRoutes(deps.auth))
     .route("/", todoRoutes(deps.auth, deps.todos))
-    .route("/", memoRoutes(deps.auth, deps.memos));
+    .route("/", memoRoutes(deps.auth, deps.memos))
+    .route("/", placeRoutes(deps.auth, deps.places ?? {}));
 }

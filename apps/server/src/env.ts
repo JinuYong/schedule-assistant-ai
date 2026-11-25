@@ -20,6 +20,9 @@ const schema = z.object({
     ),
   /** id_token의 aud로 받을 Google OAuth 클라이언트 ID들(쉼표로 구분). 앱의 VITE_GOOGLE_CLIENT_ID와 같은 값 */
   GOOGLE_CLIENT_IDS: z.string().min(1).transform(list),
+  /** NAVER API HUB 지역검색 인증키(ncloud → AI·NAVER API → Application). 비면 장소 검색만 503 */
+  NAVER_SEARCH_CLIENT_ID: z.string().trim().optional(),
+  NAVER_SEARCH_CLIENT_SECRET: z.string().trim().optional(),
   PORT: z.coerce.number().int().positive().default(8787),
   CORS_ORIGINS: z.string().default(DEFAULT_CORS_ORIGINS).transform(list),
 });

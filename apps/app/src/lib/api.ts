@@ -11,6 +11,7 @@ import type {
   MemoPropertyResponse,
   MemoResponse,
   MemosResponse,
+  PlacesResponse,
   TodoChecklistItemResponse,
   TodoListResponse,
   TodoResponse,
@@ -164,4 +165,8 @@ export const api = {
     }),
   deleteMemoProperty: (token: string, id: number) =>
     request<void>(`/memo-properties/${id}`, { method: "DELETE", token }),
+
+  /** 네이버 지역검색(서버가 대신 부른다 — 키는 서버에만) */
+  places: (token: string, q: string) =>
+    request<PlacesResponse>(`/places?q=${encodeURIComponent(q)}`, { token }),
 };

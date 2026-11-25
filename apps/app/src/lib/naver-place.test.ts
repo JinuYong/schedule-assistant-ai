@@ -1,41 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-  stripHtmlTags,
-  toLocationString,
-  parsePlaceItems,
-} from "./naver-place";
+import { toLocationString } from "./naver-place";
 import {
   parseLocationLabel,
   isMappableLocation,
   stripAddressDetail,
   naverMapSearchUrl,
 } from "./location";
-
-describe("stripHtmlTags", () => {
-  it("검색어 강조 태그를 제거한다", () => {
-    expect(stripHtmlTags("<b>스타벅스</b> 역삼역점")).toBe("스타벅스 역삼역점");
-  });
-
-  it("HTML 엔티티를 복원한다", () => {
-    expect(stripHtmlTags("커피&amp;베이커리")).toBe("커피&베이커리");
-    expect(stripHtmlTags("&quot;맛집&quot;")).toBe('"맛집"');
-    expect(stripHtmlTags("Joe&#39;s Pizza")).toBe("Joe's Pizza");
-    expect(stripHtmlTags("A&nbsp;B")).toBe("A B");
-  });
-
-  it("태그와 엔티티가 섞여 있어도 정리한다", () => {
-    expect(stripHtmlTags("커피<b>&amp;</b>베이커리")).toBe("커피&베이커리");
-  });
-
-  it("이중 인코딩된 엔티티를 잘못 해석하지 않는다", () => {
-    // &amp;lt; 는 리터럴 "&lt;" 를 의미하므로 "<" 가 되어선 안 된다
-    expect(stripHtmlTags("&amp;lt;")).toBe("&lt;");
-  });
-
-  it("앞뒤 공백을 정리한다", () => {
-    expect(stripHtmlTags("  <b>카페</b>  ")).toBe("카페");
-  });
-});
 
 describe("toLocationString", () => {
   const base = { name: "", roadAddress: "", address: "", category: "" };
@@ -72,42 +42,6 @@ describe("toLocationString", () => {
         roadAddress: "서울특별시 강남구 테헤란로 123",
       }),
     ).toBe("서울특별시 강남구 테헤란로 123");
-  });
-});
-
-describe("parsePlaceItems", () => {
-  it("items를 PlaceResult로 변환하며 태그를 제거한다", () => {
-    const raw = {
-      items: [
-        {
-          title: "<b>스타벅스</b> 역삼역점",
-          roadAddress: "서울특별시 강남구 테헤란로 123",
-          address: "서울특별시 강남구 역삼동 737",
-          category: "음식점>카페",
-          telephone: "",
-        },
-      ],
-    };
-    expect(parsePlaceItems(raw)).toEqual([
-      {
-        name: "스타벅스 역삼역점",
-        roadAddress: "서울특별시 강남구 테헤란로 123",
-        address: "서울특별시 강남구 역삼동 737",
-        category: "음식점>카페",
-      },
-    ]);
-  });
-
-  it("items가 없거나 형태가 다르면 빈 배열", () => {
-    expect(parsePlaceItems(null)).toEqual([]);
-    expect(parsePlaceItems({})).toEqual([]);
-    expect(parsePlaceItems({ items: "nope" })).toEqual([]);
-  });
-
-  it("필드가 빠진 항목도 빈 문자열로 채운다", () => {
-    expect(parsePlaceItems({ items: [{ title: "카페" }] })).toEqual([
-      { name: "카페", roadAddress: "", address: "", category: "" },
-    ]);
   });
 });
 

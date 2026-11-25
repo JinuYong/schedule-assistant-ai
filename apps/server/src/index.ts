@@ -5,6 +5,7 @@ import { createDb } from "./db";
 import { runMigrations } from "./db/migrate";
 import { getEnv } from "./env";
 import { createDbMemoStore } from "./memos/store";
+import { createNaverPlaceSearch } from "./places/naver";
 import { createDbTodoStore } from "./todos/store";
 
 const env = getEnv();
@@ -25,7 +26,19 @@ const app = createApp({
   },
   todos: { store: createDbTodoStore(conn.db) },
   memos: { store: createDbMemoStore(conn.db) },
+  places: {
+    search:
+      env.NAVER_SEARCH_CLIENT_ID && env.NAVER_SEARCH_CLIENT_SECRET
+        ? createNaverPlaceSearch({
+            clientId: env.NAVER_SEARCH_CLIENT_ID,
+            clientSecret: env.NAVER_SEARCH_CLIENT_SECRET,
+          })
+        : undefined,
+  },
 });
+
+if (!env.NAVER_SEARCH_CLIENT_ID || !env.NAVER_SEARCH_CLIENT_SECRET)
+  console.warn("[startup] NAVER_SEARCH_* 가 없어 장소 검색이 꺼져 있습니다");
 
 console.log(`cali-api: http://localhost:${env.PORT}`);
 

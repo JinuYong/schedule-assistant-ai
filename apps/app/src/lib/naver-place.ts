@@ -1,36 +1,9 @@
-import { invoke } from "@tauri-apps/api/core";
-import { isTauri } from "./tauri-store";
+import { PLACE_QUERY_MAX, type PlaceResult } from "@cali/shared";
+import { api, ApiRequestError } from "@/lib/api";
+import { MOCK_ENABLED } from "@/lib/dev-mock";
+import { useAccountStore } from "@/store/account";
 
-export interface PlaceResult {
-  /** 상호명 (강조 태그·엔티티 정리됨) */
-  name: string;
-  /** 도로명주소 — 없으면 빈 문자열 */
-  roadAddress: string;
-  /** 지번주소 */
-  address: string;
-  /** "음식점>카페" 같은 분류 */
-  category: string;
-}
-
-/**
- * 네이버 검색 API 응답의 title/category에 섞여 오는 강조 태그와 HTML 엔티티를 정리한다.
- * "커피<b>&amp;</b>베이커리" → "커피&베이커리"
- */
-export function stripHtmlTags(raw: string): string {
-  return (
-    raw
-      .replace(/<[^>]*>/g, "")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#0?39;/g, "'")
-      .replace(/&apos;/g, "'")
-      .replace(/&nbsp;/g, " ")
-      // &amp; 는 마지막에 — 먼저 풀면 "&amp;lt;" 같은 이중 인코딩이 잘못 해석된다
-      .replace(/&amp;/g, "&")
-      .trim()
-  );
-}
+export type { PlaceResult };
 
 /**
  * 검색 결과 → Google Calendar location 문자열.
@@ -48,36 +21,46 @@ export function toLocationString(place: PlaceResult): string {
   return `${place.name}, ${addr}`;
 }
 
-/** 네이버 지역검색 응답 items → PlaceResult[] */
-export function parsePlaceItems(raw: unknown): PlaceResult[] {
-  const items = (raw as { items?: unknown[] } | null)?.items;
-  if (!Array.isArray(items)) return [];
-  return items.map((it) => {
-    const o = (it ?? {}) as Record<string, unknown>;
-    const str = (k: string) =>
-      typeof o[k] === "string" ? (o[k] as string) : "";
-    return {
-      name: stripHtmlTags(str("title")),
-      roadAddress: stripHtmlTags(str("roadAddress")),
-      address: stripHtmlTags(str("address")),
-      category: stripHtmlTags(str("category")),
-    };
-  });
-}
+const PLACE_ERRORS: Partial<Record<string, string>> = {
+  rate_limited: "오늘 장소 검색을 너무 많이 했어요. 내일 다시 시도해 주세요.",
+  unavailable: "지금은 장소 검색을 쓸 수 없어요.",
+  upstream_error:
+    "네이버 장소 검색이 응답하지 않아요. 잠시 뒤 다시 시도해 주세요.",
+};
 
 /**
- * 상호명/장소명으로 네이버 지역검색.
- *
- * 인증키는 앱 빌드 시 Rust 바이너리에 구워지므로(`src-tauri/build.rs`) 프론트엔드는
- * 검색어만 넘긴다. 사용자가 키를 발급받거나 입력할 필요가 없다.
+ * 상호명/장소명으로 네이버 지역검색. Cali 서버가 대신 부른다(`GET /places`) —
+ * 인증키는 서버에만 있어 앱 파일에서 뽑아낼 수 없다.
  */
 export async function searchPlaces(query: string): Promise<PlaceResult[]> {
   const q = query.trim();
   if (!q) return [];
-  if (!isTauri()) {
-    throw new Error("장소 검색은 앱 환경에서만 동작합니다.");
+  if (MOCK_ENABLED) return mockPlaces(q);
+  const token = useAccountStore.getState().session?.token;
+  if (!token) throw new Error("로그인이 필요합니다.");
+  try {
+    return (await api.places(token, q.slice(0, PLACE_QUERY_MAX))).places;
+  } catch (e) {
+    const message =
+      e instanceof ApiRequestError && e.code ? PLACE_ERRORS[e.code] : undefined;
+    throw message ? new Error(message) : e;
   }
+}
 
-  const raw = await invoke("search_places", { query: q });
-  return parsePlaceItems(raw);
+/** 더미 모드(브라우저 개발)용 결과 */
+function mockPlaces(q: string): PlaceResult[] {
+  return [
+    {
+      name: `${q} 강남점`,
+      roadAddress: "서울특별시 강남구 테헤란로 123",
+      address: "서울특별시 강남구 역삼동 737",
+      category: "음식점>카페",
+    },
+    {
+      name: `${q} 역삼점`,
+      roadAddress: "",
+      address: "서울특별시 강남구 역삼동 825",
+      category: "음식점>카페",
+    },
+  ];
 }

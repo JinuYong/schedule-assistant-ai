@@ -25,7 +25,17 @@ export interface MeResponse {
   user: PublicUser;
 }
 
-/** 4xx 응답 본문 */
+/** 4xx·5xx 응답 본문 */
 export interface ApiError {
-  error: "invalid_body" | "invalid_token" | "unauthorized" | "not_found";
+  error:
+    | "invalid_body"
+    | "invalid_token"
+    | "unauthorized"
+    | "not_found"
+    /** 사용자별 하루 한도를 넘음(장소 검색) */
+    | "rate_limited"
+    /** 서버에 외부 API 키가 없음(장소 검색) */
+    | "unavailable"
+    /** 외부 API(네이버)가 실패 */
+    | "upstream_error";
 }

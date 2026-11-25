@@ -3,7 +3,6 @@ mod error;
 mod floating_macos;
 mod notification;
 mod oauth;
-mod places;
 
 use tauri::Manager;
 
@@ -33,7 +32,6 @@ pub fn run() {
             notification::send_os_notification,
             oauth::exchange_google_token,
             oauth::refresh_google_token,
-            places::search_places,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
