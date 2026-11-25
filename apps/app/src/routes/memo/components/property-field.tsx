@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { MemoProperty, MemoValue } from "@cali/shared";
 import { IconNavigate } from "@/components/icons";
+import { cleanNumberInput, parseNumberInput } from "@/lib/number-input";
 import { openUrl } from "@/lib/open-url";
 import SelectField from "./select-field";
 import styles from "./property.module.css";
@@ -17,14 +18,7 @@ export default function PropertyField({
 }) {
   switch (property.type) {
     case "text":
-      return (
-        <input
-          className={styles.value}
-          value={typeof value === "string" ? value : ""}
-          placeholder="비어 있음"
-          onChange={(e) => onChange(e.target.value || undefined)}
-        />
-      );
+      return <TextField value={value} onChange={onChange} />;
     case "url":
       return <UrlField value={value} onChange={onChange} />;
     case "number":
@@ -50,7 +44,48 @@ export default function PropertyField({
   }
 }
 
-/** 숫자는 입력 중 글자("1.", "-")를 들고 있다가 숫자가 되면 올린다 */
+/**
+ * 여러 줄 글. 노션처럼 Enter는 입력 끝내기, Shift+Enter가 줄바꿈.
+ * 줄 수만큼 칸이 늘어난다(field-sizing은 Safari 26부터라 높이를 직접 맞춘다).
+ */
+function TextField({
+  value,
+  onChange,
+}: {
+  value: MemoValue | undefined;
+  onChange: (value: MemoValue | undefined) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const text = typeof value === "string" ? value : "";
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [text]);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      className={`${styles.value} ${styles.textValue}`}
+      value={text}
+      placeholder="비어 있음"
+      maxLength={2000}
+      onChange={(e) => onChange(e.target.value || undefined)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
+/**
+ * 숫자: 숫자가 아닌 글자는 칸에 안 들어간다. 쓰는 중인 글자("-", "1.")는 칸에만 두고
+ * 숫자가 되면 올린다. 칸을 떠날 때 숫자가 아니면 저장된 값으로 되돌린다.
+ */
 function NumberField({
   value,
   onChange,
@@ -58,9 +93,8 @@ function NumberField({
   value: MemoValue | undefined;
   onChange: (value: MemoValue | undefined) => void;
 }) {
-  const [text, setText] = useState(
-    typeof value === "number" ? String(value) : "",
-  );
+  const saved = typeof value === "number" ? String(value) : "";
+  const [text, setText] = useState(saved);
   return (
     <input
       className={styles.value}
@@ -68,11 +102,16 @@ function NumberField({
       value={text}
       placeholder="비어 있음"
       onChange={(e) => {
-        setText(e.target.value);
-        const raw = e.target.value.trim();
-        const n = Number(raw);
-        if (!raw) onChange(undefined);
-        else if (Number.isFinite(n)) onChange(n);
+        const clean = cleanNumberInput(e.target.value);
+        setText(clean);
+        if (!clean) onChange(undefined);
+        else {
+          const n = parseNumberInput(clean);
+          if (n !== undefined) onChange(n);
+        }
+      }}
+      onBlur={() => {
+        if (text && parseNumberInput(text) === undefined) setText(saved);
       }}
     />
   );

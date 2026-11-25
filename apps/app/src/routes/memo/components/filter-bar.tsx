@@ -19,6 +19,7 @@ import {
   type MemoSort,
   type SortKey,
 } from "@/lib/memo-query";
+import { cleanNumberInput } from "@/lib/number-input";
 import { optionClass } from "../memo-labels";
 import Popover, {
   MenuDivider,
@@ -382,7 +383,13 @@ function FilterValue({
                   : "기준 숫자"
                 : "값 입력"
             }
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) =>
+              onChange(
+                property.type === "number"
+                  ? cleanNumberInput(e.target.value)
+                  : e.target.value,
+              )
+            }
           />
         </div>
       );
