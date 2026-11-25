@@ -144,7 +144,7 @@ export function queryMemos(
   properties: MemoProperty[],
   filters: MemoFilter[],
   sort: MemoSort,
-  /** 조건에 안 맞아도 남길 메모(편집 중인 것 — 고치는 사이 목록에서 사라지지 않게) */
+  /** 조건에 안 맞아도 남길 메모(거르기를 건 뒤 만들거나 고친 것 — 고치는 사이 목록에서 사라지지 않게) */
   keepId?: number | null,
 ): MemoSummary[] {
   const byId = new Map(properties.map((p) => [p.id, p]));

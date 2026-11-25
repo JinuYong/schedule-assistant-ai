@@ -48,6 +48,9 @@ export default function MemoPage() {
 
   const [query, setQuery] = useState(() => useMemosStore.getState().query);
   const [view, setView] = useState(loadView);
+  // 거르기를 건 뒤에 만들거나 고친 메모는 조건에 안 맞게 돼도 목록에 남긴다(고치는 사이 사라지지 않게).
+  // 그냥 열어 둔 메모는 남기지 않는다 — 조건을 바꾸거나 다른 메모를 열면 풀린다.
+  const [stickyId, setStickyId] = useState<number | null>(null);
 
   useEffect(() => {
     void fetchMemos();
@@ -77,8 +80,15 @@ export default function MemoPage() {
     const matched = matchIds
       ? memos.filter((m) => matchIds.includes(m.id))
       : memos;
-    return queryMemos(matched, properties, view.filters, view.sort, selectedId);
-  }, [memos, matchIds, properties, view, selectedId]);
+    return queryMemos(matched, properties, view.filters, view.sort, stickyId);
+  }, [memos, matchIds, properties, view, stickyId]);
+
+  const newMemo = async () => {
+    const before = useMemosStore.getState().selectedId;
+    await createMemo();
+    const after = useMemosStore.getState().selectedId;
+    if (after !== null && after !== before) setStickyId(after);
+  };
 
   const narrowed = matchIds !== null || view.filters.length > 0;
 
@@ -91,7 +101,7 @@ export default function MemoPage() {
           <button
             type="button"
             className={styles.primaryBtn}
-            onClick={() => void createMemo()}
+            onClick={() => void newMemo()}
           >
             <IconPlus /> 새 메모
           </button>
@@ -112,7 +122,10 @@ export default function MemoPage() {
           properties={properties}
           filters={view.filters}
           sort={view.sort}
-          onFiltersChange={(filters) => setView((v) => ({ ...v, filters }))}
+          onFiltersChange={(filters) => {
+            setStickyId(null);
+            setView((v) => ({ ...v, filters }));
+          }}
           onSortChange={(sort) => setView((v) => ({ ...v, sort }))}
         />
 
@@ -127,7 +140,10 @@ export default function MemoPage() {
             memos={visible}
             properties={properties}
             selectedId={selectedId}
-            onSelect={(id) => void select(id)}
+            onSelect={(id) => {
+              if (id !== stickyId) setStickyId(null);
+              void select(id);
+            }}
           />
         ) : (
           !isLoading &&
@@ -146,7 +162,10 @@ export default function MemoPage() {
             memo={current}
             properties={properties}
             saveState={saveState}
-            onEdit={editCurrent}
+            onEdit={(patch) => {
+              setStickyId(current.id);
+              editCurrent(patch);
+            }}
             onDelete={() => void deleteMemo(current.id)}
           />
         ) : (
@@ -159,7 +178,7 @@ export default function MemoPage() {
                 <button
                   type="button"
                   className={styles.primaryBtn}
-                  onClick={() => void createMemo()}
+                  onClick={() => void newMemo()}
                 >
                   <IconPlus /> 새 메모
                 </button>
