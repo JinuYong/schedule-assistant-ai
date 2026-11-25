@@ -148,7 +148,7 @@ apps/app/
 │   │   ├── main-layout.tsx      # 사이드바 + <Outlet /> + 토스트
 │   │   ├── schedule/            # Google Calendar 일정 (컨테이너 page.tsx)
 │   │   │   ├── calendar-utils.ts  # 달력 그리드 계산 + 일정 폼 타입/상수 (schedule 로컬)
-│   │   │   ├── hooks/           # use-today-info / use-side-panel-width / use-event-drag
+│   │   │   ├── hooks/           # use-today-info / use-event-drag
 │   │   │   └── components/      # calendar-grid, event-list, todo-groups, *-modal
 │   │   ├── chat/                # Claude AI 채팅 + 브리핑
 │   │   ├── todo/                # 할일 목록 (components/: 목록 머리·이름 입력·완료됨)
@@ -163,6 +163,7 @@ apps/app/
 │   │   └── icons.tsx            # 공통 아이콘 컴포넌트 (평탄화)
 │   ├── hooks/                   # 페이지 간 공유 훅
 │   │   ├── use-todo-actions.ts  # 할일 행 동작(완료·중요·삭제·체크리스트, schedule·todo 공용)
+│   │   ├── use-resizable-width.ts # 끌어서 패널 넓이 조절(일정 오른쪽 패널·메모 목록, localStorage 기억)
 │   │   └── use-oauth-connection.ts # OAuth 연결 상태/흐름
 │   ├── lib/
 │   │   ├── claude.ts            # Claude API (invoke "call_claude" / "stream_chat")

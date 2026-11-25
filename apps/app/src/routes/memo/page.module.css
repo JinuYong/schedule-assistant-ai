@@ -8,8 +8,7 @@
 /* 목록 ---------------------------------------------------------------------- */
 
 .listPane {
-  width: 320px;
-  flex-shrink: 0;
+  flex-shrink: 0; /* 넓이는 page.tsx가 style로(끌어서 조절) */
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -17,6 +16,40 @@
   border-right: 1px solid var(--color-border);
   background: var(--color-bg);
   overflow-y: auto;
+}
+
+/* 목록과 편집기 사이 손잡이: 폭 0인 기둥에 양옆 4px 잡을 곳, 올리면 테마색 선 */
+.resizer {
+  position: relative;
+  z-index: 5;
+  width: 0;
+  flex-shrink: 0;
+  cursor: col-resize;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+.resizer::before {
+  content: "";
+  position: absolute;
+  inset: 0 -4px;
+}
+
+.resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  width: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.resizer:hover::after,
+.resizer:active::after {
+  background: var(--color-accent);
 }
 
 .listHeader {

@@ -6,6 +6,7 @@ import {
   type MemoFilter,
   type MemoSort,
 } from "@/lib/memo-query";
+import { useResizableWidth } from "@/hooks/use-resizable-width";
 import { useMemosStore } from "@/store/memos";
 import FilterBar from "./components/filter-bar";
 import MemoEditor from "./components/memo-editor";
@@ -62,6 +63,14 @@ export default function MemoPage() {
 
   const [query, setQuery] = useState(() => useMemosStore.getState().query);
   const [view, setView] = useState(loadView);
+  // 목록 패널: 오른쪽 가장자리를 끌어 넓이 조절(두 번 누르면 기본 넓이)
+  const { width: listWidth, handleProps: listHandleProps } = useResizableWidth({
+    storageKey: "memo.listWidth",
+    initial: 320,
+    min: 240,
+    max: 560,
+    edge: "end",
+  });
   // 거르기를 건 뒤에 만들거나 고친 메모는 조건에 안 맞게 돼도 목록에 남긴다(고치는 사이 사라지지 않게).
   // 그냥 열어 둔 메모는 남기지 않는다 — 조건을 바꾸거나 다른 메모를 열면 풀린다.
   const [stickyId, setStickyId] = useState<number | null>(null);
@@ -112,7 +121,7 @@ export default function MemoPage() {
 
   return (
     <div className={styles.page}>
-      <aside className={styles.listPane}>
+      <aside className={styles.listPane} style={{ width: listWidth }}>
         <div className={styles.listHeader}>
           <h1 className={styles.heading}>메모</h1>
           {isLoading && <span className={styles.loadingDot} />}
@@ -174,6 +183,14 @@ export default function MemoPage() {
           )
         )}
       </aside>
+      <div
+        className={styles.resizer}
+        role="separator"
+        aria-orientation="vertical"
+        aria-valuenow={listWidth}
+        title="끌어서 목록 넓이 조절 · 두 번 누르면 기본 넓이"
+        {...listHandleProps}
+      />
 
       <section className={styles.editorPane}>
         {current ? (

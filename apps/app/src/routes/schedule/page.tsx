@@ -43,7 +43,7 @@ import {
   type TodoFormState,
 } from "@/lib/todo-form";
 import { useTodayInfo } from "./hooks/use-today-info";
-import { useSidePanelWidth } from "./hooks/use-side-panel-width";
+import { useResizableWidth } from "@/hooks/use-resizable-width";
 import { useEventDrag } from "./hooks/use-event-drag";
 import { useTodoActions } from "@/hooks/use-todo-actions";
 import { useScheduleCommand } from "@/hooks/use-schedule-command";
@@ -98,12 +98,15 @@ export default function SchedulePage() {
   }, [refreshTodayInfo]);
 
   // 우측 패널 너비 (드래그 리사이즈)
-  const {
-    sidePanelWidth,
-    handleSidePointerDown,
-    handleSidePointerMove,
-    handleSidePointerUp,
-  } = useSidePanelWidth();
+  // 오른쪽 패널: 왼쪽 가장자리를 끌어 넓이 조절(예전 키 그대로 써서 넓이 유지)
+  const { width: sidePanelWidth, handleProps: sidePanelHandleProps } =
+    useResizableWidth({
+      storageKey: "schedule-side-width",
+      initial: 280,
+      min: 200,
+      max: 500,
+      edge: "start",
+    });
 
   // 캘린더 목록 로드
   useEffect(() => {
@@ -747,12 +750,7 @@ export default function SchedulePage() {
 
         {/* ── 우측: 선택된 날 일정 + 할일 ── */}
         <div className={styles.sidePanel}>
-          <div
-            className={styles.sidePanelHandle}
-            onPointerDown={handleSidePointerDown}
-            onPointerMove={handleSidePointerMove}
-            onPointerUp={handleSidePointerUp}
-          />
+          <div className={styles.sidePanelHandle} {...sidePanelHandleProps} />
           <div className={styles.sidePanelContent}>
             <h2 className={styles.dayTitle}>{formatDateLabel(selectedDate)}</h2>
             <section>
