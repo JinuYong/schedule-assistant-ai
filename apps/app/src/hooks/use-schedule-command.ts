@@ -6,18 +6,8 @@ import {
   type KeyboardEvent,
 } from "react";
 import {
-  parseScheduleText,
-  parseEditCommand,
-  type ParsedEventChanges,
-} from "@/lib/claude";
-import {
-  createEvent,
-  updateEvent,
-  deleteEvent,
   listEventsInRange,
-  buildEventFromParsed,
   type CalendarListItem,
-  type GCalEvent,
 } from "@/lib/google-calendar";
 import { CalendarEvent, mapGCalEvent } from "@/store/events";
 import {
@@ -25,22 +15,20 @@ import {
   matchCalendar,
   parseDateHint,
 } from "@/lib/event-match";
-import { canEditEvent, writableCalendars } from "@/lib/calendar-access";
+import { canEditEvent } from "@/lib/calendar-access";
+import type { AiEntry } from "@/store/ai";
 
 export type CommandStatus = "idle" | "loading" | "done" | "error";
-export type CommandAction = "create" | "update" | "delete";
 
 export interface ScheduleCommandDeps {
   /** 자동완성 매칭 대상이 되는 현재 로드된 이벤트들 */
   events: CalendarEvent[];
-  /** 신규 생성 시 캘린더 매칭(쓸 수 있는 것만), 수정·삭제 후보 거르기(읽기 전용 캘린더 일정 제외)에 사용 */
+  /** 수정·삭제 후보 거르기(읽기 전용 캘린더 일정 제외)에 사용 */
   calendars: CalendarListItem[];
-  /** 캘린더 미지정 시 사용할 기본 캘린더 ID (설정의 기본 캘린더 또는 primary) */
-  defaultCalendarId: string;
-  /** 유효한 Google access token 확보 (없으면 null) */
+  /** 유효한 Google access token 확보 (없으면 null) — 날짜 표현 후보 조회용 */
   getToken: () => Promise<string | null>;
-  /** 생성/수정/삭제 성공 후 갱신 처리 */
-  onMutated: (action: CommandAction) => void | Promise<void>;
+  /** AI에 부탁하고 끝날 때까지 기다린다(메인 창은 store, 플로팅은 메인 창에 이벤트로) */
+  ask: (text: string, target?: CalendarEvent) => Promise<AiEntry>;
   /** 에러 메시지 표시 (없으면 무시) */
   onError?: (msg: string) => void;
 }
@@ -51,17 +39,17 @@ export interface ScheduleCommandDeps {
  * 흐름:
  * - 입력 중 기존 일정과 매칭되면 자동완성 후보 노출(AI 호출 없음)
  * - 후보를 ↑↓로 고른 뒤 Enter/Tab → 해당 일정을 "대상"으로 지정(lock, 제출 아님)
- * - 대상 지정 상태에서 명령("삭제", "오후 7시로 변경")을 입력하고 Enter → 수정/삭제 실행
- * - 대상 미지정 상태에서 Enter → 신규 생성
+ * - Enter → AI에 부탁(대상이 있으면 "고른 일정"으로 함께). 무엇을 할지(추가·수정·삭제·답)는 AI가 정한다
  */
 export function useScheduleCommand(deps: ScheduleCommandDeps) {
-  const { events, calendars, defaultCalendarId, getToken, onMutated, onError } =
-    deps;
+  const { events, calendars, getToken, ask, onError } = deps;
   const [input, setInputState] = useState("");
   const [status, setStatus] = useState<CommandStatus>("idle");
   const [activeIndex, setActiveIndex] = useState(-1);
   const [dismissed, setDismissed] = useState(false);
   const [lockedTarget, setLockedTarget] = useState<CalendarEvent | null>(null);
+  /** 마지막 AI 답(입력창 아래에 보여 준다) */
+  const [result, setResult] = useState<AiEntry | null>(null);
 
   // 날짜 표현이 있으면 그날 일정을 직접 조회 (로드 안 된 달도 매칭되도록)
   const dateHint = useMemo(() => parseDateHint(input), [input]);
@@ -136,105 +124,30 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
   }, []);
 
   const clearLock = useCallback(() => setLockedTarget(null), []);
+  const clearResult = useCallback(() => setResult(null), []);
 
   const submit = useCallback(async () => {
     if (status === "loading") return;
     const text = input.trim();
-
-    if (lockedTarget) {
-      if (!text) {
-        onError?.(
-          "수정 또는 삭제 명령을 입력하세요 (예: 삭제, 오후 7시로 변경)",
-        );
-        return;
-      }
-      setStatus("loading");
-      try {
-        const token = await getToken();
-        if (!token) throw new Error("Google 계정 연결이 필요합니다.");
-        const now = new Date().toLocaleString("ko-KR", {
-          timeZone: "Asia/Seoul",
-        });
-        const cmd = await parseEditCommand(text, now, {
-          title: lockedTarget.title,
-          startTime: lockedTarget.startTime,
-          endTime: lockedTarget.endTime,
-          location: lockedTarget.location,
-          isAllDay: lockedTarget.isAllDay,
-        });
-        if (!cmd) throw new Error("명령을 이해하지 못했습니다.");
-        const calId = lockedTarget.calendarId ?? "primary";
-        if (cmd.action === "delete") {
-          await deleteEvent(token, lockedTarget.id, calId);
-          reset();
-          setStatus("done");
-          await onMutated("delete");
-        } else {
-          const body = buildUpdateBody(cmd.changes, lockedTarget);
-          if (Object.keys(body).length === 0)
-            throw new Error("수정할 내용을 인식하지 못했습니다.");
-          await updateEvent(token, lockedTarget.id, body, calId);
-          reset();
-          setStatus("done");
-          await onMutated("update");
-        }
-        setTimeout(() => setStatus("idle"), 1500);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "처리에 실패했습니다.";
-        console.error("[schedule-command] 수정/삭제 실패:", e);
-        onError?.(msg);
-        setStatus("error");
-        setTimeout(() => setStatus("idle"), 2000);
-      }
+    if (!text) {
+      if (lockedTarget)
+        onError?.("고른 일정에 할 일을 입력하세요 (예: 삭제, 오후 7시로 변경)");
       return;
     }
-
-    // 신규 생성
-    if (!text) return;
     setStatus("loading");
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Google 계정 연결이 필요합니다.");
-      const now = new Date().toLocaleString("ko-KR", {
-        timeZone: "Asia/Seoul",
-      });
-      const writable = writableCalendars(calendars);
-      const parsed = await parseScheduleText(
-        text,
-        now,
-        writable.map((c) => c.summary),
-      );
-      if (!parsed) throw new Error("파싱 실패");
-      const matched = parsed.calendarName
-        ? matchCalendar(parsed.calendarName, writable)
-        : undefined;
-      await createEvent(
-        token,
-        buildEventFromParsed(parsed),
-        matched?.id ?? defaultCalendarId,
-      );
-      reset();
-      setStatus("done");
-      await onMutated("create");
-      setTimeout(() => setStatus("idle"), 1500);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "일정 추가에 실패했습니다.";
-      console.error("[schedule-command] 생성 실패:", e);
-      onError?.(msg);
+    setResult(null);
+    const entry = await ask(text, lockedTarget ?? undefined);
+    if (entry.status === "error") {
+      onError?.(entry.error ?? "처리에 실패했습니다.");
       setStatus("error");
       setTimeout(() => setStatus("idle"), 2000);
+      return;
     }
-  }, [
-    input,
-    status,
-    lockedTarget,
-    getToken,
-    calendars,
-    defaultCalendarId,
-    onMutated,
-    onError,
-    reset,
-  ]);
+    reset();
+    setResult(entry);
+    setStatus("done");
+    setTimeout(() => setStatus("idle"), 1500);
+  }, [input, status, lockedTarget, ask, onError, reset]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -291,34 +204,7 @@ export function useScheduleCommand(deps: ScheduleCommandDeps) {
     handleKeyDown,
     submit,
     reset,
+    result,
+    clearResult,
   };
-}
-
-/** 수정 명령의 변경분(ParsedEventChanges)을 Google Calendar PATCH 본문으로 변환 */
-function buildUpdateBody(
-  changes: ParsedEventChanges,
-  target: CalendarEvent,
-): Partial<GCalEvent> {
-  const body: Partial<GCalEvent> = {};
-  if (changes.title) body.summary = changes.title;
-  if (changes.location !== undefined)
-    body.location = changes.location || undefined;
-
-  const timeChanged =
-    changes.startTime !== undefined ||
-    changes.endTime !== undefined ||
-    changes.isAllDay !== undefined;
-  if (timeChanged) {
-    const isAllDay = changes.isAllDay ?? target.isAllDay;
-    const start = changes.startTime ?? target.startTime;
-    const end = changes.endTime ?? target.endTime;
-    if (isAllDay) {
-      body.start = { date: start.split("T")[0] };
-      body.end = { date: end.split("T")[0] };
-    } else {
-      body.start = { dateTime: start, timeZone: "Asia/Seoul" };
-      body.end = { dateTime: end, timeZone: "Asia/Seoul" };
-    }
-  }
-  return body;
 }

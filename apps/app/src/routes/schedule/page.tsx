@@ -48,6 +48,7 @@ import { useResizableWidth } from "@/hooks/use-resizable-width";
 import { useEventDrag } from "./hooks/use-event-drag";
 import { useTodoActions } from "@/hooks/use-todo-actions";
 import { useScheduleCommand } from "@/hooks/use-schedule-command";
+import { useAiStore, waitForEntry } from "@/store/ai";
 import { useDefaultCalendarId } from "@/hooks/use-default-calendar";
 import CalendarGrid from "./components/calendar-grid";
 import EventList from "./components/event-list";
@@ -362,25 +363,22 @@ export default function SchedulePage() {
     clearLock: clearQuickLock,
     handleKeyDown: onQuickKeyDown,
     submit: submitQuickCommand,
+    result: quickResult,
+    clearResult: clearQuickResult,
   } = useScheduleCommand({
     events,
     calendars,
-    defaultCalendarId,
     getToken: useCallback(
       async () => (await refreshGoogle())?.access_token ?? null,
       [refreshGoogle],
     ),
-    onMutated: useCallback(async () => {
-      invalidateCache();
-      const tokens = await refreshGoogle();
-      if (tokens?.access_token) {
-        await fetchEvents(
-          tokens.access_token,
-          gridRangeRef.current.timeMin,
-          gridRangeRef.current.timeMax,
-        );
-      }
-    }, [refreshGoogle, invalidateCache, fetchEvents]),
+    ask: useCallback(
+      (text: string, target?: CalendarEvent) =>
+        waitForEntry(
+          useAiStore.getState().ask({ text, origin: "schedule", target }),
+        ),
+      [],
+    ),
     onError: showToast,
   });
 
@@ -624,12 +622,15 @@ export default function SchedulePage() {
           <input
             className={styles.quickAddInput}
             value={quickInput}
-            onChange={(e) => setQuickInput(e.target.value)}
+            onChange={(e) => {
+              setQuickInput(e.target.value);
+              clearQuickResult();
+            }}
             onKeyDown={onQuickKeyDown}
             placeholder={
               quickLockedTarget
-                ? "수정/삭제 명령 입력 (예: 삭제, 오후 7시로 변경)"
-                : "자연어로 일정 추가 (예: 내일 오후 3시 팀 미팅 회사 캘린더에)"
+                ? "이 일정에 할 일 (예: 삭제, 오후 7시로 옮겨줘)"
+                : "AI에게 말하기 (예: 내일 오후 3시 팀 미팅, 다음 주 월요일 회의 취소)"
             }
             disabled={quickStatus === "loading"}
             autoComplete="off"
@@ -649,7 +650,8 @@ export default function SchedulePage() {
                 ))
               ) : (
                 <li className={styles.quickDropdownHint}>
-                  ↑↓로 대상 지정 후 명령 입력 · 지정 없이 Enter는 새 일정
+                  ↑↓로 일정을 고른 뒤 할 일 입력 · 고르지 않고 Enter는 그대로
+                  AI에게
                 </li>
               )}
               {quickMatches.map((ev, i) => (
@@ -685,16 +687,37 @@ export default function SchedulePage() {
           }
         >
           {quickStatus === "loading"
-            ? "분석 중..."
+            ? "처리 중..."
             : quickStatus === "done"
               ? "완료 ✓"
               : quickStatus === "error"
                 ? "오류 ✗"
-                : quickLockedTarget
-                  ? "실행"
-                  : "추가"}
+                : "보내기"}
         </button>
       </form>
+      {quickResult && (quickResult.reply || quickResult.actions.length > 0) && (
+        <div className={styles.quickReply} role="status">
+          {quickResult.reply && (
+            <p className={styles.quickReplyText}>{quickResult.reply}</p>
+          )}
+          {quickResult.actions.map((a, i) => (
+            <p
+              key={i}
+              className={`${styles.quickReplyAction} ${a.ok ? "" : styles.quickReplyActionFailed}`}
+            >
+              {a.ok ? "✓" : "✗"} {a.text}
+            </p>
+          ))}
+          <button
+            type="button"
+            className={styles.quickReplyClose}
+            onClick={clearQuickResult}
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* 달력(좌) + 일정·할일(우) 2컬럼 레이아웃 */}
       <div

@@ -61,6 +61,49 @@
   margin-bottom: 16px;
 }
 
+/* AI 답 (빠른 입력 아래) */
+.quickReply {
+  position: relative;
+  margin: -8px 0 16px;
+  padding: 10px 36px 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-ultra-soft);
+  border: 1px solid var(--color-accent-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.quickReplyText {
+  color: var(--color-text-primary);
+  white-space: pre-line;
+}
+
+.quickReplyAction {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.quickReplyText + .quickReplyAction {
+  margin-top: 4px;
+}
+
+.quickReplyActionFailed {
+  color: var(--color-danger);
+}
+
+.quickReplyClose {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
+.quickReplyClose:hover {
+  opacity: 1;
+}
+
 .quickAddInputWrap {
   position: relative;
   flex: 1;

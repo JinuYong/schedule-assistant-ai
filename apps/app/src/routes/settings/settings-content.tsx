@@ -9,13 +9,16 @@ import { useGoogleSignIn } from "@/hooks/use-google-sign-in";
 import { DEFAULT_CALENDAR_KEY } from "@/hooks/use-default-calendar";
 import { DEFAULT_SHORTCUT } from "@/lib/hotkey";
 import { fireNotification } from "@/lib/notifications";
+import { getGeminiKey, setGeminiKey } from "@/lib/ai/settings";
+import { GEMINI_MODEL } from "@/lib/ai/gemini";
+import { openUrl } from "@/lib/open-url";
 import styles from "./page.module.css";
 
 export default function SettingsContent() {
   const { googleTokens, refreshGoogle } = useAuthStore();
   const { accentColor, setTheme } = useThemeStore();
 
-  const [anthropicKey, setAnthropicKey] = useState("");
+  const [geminiKey, setGeminiKeyInput] = useState("");
   const [shortcut, setShortcut] = useState(DEFAULT_SHORTCUT);
   const [isRecording, setIsRecording] = useState(false);
   const [shortcutError, setShortcutError] = useState("");
@@ -57,13 +60,13 @@ export default function SettingsContent() {
 
   useEffect(() => {
     (async () => {
-      setAnthropicKey((await storeGet<string>("anthropic.apiKey")) ?? "");
+      setGeminiKeyInput((await getGeminiKey()) ?? "");
       setShortcut((await storeGet<string>("hotkey")) ?? DEFAULT_SHORTCUT);
     })();
   }, []);
 
   const saveKeys = async () => {
-    await storeSet("anthropic.apiKey", anthropicKey);
+    await setGeminiKey(geminiKey);
     setSavedKeys(true);
     setTimeout(() => setSavedKeys(false), 2000);
   };
@@ -164,24 +167,42 @@ export default function SettingsContent() {
         </div>
       </section>
 
-      {/* API 키 */}
+      {/* AI */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>API 키 설정</h2>
+          <h2 className={styles.sectionTitle}>AI</h2>
         </div>
         <p className={styles.description}>
-          앱 사용에 필요한 API 키를 입력합니다. 암호화되어 로컬에 저장됩니다.
+          플로팅 창·일정 입력·AI 브리핑이 같은 AI({GEMINI_MODEL})를 써요. 지금은
+          본인 Gemini API 키로 동작해요. 키는 이 Mac에만 저장돼요.
         </p>
         <div className={styles.fieldGroup}>
-          <label className={styles.label}>Anthropic API Key</label>
+          <label className={styles.label} htmlFor="gemini-key">
+            Gemini API Key
+          </label>
           <input
+            id="gemini-key"
             className={styles.shortcutInput}
             type="password"
-            value={anthropicKey}
-            onChange={(e) => setAnthropicKey(e.target.value)}
-            placeholder="sk-ant-..."
+            value={geminiKey}
+            onChange={(e) => setGeminiKeyInput(e.target.value)}
+            placeholder="AIza..."
+            autoComplete="off"
           />
         </div>
+        <p className={styles.hint}>
+          키는{" "}
+          <button
+            type="button"
+            className={styles.linkBtn}
+            onClick={() => void openUrl("https://aistudio.google.com/apikey")}
+          >
+            Google AI Studio
+          </button>
+          에서 무료로 만들 수 있어요. 결제를 연결하지 않은 프로젝트의 키는 무료
+          한도 안에서만 쓰이고, 무료 사용분은 Google이 서비스 개선에 쓸 수
+          있어요.
+        </p>
         <button
           className={styles.saveBtn}
           onClick={saveKeys}
@@ -190,7 +211,9 @@ export default function SettingsContent() {
           {savedKeys ? "저장됨 ✓" : "저장"}
         </button>
         {!isTauri() && (
-          <p className={styles.hint}>※ Tauri 앱 환경에서만 저장됩니다.</p>
+          <p className={styles.hint}>
+            ※ 브라우저 개발 모드에선 이 브라우저에만 저장돼요.
+          </p>
         )}
       </section>
 

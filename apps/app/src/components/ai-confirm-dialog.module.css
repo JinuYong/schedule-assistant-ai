@@ -1,0 +1,80 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  padding: 22px 24px 18px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.45;
+}
+
+.detail {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.cancel,
+.ok {
+  height: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  font-size: var(--control-font);
+  transition: background 0.15s;
+}
+
+.cancel {
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.cancel:hover {
+  background: var(--color-bg);
+}
+
+.ok {
+  background: var(--color-accent);
+  color: #fff;
+  font-weight: 500;
+}
+
+.ok:hover {
+  background: var(--color-accent-hover);
+}
+
+.ok.danger {
+  background: var(--color-danger);
+}
+
+.ok.danger:hover {
+  filter: brightness(0.92);
+}

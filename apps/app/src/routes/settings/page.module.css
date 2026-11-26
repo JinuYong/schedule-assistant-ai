@@ -227,3 +227,15 @@ select.shortcutInput {
 .saveBtn:hover {
   background: var(--color-accent-hover);
 }
+
+/* 문장 안 링크(시스템 브라우저로 연다) */
+.linkBtn {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -83,6 +83,62 @@
   background: var(--color-accent-hover);
 }
 
+/* AI 답·확인 — 높이는 page.tsx가 재서 창을 맞춘다. 그림자 없음(.notice 주석 참고) */
+.panel {
+  width: 100%;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  line-height: 1.5;
+  /* 너무 긴 답은 잘라 창이 화면을 덮지 않게 */
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.panelText {
+  color: var(--color-text-primary);
+  white-space: pre-line;
+}
+
+.panelAction {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.panelText + .panelAction {
+  margin-top: 4px;
+}
+
+.panelError {
+  color: var(--color-danger);
+}
+
+.panelButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.panelCancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-h-sm);
+  padding: 0 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--control-font-sm);
+  cursor: pointer;
+}
+
 .kbd {
   font-family: inherit;
   font-size: 11px;

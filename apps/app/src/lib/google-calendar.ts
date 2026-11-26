@@ -3,7 +3,6 @@
 import { useAuthStore } from "@/store/auth";
 import { createAuthenticatedFetch } from "./authenticated-fetch";
 import { MOCK_ENABLED, MOCK_CALENDARS } from "./dev-mock";
-import type { ParsedEvent } from "./claude";
 
 const BASE = "https://www.googleapis.com/calendar/v3";
 
@@ -148,25 +147,6 @@ export async function listEventsInRange(
   );
 
   return dedup(results.flat());
-}
-
-/** parseScheduleText 결과(ParsedEvent)를 Google Calendar 이벤트 본문으로 변환 */
-export function buildEventFromParsed(parsed: ParsedEvent): GCalEvent {
-  return {
-    id: "",
-    summary: parsed.title,
-    description: parsed.description,
-    location: parsed.location,
-    ...(parsed.isAllDay
-      ? {
-          start: { date: parsed.startTime.split("T")[0] },
-          end: { date: parsed.endTime.split("T")[0] },
-        }
-      : {
-          start: { dateTime: parsed.startTime, timeZone: "Asia/Seoul" },
-          end: { dateTime: parsed.endTime, timeZone: "Asia/Seoul" },
-        }),
-  };
 }
 
 export async function createEvent(

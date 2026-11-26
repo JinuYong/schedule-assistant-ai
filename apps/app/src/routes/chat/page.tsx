@@ -1,89 +1,33 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { streamChat } from "@/lib/claude";
-import { useEventsStore } from "@/store/events";
-import { useChatStore, ChatMessage } from "@/store/chat";
-import { showToast } from "@/store/toast";
+import { Fragment, useRef, useEffect, useMemo, useCallback } from "react";
+import { useAiStore } from "@/store/ai";
 import styles from "./page.module.css";
 
-function buildSystemPrompt(
-  events: ReturnType<typeof useEventsStore.getState>["events"],
-): string {
-  const now = new Date();
-  const todayStr = now.toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "short",
-  });
-  const todayKey = now.toISOString().split("T")[0]; // YYYY-MM-DD
+const SUGGESTIONS = [
+  "오늘 일정 요약해줘",
+  "이번 주에 뭐 있어?",
+  "내일 오후 3시에 치과 넣어줘",
+];
 
-  const todayEvents = events.filter((ev) => ev.startTime.startsWith(todayKey));
-  const upcomingEvents = events
-    .filter(
-      (ev) =>
-        ev.startTime > now.toISOString() && !ev.startTime.startsWith(todayKey),
-    )
-    .slice(0, 5);
-
-  let context = `당신은 AI 일정 관리 비서입니다. 오늘은 ${todayStr}입니다. 현재 시각: ${now.toLocaleTimeString("ko-KR")}.`;
-
-  if (todayEvents.length > 0) {
-    const list = todayEvents
-      .map((ev) => {
-        const time = ev.isAllDay
-          ? "종일"
-          : new Date(ev.startTime).toLocaleTimeString("ko-KR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-        return `- ${time} ${ev.title}${ev.location ? ` (${ev.location})` : ""}`;
-      })
-      .join("\n");
-    context += `\n\n오늘 일정:\n${list}`;
-  } else {
-    context += "\n\n오늘 등록된 일정이 없습니다.";
-  }
-
-  if (upcomingEvents.length > 0) {
-    const list = upcomingEvents
-      .map((ev) => {
-        const date = new Date(ev.startTime).toLocaleDateString("ko-KR", {
-          month: "short",
-          day: "numeric",
-        });
-        const time = ev.isAllDay
-          ? "종일"
-          : new Date(ev.startTime).toLocaleTimeString("ko-KR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-        return `- ${date} ${time} ${ev.title}`;
-      })
-      .join("\n");
-    context += `\n\n다가오는 일정:\n${list}`;
-  }
-
-  context += "\n\n사용자의 질문에 한국어로 친절하고 간결하게 답변해주세요.";
-  return context;
-}
-
+/**
+ * AI 채팅. 세션은 플로팅·일정 빠른 입력과 같이 쓰지만(맥락 공유), 여기엔 채팅에서 한 말만 보인다.
+ */
 export default function ChatPage() {
-  const { messages, setMessages, input, setInput, clear } = useChatStore();
-  const [isStreaming, setIsStreaming] = useState(false);
+  const allEntries = useAiStore((s) => s.entries);
+  const entries = useMemo(
+    () => allEntries.filter((e) => e.origin === "chat"),
+    [allEntries],
+  );
+  const draft = useAiStore((s) => s.chatDraft);
+  const setDraft = useAiStore((s) => s.setChatDraft);
+  const ask = useAiStore((s) => s.ask);
+  const newSession = useAiStore((s) => s.newSession);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const cleanupRef = useRef<(() => void) | null>(null);
-  const events = useEventsStore((s) => s.events);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
-    return () => {
-      cleanupRef.current?.();
-    };
-  }, []);
+  }, [entries]);
 
   // textarea 자동 높이.
   // box-sizing이 border-box라 scrollHeight(= content + padding)만 넣으면
@@ -97,59 +41,21 @@ export default function ChatPage() {
     el.style.height = `${Math.min(el.scrollHeight + border, 160)}px`;
   };
 
-  const sendMessage = useCallback(async () => {
-    const text = input.trim();
-    if (!text || isStreaming) return;
-
-    const newMessages: ChatMessage[] = [
-      ...messages,
-      { role: "user", content: text },
-    ];
-    setMessages([...newMessages, { role: "assistant", content: "" }]);
-    setInput("");
+  const send = useCallback(() => {
+    const text = draft.trim();
+    // 앞 요청이 끝나지 않았어도 보낸다(세션이 줄을 세워 차례로 처리)
+    if (!text) return;
+    ask({ text, origin: "chat" });
+    setDraft("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-    setIsStreaming(true);
-
-    try {
-      const system = buildSystemPrompt(events);
-      const cleanup = await streamChat(
-        newMessages.map((m) => ({ role: m.role, content: m.content })),
-        (chunk) => {
-          setMessages((prev) => {
-            const updated = [...prev];
-            updated[updated.length - 1] = {
-              role: "assistant",
-              content: (updated[updated.length - 1]?.content ?? "") + chunk,
-            };
-            return updated;
-          });
-        },
-        () => setIsStreaming(false),
-        system,
-      );
-      cleanupRef.current = cleanup;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const displayMsg = msg.includes("API 키")
-        ? msg
-        : `${msg}\n\n설정에서 Anthropic API 키를 확인해주세요.`;
-      showToast(displayMsg);
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: displayMsg,
-        };
-        return updated;
-      });
-      setIsStreaming(false);
-    }
-  }, [input, isStreaming, messages, events, setMessages, setInput]);
+  }, [draft, ask, setDraft]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // 한글 조합 중 Enter는 글자 확정이다(보내면 마지막 글자가 남는다)
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      send();
     }
   };
 
@@ -157,31 +63,27 @@ export default function ChatPage() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>AI 브리핑</h1>
-        {messages.length > 0 && (
-          <button
-            className={styles.clearBtn}
-            onClick={clear}
-            disabled={isStreaming}
-          >
+        {entries.length > 0 && (
+          <button className={styles.clearBtn} onClick={newSession}>
             새 대화
           </button>
         )}
       </div>
 
       <div className={styles.messageArea}>
-        {messages.length === 0 && (
+        {entries.length === 0 && (
           <div className={styles.welcome}>
             <p className={styles.welcomeTitle}>무엇이든 물어보세요</p>
+            <p className={styles.welcomeHint}>
+              일정을 묻고, 만들고, 옮기고, 지울 수 있어요. 플로팅 창에서 한 일도
+              기억해요.
+            </p>
             <div className={styles.suggestions}>
-              {[
-                "오늘 일정 요약해줘",
-                "이번 주 할일 뭐 있어?",
-                "내일 회의 준비 체크리스트",
-              ].map((s) => (
+              {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   className={styles.suggestionChip}
-                  onClick={() => setInput(s)}
+                  onClick={() => setDraft(s)}
                 >
                   {s}
                 </button>
@@ -190,18 +92,39 @@ export default function ChatPage() {
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`${styles.message} ${msg.role === "user" ? styles.userMessage : styles.assistantMessage}`}
-          >
-            <div className={styles.bubble}>
-              {msg.content ||
-                (isStreaming && i === messages.length - 1 ? (
-                  <span className={styles.cursor} />
-                ) : null)}
+        {entries.map((entry) => (
+          <Fragment key={entry.id}>
+            <div className={`${styles.message} ${styles.userMessage}`}>
+              <div className={styles.bubble}>{entry.text}</div>
             </div>
-          </div>
+            <div className={`${styles.message} ${styles.assistantMessage}`}>
+              <div
+                className={`${styles.bubble} ${entry.status === "error" ? styles.errorBubble : ""}`}
+                data-status={entry.status}
+              >
+                {entry.status === "error"
+                  ? entry.error
+                  : entry.reply ||
+                    (entry.status === "done" ? (
+                      "완료했어요."
+                    ) : (
+                      <span className={styles.cursor} />
+                    ))}
+                {entry.actions.length > 0 && (
+                  <ul className={styles.actions}>
+                    {entry.actions.map((a, i) => (
+                      <li
+                        key={i}
+                        className={a.ok ? styles.actionOk : styles.actionFailed}
+                      >
+                        {a.ok ? "✓" : "✗"} {a.text}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </Fragment>
         ))}
         <div ref={bottomRef} />
       </div>
@@ -210,20 +133,19 @@ export default function ChatPage() {
         <textarea
           ref={textareaRef}
           className={styles.textarea}
-          value={input}
+          value={draft}
           onChange={(e) => {
-            setInput(e.target.value);
+            setDraft(e.target.value);
             adjustHeight();
           }}
           onKeyDown={handleKeyDown}
           placeholder="메시지를 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)"
           rows={1}
-          disabled={isStreaming}
         />
         <button
           className={styles.sendBtn}
-          onClick={sendMessage}
-          disabled={!input.trim() || isStreaming}
+          onClick={send}
+          disabled={!draft.trim()}
         >
           전송
         </button>
