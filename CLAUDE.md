@@ -56,7 +56,7 @@ bun run --cwd apps/server db:migrate        # 마이그레이션만 적용 (서�
 | 프론트엔드    | **Vite** + React 19 + TypeScript, 라우팅은 **TanStack Router**(코드 기반, `src/router.tsx`)                                                                |
 | 스타일링      | **CSS Modules** (`.module.css`) — Tailwind 사용 **절대 금지**                                                                                              |
 | 상태 관리     | Zustand                                                                                                                                                    |
-| AI            | Claude API (Rust `reqwest` 경유, CORS 우회)                                                                                                                |
+| AI            | **AI 하나 + 도구**(`src/lib/ai/`): 지금은 Gemini `gemini-3.5-flash-lite`(본인 키, 웹뷰에서 바로 fetch). 세션은 메인 창 `store/ai.ts`                       |
 | 캘린더        | Google Calendar REST API (직접 fetch)                                                                                                                      |
 | 할일          | Cali 서버 `/todos`·`/todo-lists` (`src/lib/api.ts`, 세션 Bearer)                                                                                           |
 | 메모          | Cali 서버 `/memos`·`/memo-properties`, 본문 편집기 **BlockNote**(`@blocknote/mantine`, 코드 블록 강조 `@blocknote/code-block`, 메모 화면과 함께 지연 로드) |
@@ -130,7 +130,7 @@ apps/app/
 │   ├── src/
 │   │   ├── main.rs              # 진입점
 │   │   ├── lib.rs               # run() 빌더 (setup·invoke_handler·run-event)
-│   │   ├── claude.rs            # call_claude / stream_chat
+│   │   ├── claude.rs            # call_claude / stream_chat (안 씀 — Anthropic 어댑터 때 정리)
 │   │   ├── oauth.rs             # Google 토큰 교환·갱신
 │   │   ├── floating_macos.rs    # 플로팅 창 (NSPanel) + 전역 단축키
 │   │   └── error.rs             # auth_error/oauth_error 문자열 헬퍼
@@ -145,12 +145,12 @@ apps/app/
 │   ├── router.tsx               # 라우트 트리: / → /schedule, 레이아웃 아래 schedule·todo·memo(지연 로드)·chat·settings
 │   ├── globals.css              # CSS 변수 정의
 │   ├── routes/                  # 메인 창 화면 (화면마다 page.tsx)
-│   │   ├── main-layout.tsx      # 사이드바 + <Outlet /> + 토스트
+│   │   ├── main-layout.tsx      # 사이드바 + <Outlet /> + 토스트 + AI 실행기(useAiRunner)·확인 창
 │   │   ├── schedule/            # Google Calendar 일정 (컨테이너 page.tsx)
 │   │   │   ├── calendar-utils.ts  # 달력 그리드 계산 + 일정 폼 타입/상수 (schedule 로컬)
 │   │   │   ├── hooks/           # use-today-info / use-event-drag
 │   │   │   └── components/      # calendar-grid, event-list, todo-groups, *-modal
-│   │   ├── chat/                # Claude AI 채팅 + 브리핑
+│   │   ├── chat/                # AI 채팅(세션의 채팅 출처 항목만 보임)
 │   │   ├── todo/                # 할일 목록 (components/: 목록 머리·이름 입력·완료됨)
 │   │   ├── memo/                # 메모: 왼쪽 목록(검색 + 거르기·정렬 팝오버) + 오른쪽 편집기(노션식 속성 행·BlockNote). 팝오버는 components/popover.tsx. router.tsx에서 지연 로드
 │   │   └── settings/            # OAuth 연동, 테마, 단축키 설정
@@ -164,10 +164,12 @@ apps/app/
 │   ├── hooks/                   # 페이지 간 공유 훅
 │   │   ├── use-todo-actions.ts  # 할일 행 동작(완료·중요·삭제·체크리스트, schedule·todo 공용)
 │   │   ├── use-resizable-width.ts # 끌어서 패널 넓이 조절(일정 오른쪽 패널·메모 목록, localStorage 기억)
+│   │   ├── use-schedule-command.ts # 자연어 입력창(일정 빠른 입력·플로팅): 자동완성·대상 고르기 + AI에 부탁
+│   │   ├── use-ai-runner.ts     # 메인 창에서 AI 세션에 공급자·일정 백엔드를 꽂고 플로팅 다리를 연다
 │   │   └── use-oauth-connection.ts # OAuth 연결 상태/흐름
 │   ├── lib/
-│   │   ├── claude.ts            # Claude API (invoke "call_claude" / "stream_chat")
-│   │   ├── google-calendar.ts   # Google Calendar REST API + buildEventFromParsed
+│   │   ├── ai/                  # AI 하나 + 도구 (아래 "AI" 절)
+│   │   ├── google-calendar.ts   # Google Calendar REST API
 │   │   ├── api.ts               # Cali 서버 호출 단일 진입점 (로그인·할일)
 │   │   ├── todo-form.ts         # 할일 폼 상태/빌더 (TodoFormState·buildTodoBody 등, 공유)
 │   │   ├── event-match.ts       # 이벤트 자동완성·매칭 (matchEventsByText·parseDateHint·matchCalendar, 공유)
@@ -194,6 +196,7 @@ apps/app/
 │       ├── events.ts            # 캘린더 이벤트 캐시 + 알림 스케줄
 │       ├── todos.ts             # 할일·목록·완료됨 (서버 응답 반영, 알림 재예약)
 │       ├── memos.ts             # 메모·속성, 자동 저장(입력 멈추고 0.7초, 못 보낸 건 localStorage `memo.unsaved`에 백업 → 다음 조회 때 재전송)
+│       ├── ai.ts                # AI 세션(대화 기록·일정 별칭·줄·확인 대기), 메인 창 전용
 │       ├── toast.ts            # 토스트 알림 상태 (Zustand)
 │       └── theme.ts             # 테마 색상 (Zustand + localStorage)
 ├── index.html                   # 메인 창 진입 HTML → src/main.tsx
@@ -223,27 +226,27 @@ apps/app/
 - `TauriInit.tsx` → `tauri-plugin-global-shortcut`으로 단축키 등록
 - 단축키 트리거 → `floating-window.ts`의 `WebviewWindow.getByLabel("floating")`으로 토글
 
-### 3. 자연어 → 일정 파이프라인
+### 3. AI — 하나 + 도구 (`src/lib/ai/`, `store/ai.ts`)
+
+플로팅 창·일정 빠른 입력·채팅이 **같은 세션**을 쓴다. 무엇을 할지(조회·추가·수정·삭제·답)는 AI가 도구로 정한다.
 
 ```
-플로팅창 입력
-  → invoke("call_claude", { apiKey, body })   # Rust로 Claude API 호출 (CORS 우회)
-  → Claude structured output (일정 정보 추출)
-  → createEvent() → Google Calendar REST API
-  → useEventsStore.fetchEvents() → 캐시 갱신 + 알림 재스케줄
+입력(origin: floating·schedule·chat) → store/ai.ts ask() → 줄(하나씩)
+  → agent.ts runAgent: 공급자.generate → 도구 호출 → (수정·삭제면 확인 창) → 실행 → 결과 → 반복(최대 6단계)
+  → 일정이 바뀌면 emit("calendar-mutated") → 일정 화면이 다시 읽음
 ```
 
-### 4. Claude 스트리밍 채팅
+- **실행은 메인 창에서만.** 메인 창은 닫아도 숨김이라 살아 있다. 플로팅은 `bridge.ts`로 부탁(`ai:request`)하고 진행(`ai:entry`)·확인(`ai:confirm`/`ai:confirm-answer`)을 이벤트로 주고받는다. 메인이 4초 안에 받지 않으면 실패
+- 공급자 중립 형식(`types.ts`) ↔ 공급자 어댑터. 지금은 `gemini.ts`(SSE 스트리밍, 503 한 번 재시도, Gemini 3 `thoughtSignature` 보존을 위해 원본 `raw`를 그대로 다시 보냄)
+- 일정 도구(`calendar-tools.ts`): `list_events`·`create_event`·`update_event`·`delete_event`. 일정 id는 짧은 별칭(e1…)으로 준다. 종일 끝은 도구 형식에서 **포함하는 마지막 날**, Google로 보낼 때 +1일(`calendar-time.ts` — 모델이 다음 날 00:00·23:59:59로 줘도 맞춤). 읽기 전용 캘린더는 막음
+- 백엔드는 주입: 실제 `google-backend.ts`, 더미 모드 `mock-backend.ts`(메모리, 화면 store에 반영), 시험 `memory-calendar.ts`
+- 자동완성으로 고른 일정은 메시지 앞에 `[고른 일정: e3 ‘팀 회의’ 11/30(월) 10:00~11:00]`로 붙는다
+- 확인 거절이면 모델에 다시 묻지 않고 "취소했어요."로 끝낸다. 날짜가 바뀌거나 "새 대화"면 세션 초기화. 기록은 40메시지에서 사용자 말 단위로 자른다
+- 채팅 탭엔 채팅에서 한 말만 보인다(맥락은 공유). 답은 마크다운 없이(작은 창에 그대로 보여서)
+- 더미 모드 확인: 키는 localStorage `dev.gemini.apiKey`(설정 화면이 브라우저에선 여기에 저장)
+- 다음 갈래(로드맵 5단계): 할일·메모 도구 → 기본 AI(서버가 무료 Gemini 키로 중계) → Anthropic → 로컬 CLI(MCP)
 
-```
-streamChat() 호출
-  → listen("chat-chunk") / listen("chat-done") 리스너 등록
-  → invoke("stream_chat", ...) 비동기 실행 (await 없이)
-  → Rust SSE 파싱 → window.emit("chat-chunk", text) per delta
-  → 프론트엔드에서 실시간으로 메시지 누적
-```
-
-### 5. OAuth 흐름 (Google)
+### 4. OAuth 흐름 (Google)
 
 ```
 start() → 로컬 OAuth 서버 시작 (포트 자동 할당)
@@ -255,7 +258,7 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
   → id_token으로 Cali 서버 로그인 (store/account.ts)
 ```
 
-### 6. 테마 시스템
+### 5. 테마 시스템
 
 - `THEME_COLORS` 배열에 5가지 색상 정의 (핑크, 퍼플, 로즈, 골드, 시안)
 - `ThemeApplier.tsx`가 `document.documentElement.style.setProperty`로 CSS 변수 동적 설정:
@@ -265,7 +268,7 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
   - `--color-accent-ultra-soft` (rgba 8% — 사이드바 hover 배경)
 - localStorage + tauri-store 양쪽에 저장
 
-### 7. 알림 시스템
+### 6. 알림 시스템
 
 - `fetchEvents()` 호출 시 `scheduleEventNotifications()` 자동 실행
 - 각 이벤트 시작 **15분 전** setTimeout 등록
@@ -278,8 +281,8 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 
 | 커맨드                  | 모듈              | 역할                                                                        |
 | ----------------------- | ----------------- | --------------------------------------------------------------------------- |
-| `call_claude`           | claude.rs         | Claude API 비스트리밍 호출 (일정 파싱용)                                    |
-| `stream_chat`           | claude.rs         | Claude SSE 스트리밍 → `chat-chunk` / `chat-done` Tauri 이벤트 emit          |
+| `call_claude`           | claude.rs         | (안 씀) Claude API 비스트리밍 호출 — Anthropic 어댑터 때 정리               |
+| `stream_chat`           | claude.rs         | (안 씀) Claude SSE 스트리밍 — 〃                                            |
 | `exchange_google_token` | oauth.rs          | Google OAuth code → tokens 교환                                             |
 | `refresh_google_token`  | oauth.rs          | Google access token 갱신                                                    |
 | `show_floating`         | floating_macos.rs | 플로팅 창 표시 (macOS NSPanel: orderFrontRegardless + makeKeyAndOrderFront) |
@@ -292,7 +295,8 @@ open(authUrl) → 시스템 브라우저에서 OAuth 인증
 
 | 키                         | 내용                                                             |
 | -------------------------- | ---------------------------------------------------------------- |
-| `anthropic.apiKey`         | Claude API 키                                                    |
+| `gemini.apiKey`            | Gemini API 키 (AI, 설정 화면)                                    |
+| `anthropic.apiKey`         | (안 씀) 예전 Claude API 키                                       |
 | `google.clientId`          | Google OAuth Client ID                                           |
 | `google.clientSecret`      | Google OAuth Client Secret                                       |
 | `google.tokens`            | Google 액세스/리프레시 토큰                                      |
@@ -365,7 +369,7 @@ NSTextField native overlay는 WKWebView가 이벤트를 가로채서 불가. HTM
 - `isTauri()` 체크로 Tauri/브라우저 환경 분기
 - `LazyStore` 생성자에 옵션 객체 전달하지 않음: `new LazyStore("app-store.json")`
 - Google Calendar API는 브라우저 fetch로 직접 호출 (CORS 지원)
-- Claude API / OAuth 토큰 교환은 Rust command 경유 (CORS 차단 + 보안)
+- OAuth 토큰 교환은 Rust command 경유(client_secret 보호). Gemini는 웹뷰에서 바로 fetch(CORS가 `tauri://localhost` 허용)
 
 ---
 
